@@ -18,6 +18,49 @@ void main() {
     final out = knockOutBackground(Uint8List.fromList(img.encodePng(image)));
     final result = img.decodeImage(out)!;
     expect(result.getPixel(0, 0).a, 0);
-    expect(result.getPixel(20, 20).a.toInt(), greaterThan(200));
+    expect(result.getPixel(result.width ~/ 2, result.height ~/ 2).a.toInt(), greaterThan(200));
+  });
+
+  test('knocks out a rounded card even when corners are already transparent', () {
+    final image = img.Image(width: 48, height: 48, numChannels: 4);
+    img.fill(image, color: img.ColorRgba8(0, 0, 0, 0));
+    img.fillRect(
+      image,
+      x1: 6,
+      y1: 6,
+      x2: 41,
+      y2: 41,
+      color: img.ColorRgba8(232, 251, 243, 255),
+    );
+    img.fillCircle(
+      image,
+      x: 24,
+      y: 24,
+      radius: 7,
+      color: img.ColorRgba8(255, 120, 170, 255),
+    );
+    final out = knockOutBackground(Uint8List.fromList(img.encodePng(image)));
+    final result = img.decodeImage(out)!;
+    expect(result.getPixel(0, 0).a, 0);
+    expect(result.getPixel(result.width ~/ 2, result.height ~/ 2).a.toInt(), greaterThan(200));
+    expect(result.width, lessThan(48));
+    expect(result.height, lessThan(48));
+  });
+
+  test('does not eat an isolated object on a transparent canvas', () {
+    final image = img.Image(width: 48, height: 48, numChannels: 4);
+    img.fill(image, color: img.ColorRgba8(0, 0, 0, 0));
+    img.fillCircle(
+      image,
+      x: 24,
+      y: 24,
+      radius: 7,
+      color: img.ColorRgba8(255, 120, 170, 255),
+    );
+    final out = knockOutBackground(Uint8List.fromList(img.encodePng(image)));
+    final result = img.decodeImage(out)!;
+    expect(result.getPixel(result.width ~/ 2, result.height ~/ 2).a.toInt(), greaterThan(200));
+    expect(result.width, lessThan(48));
+    expect(result.height, lessThan(48));
   });
 }

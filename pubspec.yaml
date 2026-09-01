@@ -46,6 +46,7 @@ flutter:
     - assets/doodles/
     - assets/doodles/cats/
     - assets/products/
+    - assets/parts/
     - assets/branding/
   fonts:
     - family: Fredoka

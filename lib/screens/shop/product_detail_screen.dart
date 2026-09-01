@@ -38,7 +38,7 @@ class ProductDetailScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(

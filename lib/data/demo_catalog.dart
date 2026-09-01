@@ -18,26 +18,49 @@ OwnerProfile get demoOwner => OwnerProfile(
       },
     );
 
+/// Inhaler-only art for the mix preview. Shop cards keep the full illustration.
+String? mixInhalerUrl(Product product) {
+  const parts = {
+    'p-baby-rex': 'asset:assets/parts/inhaler_pink.svg',
+    'p-sleepy-stego': 'asset:assets/parts/inhaler_yolk.svg',
+    'p-pastel-ptero': 'asset:assets/parts/inhaler_lilac.svg',
+    'p-cloud-trice': 'asset:assets/parts/inhaler_sky.svg',
+  };
+  return parts[product.id] ?? (product.imageUrls.isEmpty ? null : product.imageUrls.first);
+}
+
+/// Cord/charm-only art so mix + picker never stack full product cards.
+String? optionPreviewUrl(ProductOption option) {
+  const parts = {
+    'cord-mint': 'asset:assets/parts/cord_mint.svg',
+    'cord-blush': 'asset:assets/parts/cord_blush.svg',
+    'cord-sky': 'asset:assets/parts/cord_sky.svg',
+    't-rex': 'asset:assets/parts/charm_rex.svg',
+    't-stego': 'asset:assets/parts/charm_stego.svg',
+  };
+  return parts[option.id] ?? option.imageUrl;
+}
+
 List<ProductOption> get _demoCords => const [
       ProductOption(
         id: 'cord-mint',
         name: 'Mint paracord',
         price: 40,
-        imageUrl: 'asset:assets/products/baby_rex.svg',
+        imageUrl: 'asset:assets/parts/cord_mint.svg',
         stock: 8,
       ),
       ProductOption(
         id: 'cord-blush',
         name: 'Blush paracord',
         price: 40,
-        imageUrl: 'asset:assets/products/pastel_ptero.svg',
+        imageUrl: 'asset:assets/parts/cord_blush.svg',
         stock: 8,
       ),
       ProductOption(
         id: 'cord-sky',
         name: 'Sky paracord',
         price: 40,
-        imageUrl: 'asset:assets/products/cloud_trice.svg',
+        imageUrl: 'asset:assets/parts/cord_sky.svg',
         stock: 6,
       ),
     ];
@@ -47,14 +70,14 @@ List<ProductOption> get _demoTrinkets => const [
         id: 't-rex',
         name: 'Baby Rex',
         price: 80,
-        imageUrl: 'asset:assets/products/baby_rex.svg',
+        imageUrl: 'asset:assets/parts/charm_rex.svg',
         stock: 5,
       ),
       ProductOption(
         id: 't-stego',
         name: 'Sleepy Stego',
         price: 80,
-        imageUrl: 'asset:assets/products/sleepy_stego.svg',
+        imageUrl: 'asset:assets/parts/charm_stego.svg',
         stock: 5,
       ),
       ProductOption(

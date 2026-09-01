@@ -1,10 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../data/demo_catalog.dart';
 import '../../models/product.dart';
-import '../../theme/tokens.dart';
 import 'cutout_sprite.dart';
 
-class MixStage extends StatelessWidget {
+/// Compact mix of the inhaler with the chosen cord and charms in front.
+class MixStage extends StatefulWidget {
   const MixStage({
     super.key,
     required this.inhalerUrl,
@@ -16,107 +19,150 @@ class MixStage extends StatelessWidget {
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
 
-  static const _trinketSeats = <Alignment>[
-    Alignment(0.78, -0.08),
-    Alignment(-0.72, 0.18),
-    Alignment(0.62, 0.58),
-    Alignment(-0.55, -0.42),
-    Alignment(0.82, 0.28),
-    Alignment(-0.78, 0.58),
-  ];
+  @override
+  State<MixStage> createState() => _MixStageState();
+}
+
+class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin {
+  late final AnimationController _float;
+
+  @override
+  void initState() {
+    super.initState();
+    _float = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _float.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final height = (MediaQuery.sizeOf(context).height * 0.32).clamp(200.0, 280.0);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('YOUR LOOK', style: AppTypography.kicker),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: height,
+    return AnimatedBuilder(
+      animation: _float,
+      builder: (context, child) {
+        final bob = math.sin(_float.value * math.pi) * 3;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+          child: SizedBox(
+            height: 108,
             width: double.infinity,
-            child: DecoratedBox(
-              decoration: stickerFill(color: AppColors.cloud, radius: AppRadii.image),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.image - 4),
-                child: ColoredBox(
-                  color: const Color(0xFFFFF6FB),
-                  child: Stack(
-                    clipBehavior: Clip.hardEdge,
-                    children: [
-                      if (paracord?.imageUrl != null)
-                        Align(
-                          alignment: const Alignment(0, 0.62),
-                          child: FractionallySizedBox(
-                            widthFactor: 0.78,
-                            heightFactor: 0.42,
-                            child: Transform.rotate(
-                              angle: -0.16,
-                              child: _PopIn(
-                                id: 'cord-${paracord!.id}',
-                                child: CutoutSprite(url: paracord!.imageUrl!),
-                              ),
-                            ),
-                          ),
-                        ),
-                      Align(
-                        alignment: const Alignment(0, -0.12),
-                        child: FractionallySizedBox(
-                          widthFactor: 0.58,
-                          heightFactor: 0.78,
-                          child: inhalerUrl == null
-                              ? const ColoredBox(color: Colors.transparent)
-                              : _PopIn(
-                                  id: 'inhaler-$inhalerUrl',
-                                  child: CutoutSprite(url: inhalerUrl!),
-                                ),
-                        ),
-                      ),
-                      for (var i = 0; i < trinkets.length; i++)
-                        if (trinkets[i].imageUrl != null)
-                          Align(
-                            alignment: _trinketSeats[i % _trinketSeats.length],
-                            child: SizedBox(
-                              width: 78,
-                              height: 78,
-                              child: _PopIn(
-                                id: 't-${trinkets[i].id}',
-                                child: CutoutSprite(url: trinkets[i].imageUrl!),
-                              ),
-                            ),
-                          ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: Transform.translate(offset: Offset(0, bob), child: child),
           ),
-        ],
+        );
+      },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final inhalerW = math.min(64.0, w * 0.2);
+          final inhalerH = h * 0.88;
+          final cordUrl = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
+          final hasCord = cordUrl != null;
+          final cx = w / 2;
+          final cy = h / 2 + (hasCord ? -4 : 2);
+          final picked = [
+            for (final item in widget.trinkets)
+              if (optionPreviewUrl(item) != null) (item.id, optionPreviewUrl(item)!),
+          ];
+          final cordW = inhalerW * 1.7;
+          final cordH = inhalerH * 0.34;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (widget.inhalerUrl != null)
+                _piece(
+                  left: cx - inhalerW / 2,
+                  top: cy - inhalerH / 2,
+                  width: inhalerW,
+                  height: inhalerH,
+                  id: 'inhaler-${widget.inhalerUrl}',
+                  url: widget.inhalerUrl!,
+                ),
+              if (hasCord)
+                _piece(
+                  left: cx - cordW / 2,
+                  top: cy + inhalerH * 0.16,
+                  width: cordW,
+                  height: cordH,
+                  id: 'cord-${widget.paracord!.id}',
+                  url: cordUrl,
+                  angle: -0.06,
+                ),
+              for (var i = 0; i < picked.length; i++)
+                _trinket(
+                  index: i,
+                  count: picked.length,
+                  cx: cx + inhalerW * 0.18,
+                  cy: cy - inhalerH * 0.22,
+                  span: math.min(w * 0.16, 52),
+                  url: picked[i].$2,
+                  id: picked[i].$1,
+                ),
+            ],
+          );
+        },
       ),
     );
   }
-}
 
-class _PopIn extends StatelessWidget {
-  const _PopIn({required this.id, required this.child});
+  Widget _trinket({
+    required int index,
+    required int count,
+    required double cx,
+    required double cy,
+    required double span,
+    required String url,
+    required String id,
+  }) {
+    final t = count == 1 ? 0.0 : (index / (count - 1)) * 2 - 1;
+    final angle = t * 0.9;
+    final dx = math.sin(angle) * span;
+    final dy = -4 + (1 - math.cos(angle)) * 14;
+    return _piece(
+      left: cx + dx - 22,
+      top: cy + dy - 22,
+      width: 44,
+      height: 44,
+      id: 't-$id',
+      url: url,
+      angle: angle * 0.28,
+    );
+  }
 
-  final String id;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(id),
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutBack,
-      tween: Tween(begin: 0.82, end: 1),
-      builder: (context, value, child) {
-        return Transform.scale(scale: value, child: child);
-      },
-      child: child,
+  Widget _piece({
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required String id,
+    required String url,
+    double angle = 0,
+  }) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey(id),
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutBack,
+        tween: Tween(begin: 0.72, end: 1),
+        builder: (context, value, child) {
+          return Transform.rotate(
+            angle: angle,
+            child: Transform.scale(scale: value, child: child),
+          );
+        },
+        child: CutoutSprite(url: url),
+      ),
     );
   }
 }

@@ -78,13 +78,13 @@ Future<void> _seedOwnerAndCatalog() async {
 
 List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
   const paracords = [
-    {'id': 'cord-mint', 'name': 'Mint paracord', 'price': 40, 'image_url': 'asset:assets/products/baby_rex.svg', 'stock': 8},
-    {'id': 'cord-blush', 'name': 'Blush paracord', 'price': 40, 'image_url': 'asset:assets/products/pastel_ptero.svg', 'stock': 8},
-    {'id': 'cord-sky', 'name': 'Sky paracord', 'price': 40, 'image_url': 'asset:assets/products/cloud_trice.svg', 'stock': 6},
+    {'id': 'cord-mint', 'name': 'Mint paracord', 'price': 40, 'image_url': 'asset:assets/parts/cord_mint.svg', 'stock': 8},
+    {'id': 'cord-blush', 'name': 'Blush paracord', 'price': 40, 'image_url': 'asset:assets/parts/cord_blush.svg', 'stock': 8},
+    {'id': 'cord-sky', 'name': 'Sky paracord', 'price': 40, 'image_url': 'asset:assets/parts/cord_sky.svg', 'stock': 6},
   ];
   const trinkets = [
-    {'id': 't-rex', 'name': 'Baby Rex', 'price': 80, 'image_url': 'asset:assets/products/baby_rex.svg', 'stock': 5},
-    {'id': 't-stego', 'name': 'Sleepy Stego', 'price': 80, 'image_url': 'asset:assets/products/sleepy_stego.svg', 'stock': 5},
+    {'id': 't-rex', 'name': 'Baby Rex', 'price': 80, 'image_url': 'asset:assets/parts/charm_rex.svg', 'stock': 5},
+    {'id': 't-stego', 'name': 'Sleepy Stego', 'price': 80, 'image_url': 'asset:assets/parts/charm_stego.svg', 'stock': 5},
     {'id': 't-star', 'name': 'Tiny Star', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_sparkle.svg', 'stock': 12},
     {'id': 't-heart', 'name': 'Heart charm', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_heart.svg', 'stock': 12},
   ];

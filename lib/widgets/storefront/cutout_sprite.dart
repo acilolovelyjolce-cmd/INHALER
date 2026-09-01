@@ -18,16 +18,17 @@ class CutoutCache {
   final _inflight = <String, Future<Uint8List>>{};
 
   Future<Uint8List> load(String url) {
-    final hit = _ready[url];
+    final key = 'v4:$url';
+    final hit = _ready[key];
     if (hit != null) return Future.value(hit);
-    return _inflight.putIfAbsent(url, () async {
+    return _inflight.putIfAbsent(key, () async {
       try {
         final raw = await _loadRaw(url);
         final cut = kIsWeb ? knockOutBackground(raw) : await compute(knockOutBackground, raw);
-        _ready[url] = cut;
+        _ready[key] = cut;
         return cut;
       } finally {
-        _inflight.remove(url);
+        _inflight.remove(key);
       }
     });
   }
@@ -36,21 +37,35 @@ class CutoutCache {
     if (url.startsWith('asset:')) {
       final path = url.replaceFirst('asset:', '');
       if (path.endsWith('.svg')) {
-        return _rasterizeSvg(SvgAssetLoader(path));
+        final svg = _stripCardFill(await rootBundle.loadString(path));
+        return _rasterizeSvg(SvgStringLoader(svg));
       }
       final data = await rootBundle.load(path);
       return data.buffer.asUint8List();
     }
 
     final resolved = ApiClient.resolveMedia(url);
-    if (resolved.toLowerCase().contains('.svg')) {
-      return _rasterizeSvg(SvgNetworkLoader(resolved));
-    }
     final response = await http.get(Uri.parse(resolved));
     if (response.statusCode >= 400) {
       throw StateError('Could not load image');
     }
+    if (resolved.toLowerCase().contains('.svg') ||
+        (response.headers['content-type'] ?? '').contains('svg')) {
+      return _rasterizeSvg(SvgStringLoader(_stripCardFill(response.body)));
+    }
     return response.bodyBytes;
+  }
+
+  String _stripCardFill(String svg) {
+    return svg
+        .replaceFirst(
+          RegExp(r'<rect\s+width="[^"]+"\s+height="[^"]+"[^>]*fill="#[^"]+"[^/]*/>\s*'),
+          '',
+        )
+        .replaceFirst(
+          RegExp(r'<ellipse[^>]*opacity="0\.0[0-9]+"[^/]*/>\s*'),
+          '',
+        );
   }
 
   Future<Uint8List> _rasterizeSvg(BytesLoader loader) async {

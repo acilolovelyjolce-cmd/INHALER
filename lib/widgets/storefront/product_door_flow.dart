@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
+import '../../data/demo_catalog.dart';
 import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
@@ -148,7 +149,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
             },
           ),
           MixStage(
-            inhalerUrl: product.imageUrls.isEmpty ? null : product.imageUrls.first,
+            inhalerUrl: mixInhalerUrl(product),
             paracord: _paracord,
             trinkets: _trinkets.toList(),
           ),
@@ -173,10 +174,9 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                   child: switch (_door) {
                     _Door.meet => _MeetDoor(product: product),
                     _Door.paracord => _OptionGrid(
-                        title: 'One paracord',
                         subtitle: product.paracords.every((item) => item.stock <= 0)
                             ? 'These cords are all gone for now.'
-                            : 'Pick a single color for the cord.',
+                            : 'One color for the cord.',
                         options: product.paracords,
                         selectedIds: {
                           if (_paracord != null) _paracord!.id,
@@ -187,7 +187,6 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                         },
                       ),
                     _Door.trinkets => _OptionGrid(
-                        title: 'Trinkets',
                         subtitle: 'Tap as many as you like. Tap again to take one off.',
                         options: product.trinkets,
                         selectedIds: _trinkets.map((item) => item.id).toSet(),
@@ -223,7 +222,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
                 child: Row(
                   children: [
                     if (_index > 0)
@@ -271,19 +270,19 @@ class _DoorTrack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(24, 2, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label.toUpperCase(), style: AppTypography.kicker),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               for (var i = 0; i < total; i++) ...[
                 Expanded(
                   child: AnimatedContainer(
                     duration: AppMotion.hover,
-                    height: 10,
+                    height: 6,
                     decoration: BoxDecoration(
                       color: i <= index ? AppColors.petal : AppColors.cloud,
                       borderRadius: BorderRadius.circular(99),
@@ -309,7 +308,7 @@ class _MeetDoor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(28, 16, 28, 40),
       children: [
         if (product.stockStatus != StockStatus.available) ...[
           Align(
@@ -321,13 +320,13 @@ class _MeetDoor extends StatelessWidget {
                   : AppColors.meadow,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
         ],
         Text(product.name, style: AppTypography.displayMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text('from ${Formatters.php(product.price)}', style: AppTypography.title),
-        const SizedBox(height: 16),
-        Text(product.description, style: AppTypography.body),
+        const SizedBox(height: 28),
+        Text(product.description, style: AppTypography.body.copyWith(height: 1.55)),
       ],
     );
   }
@@ -335,14 +334,12 @@ class _MeetDoor extends StatelessWidget {
 
 class _OptionGrid extends StatelessWidget {
   const _OptionGrid({
-    required this.title,
     required this.subtitle,
     required this.options,
     required this.selectedIds,
     required this.onTap,
   });
 
-  final String title;
   final String subtitle;
   final List<ProductOption> options;
   final Set<String> selectedIds;
@@ -350,83 +347,75 @@ class _OptionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
-        Text(title, style: AppTypography.displaySmall),
-        const SizedBox(height: 8),
-        Text(subtitle, style: AppTypography.body),
-        const SizedBox(height: 24),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: options.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.86,
-          ),
-          itemBuilder: (context, index) {
-            final option = options[index];
-            final selected = selectedIds.contains(option.id);
-            final gone = option.stock <= 0;
-            return GestureDetector(
-              onTap: gone ? null : () => onTap(option),
-              child: AnimatedScale(
-                duration: AppMotion.squish,
-                scale: selected ? 1.02 : 1,
-                child: Opacity(
-                  opacity: gone ? 0.5 : 1,
-                  child: DecoratedBox(
-                    decoration: stickerFill(
-                      color: selected ? AppColors.petal : AppColors.cloud,
-                      radius: 26,
-                      pressed: selected,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: ColoredBox(
-                                color: const Color(0xFFFFF6FB),
-                                child: option.imageUrl == null
-                                    ? const SizedBox.expand()
-                                    : Padding(
-                                        padding: const EdgeInsets.all(8),
-                                        child: CutoutSprite(url: option.imageUrl!),
-                                      ),
-                              ),
-                            ),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+      itemCount: options.length + 1,
+      separatorBuilder: (context, index) => const SizedBox(height: 18),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Text(subtitle, style: AppTypography.body.copyWith(height: 1.45));
+        }
+        final option = options[index - 1];
+        final selected = selectedIds.contains(option.id);
+        final gone = option.stock <= 0;
+        return GestureDetector(
+          onTap: gone ? null : () => onTap(option),
+          child: AnimatedScale(
+            duration: AppMotion.squish,
+            scale: selected ? 1.01 : 1,
+            child: Opacity(
+              opacity: gone ? 0.5 : 1,
+              child: DecoratedBox(
+                decoration: stickerFill(
+                  color: selected ? AppColors.petal : AppColors.cloud,
+                  radius: 24,
+                  pressed: selected,
+                  stroke: AppStroke.inkThin,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: ColoredBox(
+                            color: const Color(0xFFFFF8FC),
+                            child: optionPreviewUrl(option) == null
+                                ? const SizedBox.expand()
+                                : Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: CutoutSprite(url: optionPreviewUrl(option)!),
+                                  ),
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            option.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.title.copyWith(fontSize: 15),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(Formatters.php(option.price), style: AppTypography.body),
-                          Text(
-                            gone ? 'sold out' : '${option.stock} left',
-                            style: AppTypography.bodySmall.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(option.name, style: AppTypography.title),
+                            const SizedBox(height: 6),
+                            Text(Formatters.php(option.price), style: AppTypography.body),
+                            const SizedBox(height: 4),
+                            Text(
+                              gone ? 'sold out' : '${option.stock} left',
+                              style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          },
-        ),
-      ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -453,10 +442,10 @@ class _SummaryDoor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(28, 16, 28, 40),
       children: [
         Text('YOUR MIX', style: AppTypography.kicker),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         DecoratedBox(
           decoration: stickerFill(color: AppColors.cloud, radius: 28),
           child: Padding(

@@ -1,19 +1,19 @@
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
-/// Makes a studio / paper background transparent by flooding in from the edges.
-/// Interior colors (white sleeves, pastel charms) stay put because the fill
-/// stops when it hits a different color.
+/// Floods in from the edges so paper, studio, and rounded-card fills drop out.
+/// Isolated objects on a transparent canvas are cropped, not eaten.
 Uint8List knockOutBackground(Uint8List bytes) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return bytes;
 
   var image = decoded;
-  const maxSide = 420;
+  const maxSide = 480;
   if (image.width > maxSide || image.height > maxSide) {
-    final scale = maxSide / (image.width > image.height ? image.width : image.height);
+    final scale = maxSide / math.max(image.width, image.height);
     image = img.copyResize(
       image,
       width: (image.width * scale).round().clamp(1, maxSide),
@@ -27,15 +27,25 @@ Uint8List knockOutBackground(Uint8List bytes) {
   final height = image.height;
   if (width < 4 || height < 4) return bytes;
 
-  final corner = image.getPixel(1, 1);
-  if (corner.a < 30) {
-    return Uint8List.fromList(img.encodePng(image));
+  final seed = _edgeFillSeed(image);
+  if (seed != null) {
+    final before = image.clone();
+    _floodKnockout(image, seed);
+    final lost = _opaqueLostFraction(before, image);
+    if (lost < 0.08 || lost > 0.97) {
+      image = before;
+    }
   }
 
-  final seedR = _cornerAverage(image, (p) => p.r.toInt());
-  final seedG = _cornerAverage(image, (p) => p.g.toInt());
-  final seedB = _cornerAverage(image, (p) => p.b.toInt());
-  const thresholdSq = 46 * 46;
+  final cropped = _cropToOpaque(image);
+  return Uint8List.fromList(img.encodePng(cropped));
+}
+
+void _floodKnockout(img.Image image, (int, int, int) seed) {
+  final width = image.width;
+  final height = image.height;
+  const hardSq = 52 * 52;
+  const softSq = 78 * 78;
 
   final visited = List<bool>.filled(width * height, false);
   final queue = Queue<int>();
@@ -46,9 +56,15 @@ Uint8List knockOutBackground(Uint8List bytes) {
     if (visited[i]) return;
     visited[i] = true;
     final pixel = image.getPixel(x, y);
-    if (_distSq(pixel, seedR, seedG, seedB) > thresholdSq) return;
-    image.setPixelRgba(x, y, pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt(), 0);
-    queue.addLast(i);
+    final dist = _distSq(pixel, seed.$1, seed.$2, seed.$3);
+    if (pixel.a < 24) {
+      queue.addLast(i);
+      return;
+    }
+    if (dist > softSq) return;
+    final alpha = dist <= hardSq ? 0 : ((dist - hardSq) * 255 / (softSq - hardSq)).round().clamp(0, 255);
+    image.setPixelRgba(x, y, pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt(), alpha);
+    if (alpha < 200) queue.addLast(i);
   }
 
   for (var x = 0; x < width; x++) {
@@ -69,19 +85,87 @@ Uint8List knockOutBackground(Uint8List bytes) {
     offer(x, y - 1);
     offer(x, y + 1);
   }
-
-  return Uint8List.fromList(img.encodePng(image));
 }
 
-int _cornerAverage(img.Image image, int Function(img.Pixel pixel) read) {
-  const inset = 2;
-  final samples = [
-    image.getPixel(inset, inset),
-    image.getPixel(image.width - 1 - inset, inset),
-    image.getPixel(inset, image.height - 1 - inset),
-    image.getPixel(image.width - 1 - inset, image.height - 1 - inset),
-  ];
-  return samples.fold<int>(0, (sum, pixel) => sum + read(pixel)) ~/ samples.length;
+double _opaqueLostFraction(img.Image before, img.Image after) {
+  var opaque = 0;
+  var lost = 0;
+  for (var y = 0; y < before.height; y++) {
+    for (var x = 0; x < before.width; x++) {
+      if (before.getPixel(x, y).a < 28) continue;
+      opaque++;
+      if (after.getPixel(x, y).a < 28) lost++;
+    }
+  }
+  if (opaque == 0) return 0;
+  return lost / opaque;
+}
+
+(int, int, int)? _edgeFillSeed(img.Image image) {
+  final samples = <img.Pixel>[];
+  final width = image.width;
+  final height = image.height;
+
+  void walk(int x0, int y0, int dx, int dy, int steps) {
+    var x = x0;
+    var y = y0;
+    for (var i = 0; i < steps; i++) {
+      final pixel = image.getPixel(x, y);
+      if (pixel.a >= 40) {
+        samples.add(pixel);
+        return;
+      }
+      x += dx;
+      y += dy;
+    }
+  }
+
+  for (var x = 0; x < width; x += math.max(1, width ~/ 12)) {
+    walk(x, 0, 0, 1, height);
+    walk(x, height - 1, 0, -1, height);
+  }
+  for (var y = 0; y < height; y += math.max(1, height ~/ 12)) {
+    walk(0, y, 1, 0, width);
+    walk(width - 1, y, -1, 0, width);
+  }
+
+  if (samples.isEmpty) return null;
+
+  final r = samples.fold<int>(0, (sum, p) => sum + p.r.toInt()) ~/ samples.length;
+  final g = samples.fold<int>(0, (sum, p) => sum + p.g.toInt()) ~/ samples.length;
+  final b = samples.fold<int>(0, (sum, p) => sum + p.b.toInt()) ~/ samples.length;
+  return (r, g, b);
+}
+
+img.Image _cropToOpaque(img.Image image) {
+  var minX = image.width;
+  var minY = image.height;
+  var maxX = 0;
+  var maxY = 0;
+  var found = false;
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      if (image.getPixel(x, y).a < 28) continue;
+      found = true;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!found) return image;
+  const pad = 4;
+  minX = math.max(0, minX - pad);
+  minY = math.max(0, minY - pad);
+  maxX = math.min(image.width - 1, maxX + pad);
+  maxY = math.min(image.height - 1, maxY + pad);
+  return img.copyCrop(
+    image,
+    x: minX,
+    y: minY,
+    width: math.max(1, maxX - minX + 1),
+    height: math.max(1, maxY - minY + 1),
+  );
 }
 
 int _distSq(img.Pixel pixel, int r, int g, int b) {
