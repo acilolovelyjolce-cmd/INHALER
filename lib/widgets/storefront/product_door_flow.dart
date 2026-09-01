@@ -274,7 +274,12 @@ class _DoorTrack extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: AppTypography.kicker),
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.kicker,
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -322,7 +327,12 @@ class _MeetDoor extends StatelessWidget {
           ),
           const SizedBox(height: 24),
         ],
-        Text(product.name, style: AppTypography.displayMedium),
+        Text(
+          product.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.displayMedium,
+        ),
         const SizedBox(height: 12),
         Text('from ${Formatters.php(product.price)}', style: AppTypography.title),
         const SizedBox(height: 28),
@@ -397,7 +407,12 @@ class _OptionGrid extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(option.name, style: AppTypography.title),
+                            Text(
+                              option.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.title,
+                            ),
                             const SizedBox(height: 6),
                             Text(Formatters.php(option.price), style: AppTypography.body),
                             const SizedBox(height: 4),
@@ -453,7 +468,12 @@ class _SummaryDoor extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(product.name, style: AppTypography.title.copyWith(fontSize: 18)),
+                Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.title.copyWith(fontSize: 18),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Inhaler  ${Formatters.php(product.price)}',
@@ -462,12 +482,16 @@ class _SummaryDoor extends StatelessWidget {
                 if (paracord != null)
                   Text(
                     'Paracord  ${paracord!.name}  ${Formatters.php(paracord!.price)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTypography.body,
                   ),
                 Text(
                   trinkets.isEmpty
                       ? 'Trinkets  none'
                       : 'Trinkets  ${trinkets.map((item) => item.name).join(', ')}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTypography.body,
                 ),
                 const SizedBox(height: 20),

@@ -130,53 +130,43 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
 
     final inhalerAspect = _aspect(metrics, widget.inhalerUrl, 0.46);
     final cordAspect = _aspect(metrics, cordUrl, 2.5);
+    final hasTopBits = cordUrl != null || picked.isNotEmpty;
 
-    var inhalerH = h * 0.9;
+    final headroom = hasTopBits ? h * 0.34 : h * 0.06;
+    var inhalerH = (h - headroom) * 0.94;
     var inhalerW = inhalerH * inhalerAspect;
-    final maxInhalerW = w * 0.3;
+    final maxInhalerW = w * 0.32;
     if (inhalerW > maxInhalerW) {
       inhalerW = maxInhalerW;
       inhalerH = inhalerW / inhalerAspect;
     }
 
-    final shiftRight = picked.isEmpty ? 0.0 : math.min(w * 0.16, inhalerW * 0.7);
-    final cx = w / 2 - shiftRight * 0.35;
-    final cy = h / 2 + (cordUrl != null ? -6 : 0);
+    final cx = w / 2;
     final inhalerLeft = cx - inhalerW / 2;
-    final inhalerTop = cy - inhalerH / 2;
+    final inhalerTop = headroom + ((h - headroom) - inhalerH) / 2;
 
     var cordW = 0.0;
     var cordH = 0.0;
     var cordLeft = 0.0;
     var cordTop = 0.0;
     if (cordUrl != null) {
-      cordW = math.min(w * 0.78, inhalerW * 2.4);
+      cordW = math.min(w * 0.58, inhalerW * 2.1);
       cordH = cordW / cordAspect;
-      if (cordH > inhalerH * 0.5) {
-        cordH = inhalerH * 0.5;
+      if (cordH > headroom * 0.95) {
+        cordH = headroom * 0.95;
         cordW = cordH * cordAspect;
       }
-      if (cordH < inhalerH * 0.28) {
-        cordH = inhalerH * 0.32;
+      if (cordH < inhalerW * 0.42) {
+        cordH = inhalerW * 0.48;
         cordW = cordH * cordAspect;
       }
-      final neckY = inhalerTop + inhalerH * 0.26;
       cordLeft = cx - cordW / 2;
-      cordTop = neckY - cordH * 0.42;
+      cordTop = inhalerTop - cordH * 0.72;
     }
 
-    final clip = Offset(
-      inhalerLeft + inhalerW * 0.86,
-      inhalerTop + inhalerH * 0.16,
-    );
-    final hip = Offset(
-      inhalerLeft + inhalerW * 0.78,
-      inhalerTop + inhalerH * 0.48,
-    );
-    final knee = Offset(
-      inhalerLeft + inhalerW * 0.7,
-      inhalerTop + inhalerH * 0.74,
-    );
+    final clip = Offset(cx, inhalerTop + inhalerH * 0.03);
+    final leftSlot = Offset(cx - inhalerW * 0.72, clip.dy - 4);
+    final rightSlot = Offset(cx + inhalerW * 0.72, clip.dy - 4);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -211,8 +201,8 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
             inhalerH: inhalerH,
             stageH: h,
             clip: clip,
-            hip: hip,
-            knee: knee,
+            leftSlot: leftSlot,
+            rightSlot: rightSlot,
           ),
       ],
     );
@@ -228,64 +218,35 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
     required double inhalerH,
     required double stageH,
     required Offset clip,
-    required Offset hip,
-    required Offset knee,
+    required Offset leftSlot,
+    required Offset rightSlot,
   }) {
-    final longSide = math.max(inhalerW * 1.05, math.min(88.0, stageH * 0.52));
+    final longSide = math.max(inhalerW * 0.92, math.min(76.0, stageH * 0.4));
     var tw = aspect >= 1 ? longSide : longSide * aspect;
     var th = aspect >= 1 ? longSide / aspect : longSide;
-    if (th > inhalerH * 0.72) {
-      final scale = inhalerH * 0.72 / th;
+    if (th > inhalerH * 0.48) {
+      final scale = inhalerH * 0.48 / th;
       tw *= scale;
       th *= scale;
-    }
-    if (tw < inhalerW * 0.85) {
-      final scale = (inhalerW * 0.85) / tw;
-      tw *= scale;
-      th *= scale;
-      if (th > inhalerH * 0.78) {
-        final down = inhalerH * 0.78 / th;
-        tw *= down;
-        th *= down;
-      }
     }
 
     final attach = switch (count) {
-      1 => hip,
-      2 => index == 0 ? clip : hip,
-      3 => index == 0
-          ? clip
-          : index == 1
-              ? hip
-              : knee,
-      _ => _along([clip, hip, knee], count == 1 ? 0 : index / (count - 1)),
+      1 => rightSlot,
+      2 => index == 0 ? leftSlot : rightSlot,
+      _ => _along(
+          [leftSlot, Offset(clip.dx, clip.dy - 10), rightSlot],
+          count == 1 ? 1 : index / (count - 1),
+        ),
     };
 
-    late final double left;
-    late final double top;
-    late final double tilt;
-    if (aspect > 1.2) {
-      left = attach.dx - tw * 0.1;
-      top = attach.dy - th / 2;
-      tilt = 0.08;
-    } else if (aspect < 0.82) {
-      left = attach.dx - tw * 0.28;
-      top = attach.dy - th * 0.12;
-      tilt = 0.18;
-    } else {
-      left = attach.dx - tw * 0.22;
-      top = attach.dy - th * 0.28;
-      tilt = 0.12;
-    }
-
     return _piece(
-      left: left,
-      top: top,
+      left: attach.dx - tw / 2,
+      top: attach.dy - th * 0.78,
       width: tw,
       height: th,
       id: 't-$id',
       url: url,
-      angle: (index - (count - 1) / 2) * 0.08 + tilt * (aspect < 1 ? 1 : 0.4),
+      angle: (index - (count - 1) / 2) * 0.14,
     );
   }
 

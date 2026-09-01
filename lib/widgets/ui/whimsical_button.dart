@@ -13,6 +13,7 @@ class WhimsicalButton extends StatefulWidget {
     this.icon,
     this.expand = false,
     this.busy = false,
+    this.compact = false,
   });
 
   final String label;
@@ -21,6 +22,7 @@ class WhimsicalButton extends StatefulWidget {
   final IconData? icon;
   final bool expand;
   final bool busy;
+  final bool compact;
 
   @override
   State<WhimsicalButton> createState() => _WhimsicalButtonState();
@@ -36,6 +38,21 @@ class _WhimsicalButtonState extends State<WhimsicalButton> {
         WhimsicalButtonKind.ghost => AppColors.cloud,
       };
 
+  Widget get _label => Text(
+        widget.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        textAlign: TextAlign.center,
+        style: AppTypography.button.copyWith(
+          color: AppColors.ink,
+          fontSize: widget.compact ? 14 : 16,
+          fontWeight: widget.kind == WhimsicalButtonKind.ghost
+              ? FontWeight.w500
+              : FontWeight.w700,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.busy;
@@ -50,14 +67,22 @@ class _WhimsicalButtonState extends State<WhimsicalButton> {
             }
           : null,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+        constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
         child: AnimatedContainer(
           duration: AppMotion.squish,
           curve: Curves.easeOutBack,
           transform: Matrix4.translationValues(0, _down && widget.kind != WhimsicalButtonKind.ghost ? 3 : 0, 0),
           padding: EdgeInsets.symmetric(
-            horizontal: widget.kind == WhimsicalButtonKind.ghost ? 18 : 22,
-            vertical: widget.kind == WhimsicalButtonKind.ghost ? 12 : 16,
+            horizontal: widget.compact
+                ? 12
+                : widget.kind == WhimsicalButtonKind.ghost
+                    ? 16
+                    : 18,
+            vertical: widget.compact
+                ? 10
+                : widget.kind == WhimsicalButtonKind.ghost
+                    ? 12
+                    : 14,
           ),
           decoration: stickerFill(
             color: _bg,
@@ -78,18 +103,13 @@ class _WhimsicalButtonState extends State<WhimsicalButton> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (widget.icon != null) ...[
-                      Icon(widget.icon, size: 18, color: AppColors.ink),
-                      const SizedBox(width: 8),
+                      Icon(widget.icon, size: widget.compact ? 16 : 18, color: AppColors.ink),
+                      SizedBox(width: widget.compact ? 6 : 8),
                     ],
-                    Text(
-                      widget.label,
-                      style: AppTypography.button.copyWith(
-                        color: AppColors.ink,
-                        fontWeight: widget.kind == WhimsicalButtonKind.ghost
-                            ? FontWeight.w500
-                            : FontWeight.w700,
-                      ),
-                    ),
+                    if (widget.expand)
+                      Expanded(child: _label)
+                    else
+                      _label,
                   ],
                 ),
         ),

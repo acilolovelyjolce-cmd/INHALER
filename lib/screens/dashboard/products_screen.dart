@@ -50,52 +50,67 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: Text('Catalog', style: AppTypography.displayMedium)),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'bulk') _bulk(context, ref, products);
-                      if (value == 'deleteCategory') {
-                        _deleteCategory(context, ref, products);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
-                      PopupMenuItem(value: 'deleteCategory', child: Text('Delete category')),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Catalog',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.displayMedium,
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'bulk') _bulk(context, ref, products);
+                          if (value == 'deleteCategory') {
+                            _deleteCategory(context, ref, products);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
+                          PopupMenuItem(value: 'deleteCategory', child: Text('Delete category')),
+                        ],
+                      ),
                     ],
                   ),
-                  Flexible(
-                    child: WhimsicalButton(
-                      label: switch (_section) {
-                        _CatalogSection.inhalers => 'Add inhaler',
-                        _CatalogSection.paracords => 'Add paracord',
-                        _CatalogSection.trinkets => 'Add trinket',
-                      },
-                      icon: Icons.add,
-                      onPressed: () => _openAdd(context),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final section in _CatalogSection.values) ...[
+                                ChoiceChip(
+                                  label: Text(switch (section) {
+                                    _CatalogSection.inhalers => 'Inhalers',
+                                    _CatalogSection.paracords => 'Paracords',
+                                    _CatalogSection.trinkets => 'Trinkets',
+                                  }),
+                                  selected: _section == section,
+                                  onSelected: (_) => setState(() => _section = section),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      WhimsicalButton(
+                        label: 'Add',
+                        icon: Icons.add,
+                        compact: true,
+                        onPressed: () => _openAdd(context),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final section in _CatalogSection.values)
-                    ChoiceChip(
-                      label: Text(switch (section) {
-                        _CatalogSection.inhalers => 'Inhalers',
-                        _CatalogSection.paracords => 'Paracords',
-                        _CatalogSection.trinkets => 'Trinkets',
-                      }),
-                      selected: _section == section,
-                      onSelected: (_) => setState(() => _section = section),
-                    ),
                 ],
               ),
             ),
@@ -388,10 +403,17 @@ class _PartRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(option.name, style: AppTypography.price),
+                      Text(
+                        option.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.price,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         '${Formatters.php(option.price)}  ·  ${option.stock} left',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySmall,
                       ),
                     ],
@@ -468,10 +490,17 @@ class _ProductRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(product.name, style: AppTypography.price),
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.price,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         '${product.category}  ·  ${Formatters.php(product.price)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySmall,
                       ),
                       const SizedBox(height: 6),

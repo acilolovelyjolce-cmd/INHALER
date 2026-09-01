@@ -129,7 +129,11 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                         ),
                         TextButton(
                           onPressed: () => context.go('/shop/$slug'),
-                          child: const Text('View shop'),
+                          child: const Text(
+                            'View shop',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),

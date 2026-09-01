@@ -21,7 +21,12 @@ class WhimsicalBadge extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Text(label, style: AppTypography.label.copyWith(color: AppColors.ink)),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.label.copyWith(color: AppColors.ink),
+        ),
       ),
     );
   }
