@@ -1,0 +1,328 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:mongo_dart/mongo_dart.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
+import 'package:uuid/uuid.dart';
+
+import 'auth.dart';
+import 'http_util.dart';
+import 'mongo.dart';
+
+const _uuid = Uuid();
+
+Router buildRouter() {
+  final router = Router()
+    ..get('/api/health', _health)
+    ..post('/api/auth/login', _login)
+    ..get('/api/shops/<slug>', _shop)
+    ..get('/api/shops/<slug>/products', _publishedProducts)
+    ..post('/api/shops/<slug>/orders', _submitOrder)
+    ..get('/api/me', _me)
+    ..put('/api/me', _updateMe)
+    ..post('/api/me/logo', _uploadLogo)
+    ..get('/api/products', _myProducts)
+    ..post('/api/products', _upsertProduct)
+    ..put('/api/products/<id>', _upsertProduct)
+    ..delete('/api/products/<id>', _deleteProduct)
+    ..post('/api/products/reorder', _reorder)
+    ..post('/api/products/bulk-price', _bulkPrice)
+    ..get('/api/orders', _myOrders)
+    ..put('/api/orders/<id>', _updateOrder)
+    ..post('/api/files', _uploadFile)
+    ..get('/api/files/<id>', _getFile);
+  return router;
+}
+
+Future<Response> _health(Request request) async {
+  return jsonOk({
+    'ok': true,
+    'db': Mongo.instance.db.databaseName,
+    'time': DateTime.now().toUtc().toIso8601String(),
+  });
+}
+
+Future<Response> _login(Request request) async {
+  final body = await readJson(request);
+  final email = (body['email'] as String? ?? '').trim().toLowerCase();
+  final password = body['password'] as String? ?? '';
+  if (email.isEmpty || password.isEmpty) {
+    return jsonError(400, 'Email and password are required');
+  }
+  final owner = await Mongo.instance.owners.findOne(where.eq('email', email));
+  if (owner == null || !passwordMatches(password, owner['password_hash'] as String)) {
+    return jsonError(401, 'Could not sign in. Check your email and password.');
+  }
+  return jsonOk({
+    'token': signOwner(owner),
+    'user': apiDoc(owner),
+  });
+}
+
+Future<Response> _shop(Request request) async {
+  final slug = request.params['slug']!;
+  final owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+  if (owner == null) return jsonError(404, 'Shop not found');
+  return jsonOk(apiDoc(owner));
+}
+
+Future<Response> _publishedProducts(Request request) async {
+  final slug = request.params['slug']!;
+  final rows = await Mongo.instance.products
+      .find(
+        where
+            .eq('shop_slug', slug)
+            .eq('is_published', true)
+            .sortBy('sort_order'),
+      )
+      .toList();
+  return jsonOk(rows.map(apiDoc).toList());
+}
+
+Future<Response> _submitOrder(Request request) async {
+  final slug = request.params['slug']!;
+  final shop = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+  if (shop == null) return jsonError(404, 'Shop not found');
+
+  final body = await readJson(request);
+  if ((body['honeypot'] as String? ?? '').trim().isNotEmpty) {
+    return jsonOk({'id': 'honeypot', 'ok': true});
+  }
+
+  final now = DateTime.now().toUtc();
+  final doc = {
+    '_id': _uuid.v4(),
+    'shop_slug': slug,
+    'customer_name': (body['customer_name'] as String? ?? '').trim(),
+    'customer_contact': (body['customer_contact'] as String? ?? '').trim(),
+    'items': body['items'] ?? [],
+    'total_amount': body['total_amount'] ?? 0,
+    'customer_note': body['customer_note'],
+    'status': 'new_request',
+    'payment_status': 'unpaid',
+    'internal_notes': null,
+    'created_at': now,
+    'updated_at': now,
+  };
+  if ((doc['customer_name'] as String).isEmpty ||
+      (doc['customer_contact'] as String).isEmpty) {
+    return jsonError(400, 'Name and contact are required');
+  }
+  await Mongo.instance.orders.insertOne(doc);
+  return jsonOk(apiDoc(doc), status: 201);
+}
+
+Future<Response> _me(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  return jsonOk(apiDoc(owner));
+}
+
+Future<Response> _updateMe(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final now = DateTime.now().toUtc();
+  final next = {
+    ...owner,
+    'shop_name': body['shop_name'] ?? owner['shop_name'],
+    'shop_slug': body['shop_slug'] ?? owner['shop_slug'],
+    'bio': body['bio'] ?? owner['bio'],
+    'logo_url': body['logo_url'] ?? owner['logo_url'],
+    'contact_info': body['contact_info'] ?? owner['contact_info'],
+    'updated_at': now,
+  };
+  await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
+  return jsonOk(apiDoc(next));
+}
+
+Future<Response> _uploadLogo(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final bytes = await _readBytes(request);
+  final url = await _storeFile(bytes, contentType: request.mimeType ?? 'image/jpeg');
+  final next = {...owner, 'logo_url': url, 'updated_at': DateTime.now().toUtc()};
+  await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
+  return jsonOk({'url': url, 'user': apiDoc(next)});
+}
+
+Future<Response> _myProducts(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final rows = await Mongo.instance.products
+      .find(where.eq('owner_id', owner['_id']).sortBy('sort_order'))
+      .toList();
+  return jsonOk(rows.map(apiDoc).toList());
+}
+
+Future<Response> _upsertProduct(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final now = DateTime.now().toUtc();
+  final id = request.params['id'] ?? body['id'] as String? ?? _uuid.v4();
+  final existing = await Mongo.instance.products.findOne(where.eq('_id', id));
+  if (existing != null && existing['owner_id'] != owner['_id']) {
+    return jsonError(403, 'Not your product');
+  }
+  final doc = {
+    '_id': id,
+    'owner_id': owner['_id'],
+    'shop_slug': owner['shop_slug'],
+    'name': body['name'] ?? existing?['name'] ?? '',
+    'description': body['description'] ?? existing?['description'] ?? '',
+    'price': body['price'] ?? existing?['price'] ?? 0,
+    'compare_at_price': body['compare_at_price'] ?? existing?['compare_at_price'],
+    'image_urls': body['image_urls'] ?? existing?['image_urls'] ?? [],
+    'category': body['category'] ?? existing?['category'] ?? 'Dino Series',
+    'variants': body['variants'] ?? existing?['variants'],
+    'stock_status': body['stock_status'] ?? existing?['stock_status'] ?? 'available',
+    'is_published': body['is_published'] ?? existing?['is_published'] ?? false,
+    'sort_order': body['sort_order'] ?? existing?['sort_order'] ?? 99,
+    'created_at': parseDate(existing?['created_at'] ?? body['created_at'], fallback: now),
+    'updated_at': now,
+  };
+  if (existing == null) {
+    await Mongo.instance.products.insertOne(doc);
+  } else {
+    await Mongo.instance.products.replaceOne(where.eq('_id', id), doc);
+  }
+  return jsonOk(apiDoc(doc));
+}
+
+Future<Response> _deleteProduct(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final id = request.params['id']!;
+  final existing = await Mongo.instance.products.findOne(where.eq('_id', id));
+  if (existing == null) return jsonError(404, 'Not found');
+  if (existing['owner_id'] != owner['_id']) return jsonError(403, 'Not your product');
+  await Mongo.instance.products.deleteOne(where.eq('_id', id));
+  return jsonOk({'ok': true});
+}
+
+Future<Response> _reorder(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final ids = (body['ids'] as List? ?? []).map((e) => e.toString()).toList();
+  final now = DateTime.now().toUtc();
+  for (var i = 0; i < ids.length; i++) {
+    await Mongo.instance.products.update(
+      where.eq('_id', ids[i]).eq('owner_id', owner['_id']),
+      modify.set('sort_order', i).set('updated_at', now),
+    );
+  }
+  return jsonOk({'ok': true});
+}
+
+Future<Response> _bulkPrice(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final category = body['category'] as String? ?? '';
+  final percent = body['percent'] as bool? ?? true;
+  final amount = (body['amount'] as num?)?.toDouble() ?? 0;
+  final now = DateTime.now().toUtc();
+  final rows = await Mongo.instance.products
+      .find(where.eq('owner_id', owner['_id']).eq('category', category))
+      .toList();
+  for (final row in rows) {
+    final price = (row['price'] as num?)?.toDouble() ?? 0;
+    final next = percent ? price * (1 + amount / 100) : price + amount;
+    row['price'] = next < 0 ? 0 : next;
+    row['updated_at'] = now;
+    await Mongo.instance.products.replaceOne(where.eq('_id', row['_id']), row);
+  }
+  return jsonOk({'ok': true});
+}
+
+Future<Response> _myOrders(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final rows = await Mongo.instance.orders
+      .find(
+        where.eq('shop_slug', owner['shop_slug']).sortBy('created_at', descending: true),
+      )
+      .toList();
+  return jsonOk(rows.map(apiDoc).toList());
+}
+
+Future<Response> _updateOrder(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final id = request.params['id']!;
+  final existing = await Mongo.instance.orders.findOne(where.eq('_id', id));
+  if (existing == null) return jsonError(404, 'Not found');
+  if (existing['shop_slug'] != owner['shop_slug']) {
+    return jsonError(403, 'Not your order');
+  }
+  final body = await readJson(request);
+  final next = {
+    ...existing,
+    'status': body['status'] ?? existing['status'],
+    'payment_status': body['payment_status'] ?? existing['payment_status'],
+    'internal_notes': body['internal_notes'] ?? existing['internal_notes'],
+    'updated_at': DateTime.now().toUtc(),
+  };
+  await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
+  return jsonOk(apiDoc(next));
+}
+
+Future<Response> _uploadFile(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final bytes = await _readBytes(request);
+  final url = await _storeFile(bytes, contentType: request.mimeType ?? 'image/jpeg');
+  return jsonOk({'url': url});
+}
+
+Future<Response> _getFile(Request request) async {
+  final id = request.params['id']!;
+  ObjectId objectId;
+  try {
+    objectId = ObjectId.fromHexString(id);
+  } catch (_) {
+    return jsonError(400, 'Invalid file id');
+  }
+  final grid = GridFS(Mongo.instance.db);
+  final file = await grid.findOne(where.id(objectId));
+  if (file == null) return jsonError(404, 'File not found');
+  final builder = BytesBuilder(copy: false);
+  final chunks = await grid.chunks
+      .find(where.eq('files_id', file.id).sortBy('n'))
+      .toList();
+  for (final chunk in chunks) {
+    final data = chunk['data'];
+    if (data is BsonBinary) {
+      builder.add(data.byteList);
+    } else if (data is List<int>) {
+      builder.add(data);
+    }
+  }
+  return Response.ok(
+    builder.takeBytes(),
+    headers: {
+      HttpHeaders.contentTypeHeader: file.contentType ?? 'image/jpeg',
+      HttpHeaders.cacheControlHeader: 'public, max-age=86400',
+    },
+  );
+}
+
+Future<Uint8List> _readBytes(Request request) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in request.read()) {
+    builder.add(chunk);
+  }
+  return builder.takeBytes();
+}
+
+Future<String> _storeFile(Uint8List bytes, {required String contentType}) async {
+  final grid = GridFS(Mongo.instance.db);
+  final file = grid.createFile(Stream<List<int>>.fromIterable([bytes]), '${_uuid.v4()}.jpg');
+  file.contentType = contentType;
+  await file.save();
+  final id = (file.id as ObjectId).oid;
+  return '/api/files/$id';
+}

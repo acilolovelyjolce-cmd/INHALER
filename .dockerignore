@@ -1,0 +1,14 @@
+.git
+.dart_tool
+server/.dart_tool
+build
+android
+ios
+.idea
+.vscode
+**/*.iml
+test
+.env
+.env.*
+!.env.example
+README.md

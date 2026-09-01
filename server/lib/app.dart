@@ -1,0 +1,60 @@
+import 'dart:io';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_cors_headers/shelf_cors_headers.dart';
+import 'package:shelf_static/shelf_static.dart';
+
+import 'env.dart';
+import 'migrate.dart';
+import 'mongo.dart';
+import 'routes.dart';
+
+Future<void> serveWhimsical() async {
+  await Mongo.instance.connect();
+  await runMigrations();
+
+  final api = const Pipeline()
+      .addMiddleware(logRequests())
+      .addMiddleware(
+        corsHeaders(
+          headers: {
+            ACCESS_CONTROL_ALLOW_HEADERS: 'Origin, Content-Type, Authorization',
+            ACCESS_CONTROL_ALLOW_METHODS: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+        ),
+      )
+      .addHandler(buildRouter().call);
+
+  final webRoot = Env.webRoot;
+  final hasWeb = Directory(webRoot).existsSync();
+  Handler handler = api;
+  if (hasWeb) {
+    final staticHandler = createStaticHandler(
+      webRoot,
+      defaultDocument: 'index.html',
+    );
+    handler = (Request request) async {
+      if (request.url.path.startsWith('api/')) {
+        return api(request);
+      }
+      final result = await staticHandler(request);
+      if (result.statusCode != 404) return result;
+      final index = File('$webRoot/index.html');
+      if (!index.existsSync()) return result;
+      return Response.ok(
+        index.readAsBytesSync(),
+        headers: {HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8'},
+      );
+    };
+  }
+
+  final server = await io.serve(handler, InternetAddress.anyIPv4, Env.port);
+  stdoutLog('Listening on http://${server.address.host}:${server.port}');
+  if (hasWeb) stdoutLog('Serving Flutter web from $webRoot');
+}
+
+void stdoutLog(String message) {
+  // ignore: avoid_print
+  print('[whimsical] $message');
+}

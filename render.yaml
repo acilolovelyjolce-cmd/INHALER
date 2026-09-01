@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: whimsical-hub
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: SHOP_NAME
+        value: Whimsical
+      - key: SHOP_SLUG
+        value: whimsical
+      - key: OWNER_BIO
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false

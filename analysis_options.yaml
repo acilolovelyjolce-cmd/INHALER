@@ -1,0 +1,8 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Freezed puts @JsonKey/@JsonSerializable on factory parameters; json_serializable still honors them.
+    invalid_annotation_target: ignore
