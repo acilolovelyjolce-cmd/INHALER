@@ -101,17 +101,32 @@ class ApiClient {
     if (response.statusCode == 401) {
       SessionStore.instance.clear();
     }
-    if (response.body.isEmpty) {
+    final raw = response.body.trim();
+    if (raw.isEmpty) {
       if (response.statusCode >= 400) {
-        throw ApiException('Request failed', status: response.statusCode);
+        throw ApiException(_failMessage(response.statusCode), status: response.statusCode);
       }
       return null;
     }
-    final decoded = jsonDecode(response.body);
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      throw ApiException(_failMessage(response.statusCode), status: response.statusCode);
+    }
     if (response.statusCode >= 400) {
       final message = decoded is Map ? (decoded['error'] ?? decoded['message']) : null;
-      throw ApiException(message?.toString() ?? 'Request failed', status: response.statusCode);
+      throw ApiException(
+        message?.toString() ?? _failMessage(response.statusCode),
+        status: response.statusCode,
+      );
     }
     return decoded;
+  }
+
+  static String _failMessage(int status) {
+    if (status >= 500) return 'The nest hiccuped. Try again in a moment.';
+    if (status == 401) return 'Please sign in again.';
+    return 'Request failed';
   }
 }

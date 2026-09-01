@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../config/env.dart';
+import '../models/parts_catalog.dart';
 import '../models/product.dart';
 import 'api_client.dart';
 import 'app_store.dart';
@@ -24,7 +25,7 @@ class ProductsRepository {
       return;
     }
     yield await _fetchPublished(slug);
-    yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => _fetchPublished(slug));
+    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => _fetchPublished(slug));
   }
 
   Stream<List<Product>> watchAll() async* {
@@ -36,7 +37,7 @@ class ProductsRepository {
       return;
     }
     yield await _fetchMine();
-    yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => _fetchMine());
+    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => _fetchMine());
   }
 
   Future<List<Product>> _fetchPublished(String slug) async {
@@ -92,17 +93,102 @@ class ProductsRepository {
     });
   }
 
+  Stream<PartsCatalog> watchParts() async* {
+    if (AppConfig.useDemo) {
+      final store = DemoMemoryStore.instance;
+      yield store.partsCatalog;
+      yield* store.partsCtrl.stream;
+      return;
+    }
+    yield await fetchParts();
+    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => fetchParts());
+  }
+
+  Future<PartsCatalog> fetchParts() async {
+    if (AppConfig.useDemo) return DemoMemoryStore.instance.partsCatalog;
+    try {
+      final row = await _api.get('/api/parts') as Map<String, dynamic>;
+      return PartsCatalog.fromJson(Map<String, dynamic>.from(row));
+    } on ApiException {
+      return _partsFromProducts(await _fetchMine());
+    }
+  }
+
+  Future<void> upsertPart(ProductOption option, {required bool trinket}) async {
+    if (AppConfig.useDemo) {
+      DemoMemoryStore.instance.upsertPart(option, trinket: trinket);
+      return;
+    }
+    try {
+      await _api.put('/api/parts/${option.id}', {
+        ...option.toJson(),
+        'kind': trinket ? 'trinket' : 'paracord',
+      });
+    } on ApiException {
+      await _fanOutPart(option, trinket: trinket);
+    }
+  }
+
+  Future<void> deletePart(String id) async {
+    if (AppConfig.useDemo) {
+      DemoMemoryStore.instance.deletePart(id);
+      return;
+    }
+    try {
+      await _api.delete('/api/parts/$id');
+    } on ApiException {
+      final products = await _fetchMine();
+      for (final product in products) {
+        await upsert(
+          product.copyWith(
+            paracords: [for (final option in product.paracords) if (option.id != id) option],
+            trinkets: [for (final option in product.trinkets) if (option.id != id) option],
+            updatedAt: DateTime.now(),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _fanOutPart(ProductOption option, {required bool trinket}) async {
+    final products = await _fetchMine();
+    for (final product in products) {
+      final list = [...(trinket ? product.trinkets : product.paracords)];
+      final idx = list.indexWhere((item) => item.id == option.id);
+      if (idx >= 0) {
+        list[idx] = option;
+      } else {
+        list.add(option);
+      }
+      await upsert(
+        product.copyWith(
+          paracords: trinket ? product.paracords : list,
+          trinkets: trinket ? list : product.trinkets,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+  }
+
+  PartsCatalog _partsFromProducts(List<Product> products) {
+    final cords = <String, ProductOption>{};
+    final charms = <String, ProductOption>{};
+    for (final product in products) {
+      for (final option in product.paracords) {
+        cords[option.id] = option;
+      }
+      for (final option in product.trinkets) {
+        charms[option.id] = option;
+      }
+    }
+    return PartsCatalog(paracords: cords.values.toList(), trinkets: charms.values.toList());
+  }
+
   Future<Product> duplicate(Product product) async {
     final copy = product.copyWith(
       id: _uuid.v4(),
       name: '${product.name} (copy)',
       isPublished: false,
-      paracords: [
-        for (final option in product.paracords) option.copyWith(id: _uuid.v4()),
-      ],
-      trinkets: [
-        for (final option in product.trinkets) option.copyWith(id: _uuid.v4()),
-      ],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -144,7 +230,7 @@ class ProductsRepository {
   }
 
   Future<String> uploadImage(Uint8List bytes, {String? ownerId}) async {
-    final compressed = await compressForUpload(bytes);
+    final compressed = await compressForUpload(bytes, maxWidth: 720);
     if (AppConfig.useDemo) {
       return 'asset:assets/products/baby_rex.svg';
     }

@@ -16,6 +16,7 @@ Future<void> runMigrations() async {
     '001_indexes': _indexes,
     '002_seed_owner_and_catalog': _seedOwnerAndCatalog,
     '003_option_stock': _optionStock,
+    '004_parts_catalog': _partsCatalog,
   };
 
   for (final entry in steps.entries) {
@@ -40,6 +41,7 @@ Future<void> _indexes() async {
   await mongo.products.createIndex(keys: {'owner_id': 1, 'sort_order': 1}, name: 'products_owner_sort');
   await mongo.products.createIndex(keys: {'shop_slug': 1, 'is_published': 1}, name: 'products_slug_pub');
   await mongo.orders.createIndex(keys: {'shop_slug': 1, 'created_at': -1}, name: 'orders_slug_created');
+  await mongo.parts.createIndex(keys: {'owner_id': 1, 'kind': 1}, name: 'parts_owner_kind');
 }
 
 Future<void> _seedOwnerAndCatalog() async {
@@ -191,5 +193,57 @@ Future<void> _optionStock() async {
     }
     row['updated_at'] = now;
     await Mongo.instance.products.replaceOne(where.eq('_id', row['_id']), row);
+  }
+}
+
+Future<void> _partsCatalog() async {
+  final mongo = Mongo.instance;
+  await mongo.parts.createIndex(keys: {'owner_id': 1, 'kind': 1}, name: 'parts_owner_kind');
+  final products = await mongo.products.find().toList();
+  final now = DateTime.now().toUtc();
+  final seen = <String>{};
+  final docs = <Map<String, dynamic>>[];
+
+  void take(String ownerId, String kind, Object? raw) {
+    if (raw is! Map) return;
+    final id = raw['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    final key = '$ownerId:$id';
+    if (!seen.add(key)) return;
+    docs.add({
+      '_id': id,
+      'owner_id': ownerId,
+      'kind': kind,
+      'name': raw['name'] ?? '',
+      'price': raw['price'] ?? 0,
+      'image_url': raw['image_url'],
+      'stock': (raw['stock'] as num?)?.toInt() ?? 0,
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
+  for (final row in products) {
+    final ownerId = row['owner_id']?.toString() ?? '';
+    if (ownerId.isEmpty) continue;
+    final cords = row['paracords'];
+    if (cords is List) {
+      for (final item in cords) {
+        take(ownerId, 'paracord', item);
+      }
+    }
+    final charms = row['trinkets'];
+    if (charms is List) {
+      for (final item in charms) {
+        take(ownerId, 'trinket', item);
+      }
+    }
+  }
+
+  for (final doc in docs) {
+    final existing = await mongo.parts.findOne(where.eq('_id', doc['_id']));
+    if (existing == null) {
+      await mongo.parts.insertOne(doc);
+    }
   }
 }

@@ -41,7 +41,7 @@ String? optionPreviewUrl(ProductOption option) {
   return parts[option.id] ?? option.imageUrl;
 }
 
-List<ProductOption> get _demoCords => const [
+List<ProductOption> get demoCords => const [
       ProductOption(
         id: 'cord-mint',
         name: 'Mint paracord',
@@ -65,7 +65,7 @@ List<ProductOption> get _demoCords => const [
       ),
     ];
 
-List<ProductOption> get _demoTrinkets => const [
+List<ProductOption> get demoTrinkets => const [
       ProductOption(
         id: 't-rex',
         name: 'Baby Rex',
@@ -109,8 +109,8 @@ List<Product> demoProducts() {
       compareAtPrice: 520,
       imageUrls: const ['asset:assets/products/baby_rex.svg'],
       category: 'Dino Series',
-      paracords: _demoCords,
-      trinkets: _demoTrinkets,
+      paracords: demoCords,
+      trinkets: demoTrinkets,
       stockStatus: StockStatus.available,
       isPublished: true,
       sortOrder: 0,
@@ -126,8 +126,8 @@ List<Product> demoProducts() {
       price: 480,
       imageUrls: const ['asset:assets/products/sleepy_stego.svg'],
       category: 'Dino Series',
-      paracords: _demoCords,
-      trinkets: _demoTrinkets,
+      paracords: demoCords,
+      trinkets: demoTrinkets,
       stockStatus: StockStatus.madeToOrder,
       isPublished: true,
       sortOrder: 1,
@@ -144,8 +144,8 @@ List<Product> demoProducts() {
       compareAtPrice: 690,
       imageUrls: const ['asset:assets/products/pastel_ptero.svg'],
       category: 'Pastel Series',
-      paracords: _demoCords,
-      trinkets: _demoTrinkets,
+      paracords: demoCords,
+      trinkets: demoTrinkets,
       stockStatus: StockStatus.available,
       isPublished: true,
       sortOrder: 2,
@@ -161,8 +161,8 @@ List<Product> demoProducts() {
       price: 430,
       imageUrls: const ['asset:assets/products/cloud_trice.svg'],
       category: 'Pastel Series',
-      paracords: _demoCords,
-      trinkets: _demoTrinkets,
+      paracords: demoCords,
+      trinkets: demoTrinkets,
       stockStatus: StockStatus.soldOut,
       isPublished: true,
       sortOrder: 3,

@@ -33,6 +33,9 @@ Router buildRouter() {
     ..post('/api/products/delete-category', _deleteCategory)
     ..get('/api/orders', _myOrders)
     ..put('/api/orders/<id>', _updateOrder)
+    ..get('/api/parts', _myParts)
+    ..put('/api/parts/<id>', _upsertPart)
+    ..delete('/api/parts/<id>', _deletePart)
     ..post('/api/files', _uploadFile)
     ..get('/api/files/<id>', _getFile);
   return router;
@@ -73,14 +76,16 @@ Future<Response> _shop(Request request) async {
 Future<Response> _publishedProducts(Request request) async {
   final slug = request.params['slug']!;
   final rows = await Mongo.instance.products
-      .find(
-        where
-            .eq('shop_slug', slug)
-            .eq('is_published', true)
-            .sortBy('sort_order'),
-      )
+      .find(where.eq('shop_slug', slug).eq('is_published', true))
       .toList();
-  return jsonOk(rows.map(apiDoc).toList());
+  rows.sort((a, b) {
+    final aOrder = (a['sort_order'] as num?)?.toInt() ?? 0;
+    final bOrder = (b['sort_order'] as num?)?.toInt() ?? 0;
+    return aOrder.compareTo(bOrder);
+  });
+  return jsonOk([
+    for (final row in rows) apiDoc(Map<String, dynamic>.from(row)),
+  ]);
 }
 
 Future<Response> _submitOrder(Request request) async {
@@ -120,6 +125,7 @@ Future<Response> _submitOrder(Request request) async {
   if (shortage != null) return jsonError(409, shortage);
   applyOptionStock(products, need, sign: -1);
   await _persistProducts(products);
+  await _writePartStocks(shop['_id'].toString(), products);
 
   await Mongo.instance.orders.insertOne(doc);
   return jsonOk(apiDoc(doc), status: 201);
@@ -173,10 +179,15 @@ Future<Response> _uploadWalletQr(Request request) async {
 Future<Response> _myProducts(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
-  final rows = await Mongo.instance.products
-      .find(where.eq('owner_id', owner['_id']).sortBy('sort_order'))
-      .toList();
-  return jsonOk(rows.map(apiDoc).toList());
+  final rows = await Mongo.instance.products.find(where.eq('owner_id', owner['_id'])).toList();
+  rows.sort((a, b) {
+    final aOrder = (a['sort_order'] as num?)?.toInt() ?? 0;
+    final bOrder = (b['sort_order'] as num?)?.toInt() ?? 0;
+    return aOrder.compareTo(bOrder);
+  });
+  return jsonOk([
+    for (final row in rows) apiDoc(Map<String, dynamic>.from(row)),
+  ]);
 }
 
 Future<Response> _upsertProduct(Request request) async {
@@ -199,27 +210,27 @@ Future<Response> _upsertProduct(Request request) async {
     'compare_at_price': body['compare_at_price'] ?? existing?['compare_at_price'],
     'image_urls': body['image_urls'] ?? existing?['image_urls'] ?? [],
     'category': body['category'] ?? existing?['category'] ?? 'Dino Series',
-    'paracords': body['paracords'] ?? existing?['paracords'] ?? [],
-    'trinkets': body['trinkets'] ?? existing?['trinkets'] ?? [],
+    'paracords': <Map<String, dynamic>>[],
+    'trinkets': <Map<String, dynamic>>[],
     'stock_status': body['stock_status'] ?? existing?['stock_status'] ?? 'available',
     'is_published': body['is_published'] ?? existing?['is_published'] ?? false,
     'sort_order': body['sort_order'] ?? existing?['sort_order'] ?? 99,
     'created_at': parseDate(existing?['created_at'] ?? body['created_at'], fallback: now),
     'updated_at': now,
   };
+  final options = await _partOptions(owner['_id'].toString());
+  if (options.$1.isNotEmpty || options.$2.isNotEmpty) {
+    doc['paracords'] = options.$1;
+    doc['trinkets'] = options.$2;
+  } else {
+    doc['paracords'] = body['paracords'] ?? existing?['paracords'] ?? [];
+    doc['trinkets'] = body['trinkets'] ?? existing?['trinkets'] ?? [];
+  }
   if (existing == null) {
     await Mongo.instance.products.insertOne(doc);
   } else {
     await Mongo.instance.products.replaceOne(where.eq('_id', id), doc);
   }
-  final shopRows = await Mongo.instance.products
-      .find(where.eq('shop_slug', owner['shop_slug']))
-      .toList();
-  syncOptionStockFrom(shopRows, doc);
-  await _persistProducts([
-    for (final row in shopRows)
-      if (row['_id'] != id) row,
-  ]);
   return jsonOk(apiDoc(doc));
 }
 
@@ -288,12 +299,11 @@ Future<Response> _deleteCategory(Request request) async {
 Future<Response> _myOrders(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
-  final rows = await Mongo.instance.orders
-      .find(
-        where.eq('shop_slug', owner['shop_slug']).sortBy('created_at', descending: true),
-      )
-      .toList();
-  return jsonOk(rows.map(apiDoc).toList());
+  final rows = await Mongo.instance.orders.find(where.eq('shop_slug', owner['shop_slug'])).toList();
+  rows.sort((a, b) => parseDate(b['created_at']).compareTo(parseDate(a['created_at'])));
+  return jsonOk([
+    for (final row in rows) apiDoc(Map<String, dynamic>.from(row)),
+  ]);
 }
 
 Future<Response> _updateOrder(Request request) async {
@@ -324,16 +334,127 @@ Future<Response> _updateOrder(Request request) async {
     if (previousStatus != 'cancelled' && nextStatus == 'cancelled') {
       applyOptionStock(products, need, sign: 1);
       await _persistProducts(products);
+      await _writePartStocks(owner['_id'].toString(), products);
     } else if (previousStatus == 'cancelled' && nextStatus != 'cancelled') {
       final shortage = shortageMessage(products, need);
       if (shortage != null) return jsonError(409, shortage);
       applyOptionStock(products, need, sign: -1);
       await _persistProducts(products);
+      await _writePartStocks(owner['_id'].toString(), products);
     }
   }
 
   await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
   return jsonOk(apiDoc(next));
+}
+
+Future<Response> _myParts(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final options = await _partOptions(owner['_id'].toString());
+  return jsonOk({'paracords': options.$1, 'trinkets': options.$2});
+}
+
+Future<Response> _upsertPart(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final now = DateTime.now().toUtc();
+  final id = request.params['id'] ?? body['id'] as String? ?? _uuid.v4();
+  final kind = (body['kind'] as String? ?? 'paracord') == 'trinket' ? 'trinket' : 'paracord';
+  final existing = await Mongo.instance.parts.findOne(where.eq('_id', id));
+  if (existing != null && existing['owner_id'] != owner['_id']) {
+    return jsonError(403, 'Not your part');
+  }
+  final doc = {
+    '_id': id,
+    'owner_id': owner['_id'],
+    'kind': kind,
+    'name': body['name'] ?? existing?['name'] ?? '',
+    'price': body['price'] ?? existing?['price'] ?? 0,
+    'image_url': body['image_url'] ?? existing?['image_url'],
+    'stock': body['stock'] ?? existing?['stock'] ?? 0,
+    'created_at': parseDate(existing?['created_at'], fallback: now),
+    'updated_at': now,
+  };
+  if (existing == null) {
+    await Mongo.instance.parts.insertOne(doc);
+  } else {
+    await Mongo.instance.parts.replaceOne(where.eq('_id', id), doc);
+  }
+  await _attachParts(owner['_id'].toString());
+  return jsonOk(apiDoc(doc));
+}
+
+Future<Response> _deletePart(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final id = request.params['id']!;
+  final existing = await Mongo.instance.parts.findOne(where.eq('_id', id));
+  if (existing == null) return jsonError(404, 'Not found');
+  if (existing['owner_id'] != owner['_id']) return jsonError(403, 'Not your part');
+  await Mongo.instance.parts.deleteOne(where.eq('_id', id));
+  await _attachParts(owner['_id'].toString());
+  return jsonOk({'ok': true});
+}
+
+Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(String ownerId) async {
+  final rows = await Mongo.instance.parts.find(where.eq('owner_id', ownerId)).toList();
+  final cords = <Map<String, dynamic>>[];
+  final charms = <Map<String, dynamic>>[];
+  for (final row in rows) {
+    final option = {
+      'id': row['_id'],
+      'name': row['name'] ?? '',
+      'price': row['price'] ?? 0,
+      'image_url': row['image_url'],
+      'stock': row['stock'] ?? 0,
+    };
+    if (row['kind'] == 'trinket') {
+      charms.add(option);
+    } else {
+      cords.add(option);
+    }
+  }
+  return (cords, charms);
+}
+
+Future<void> _attachParts(String ownerId) async {
+  final options = await _partOptions(ownerId);
+  if (options.$1.isEmpty && options.$2.isEmpty) return;
+  final products = await Mongo.instance.products.find(where.eq('owner_id', ownerId)).toList();
+  final now = DateTime.now().toUtc();
+  for (final product in products) {
+    product['paracords'] = options.$1;
+    product['trinkets'] = options.$2;
+    product['updated_at'] = now;
+    await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+  }
+}
+
+Future<void> _writePartStocks(String ownerId, List<Map<String, dynamic>> products) async {
+  final stocks = <String, int>{};
+  for (final product in products) {
+    for (final key in const ['paracords', 'trinkets']) {
+      final list = product[key];
+      if (list is! List) continue;
+      for (final raw in list) {
+        if (raw is Map && raw['id'] != null) {
+          stocks[raw['id'].toString()] = (raw['stock'] as num?)?.toInt() ?? 0;
+        }
+      }
+    }
+  }
+  if (stocks.isEmpty) return;
+  final now = DateTime.now().toUtc();
+  final parts = await Mongo.instance.parts.find(where.eq('owner_id', ownerId)).toList();
+  for (final part in parts) {
+    final id = part['_id']?.toString() ?? '';
+    if (!stocks.containsKey(id)) continue;
+    part['stock'] = stocks[id];
+    part['updated_at'] = now;
+    await Mongo.instance.parts.replaceOne(where.eq('_id', part['_id']), part);
+  }
 }
 
 Future<void> _persistProducts(List<Map<String, dynamic>> products) async {

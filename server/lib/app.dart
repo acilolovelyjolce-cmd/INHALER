@@ -6,6 +6,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_static/shelf_static.dart';
 
 import 'env.dart';
+import 'http_util.dart';
 import 'migrate.dart';
 import 'mongo.dart';
 import 'routes.dart';
@@ -16,6 +17,7 @@ Future<void> serveWhimsical() async {
 
   final api = const Pipeline()
       .addMiddleware(logRequests())
+      .addMiddleware(_jsonErrors())
       .addMiddleware(
         corsHeaders(
           headers: {
@@ -52,6 +54,19 @@ Future<void> serveWhimsical() async {
   final server = await io.serve(handler, InternetAddress.anyIPv4, Env.port);
   stdoutLog('Listening on http://${server.address.host}:${server.port}');
   if (hasWeb) stdoutLog('Serving Flutter web from $webRoot');
+}
+
+Middleware _jsonErrors() {
+  return (inner) {
+    return (Request request) async {
+      try {
+        return await inner(request);
+      } catch (error, stack) {
+        stderr.writeln('[whimsical] ${request.method} /${request.url}: $error\n$stack');
+        return jsonError(500, 'The nest hiccuped. Try again in a moment.');
+      }
+    };
+  };
 }
 
 void stdoutLog(String message) {

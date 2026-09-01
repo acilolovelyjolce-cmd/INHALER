@@ -33,8 +33,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   late List<String> _images;
   late StockStatus _stock;
   late bool _published;
-  late List<_OptionDraft> _paracords;
-  late List<_OptionDraft> _trinkets;
   var _uploading = false;
   var _saving = false;
 
@@ -52,12 +50,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _images = [...?p?.imageUrls];
     _stock = p?.stockStatus ?? StockStatus.available;
     _published = p?.isPublished ?? true;
-    _paracords = [
-      for (final option in p?.paracords ?? const <ProductOption>[]) _OptionDraft.from(option),
-    ];
-    _trinkets = [
-      for (final option in p?.trinkets ?? const <ProductOption>[]) _OptionDraft.from(option),
-    ];
   }
 
   @override
@@ -67,54 +59,22 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _price.dispose();
     _compare.dispose();
     _category.dispose();
-    for (final draft in [..._paracords, ..._trinkets]) {
-      draft.dispose();
-    }
     super.dispose();
-  }
-
-  List<ProductOption> _collect(List<_OptionDraft> drafts) {
-    return [
-      for (final draft in drafts)
-        if (draft.name.text.trim().isNotEmpty)
-          ProductOption(
-            id: draft.id,
-            name: draft.name.text.trim(),
-            price: double.tryParse(draft.price.text.replaceAll(',', '').trim()) ?? 0,
-            imageUrl: draft.imageUrl,
-            stock: int.tryParse(draft.stock.text.trim())?.clamp(0, 999999) ?? 0,
-          ),
-    ];
-  }
-
-  Future<void> _pickOptionImage(_OptionDraft draft) async {
-    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 92);
-    if (file == null) return;
-    setState(() => _uploading = true);
-    try {
-      final url = await ref.read(productsRepositoryProvider).uploadImage(
-            await file.readAsBytes(),
-            ownerId: ref.read(authProvider).valueOrNull?.userId,
-          );
-      setState(() => draft.imageUrl = url);
-    } finally {
-      if (mounted) setState(() => _uploading = false);
-    }
   }
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
-    final files = await picker.pickMultiImage(imageQuality: 92);
+    final files = await picker.pickMultiImage(imageQuality: 55, maxWidth: 1024);
     if (files.isEmpty) return;
     setState(() => _uploading = true);
     final repo = ref.read(productsRepositoryProvider);
     final auth = ref.read(authProvider).valueOrNull;
     try {
-      for (final file in files) {
-        final bytes = await file.readAsBytes();
-        final url = await repo.uploadImage(bytes, ownerId: auth?.userId);
-        _images.add(url);
-      }
+      final payloads = await Future.wait(files.map((file) => file.readAsBytes()));
+      final urls = await Future.wait(
+        payloads.map((bytes) => repo.uploadImage(bytes, ownerId: auth?.userId)),
+      );
+      _images.addAll(urls);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -126,6 +86,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     final now = DateTime.now();
     final existing = widget.existing;
     final auth = ref.read(authProvider).valueOrNull;
+    final parts = await ref.read(productsRepositoryProvider).fetchParts();
     final product = Product(
       id: existing?.id ?? const Uuid().v4(),
       ownerId: existing?.ownerId ?? auth?.userId,
@@ -137,8 +98,8 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
           : double.tryParse(_compare.text.replaceAll(',', '').trim()),
       imageUrls: _images,
       category: _category.text.trim(),
-      paracords: _collect(_paracords),
-      trinkets: _collect(_trinkets),
+      paracords: parts.paracords,
+      trinkets: parts.trinkets,
       stockStatus: _stock,
       isPublished: _published,
       sortOrder: existing?.sortOrder ?? 99,
@@ -146,15 +107,21 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
       updatedAt: now,
     );
     await ref.read(productsRepositoryProvider).upsert(product);
+    ref.invalidate(ownerProductsProvider);
+    ref.invalidate(ownerPartsProvider);
     if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final parts = ref.watch(ownerPartsProvider).valueOrNull;
+    final cordCount = parts?.paracords.length ?? 0;
+    final charmCount = parts?.trinkets.length ?? 0;
+
     return SheetScaffold(
-      title: widget.existing == null ? 'New charm' : 'Edit product',
+      title: widget.existing == null ? 'New inhaler' : 'Edit inhaler',
       actions: WhimsicalButton(
-        label: widget.existing == null ? 'Add to catalog' : 'Save changes',
+        label: widget.existing == null ? 'Add inhaler' : 'Save changes',
         expand: true,
         busy: _saving,
         onPressed: _save,
@@ -267,26 +234,11 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
               validator: (v) => Validators.requiredField(v, label: 'Category'),
             ),
             const SizedBox(height: 18),
-            _OptionSection(
-              title: 'Paracords',
-              hint: 'Customers pick exactly one. Photo, price, and how many of this color are left.',
-              drafts: _paracords,
-              uploading: _uploading,
-              onAdd: () => setState(() => _paracords.add(_OptionDraft.empty())),
-              onRemove: (i) => setState(() => _paracords.removeAt(i).dispose()),
-              onPickImage: (draft) => _pickOptionImage(draft),
+            Text(
+              '$cordCount paracords and $charmCount trinkets will be offered with this inhaler automatically. Add those in Catalog.',
+              style: AppTypography.bodySmall.copyWith(height: 1.45),
             ),
             const SizedBox(height: 18),
-            _OptionSection(
-              title: 'Trinkets',
-              hint: 'Customers can pick many. Photo, price, and leftover stock for each charm.',
-              drafts: _trinkets,
-              uploading: _uploading,
-              onAdd: () => setState(() => _trinkets.add(_OptionDraft.empty())),
-              onRemove: (i) => setState(() => _trinkets.removeAt(i).dispose()),
-              onPickImage: (draft) => _pickOptionImage(draft),
-            ),
-            const SizedBox(height: 8),
             Text('Availability', style: AppTypography.label),
             const SizedBox(height: 8),
             Wrap(
@@ -309,153 +261,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _OptionDraft {
-  _OptionDraft({
-    required this.id,
-    required this.name,
-    required this.price,
-    required this.stock,
-    this.imageUrl,
-  });
-
-  factory _OptionDraft.empty() => _OptionDraft(
-        id: const Uuid().v4(),
-        name: TextEditingController(),
-        price: TextEditingController(),
-        stock: TextEditingController(text: '0'),
-      );
-
-  factory _OptionDraft.from(ProductOption option) => _OptionDraft(
-        id: option.id,
-        name: TextEditingController(text: option.name),
-        price: TextEditingController(text: option.price.toStringAsFixed(0)),
-        stock: TextEditingController(text: '${option.stock}'),
-        imageUrl: option.imageUrl,
-      );
-
-  final String id;
-  final TextEditingController name;
-  final TextEditingController price;
-  final TextEditingController stock;
-  String? imageUrl;
-
-  void dispose() {
-    name.dispose();
-    price.dispose();
-    stock.dispose();
-  }
-}
-
-class _OptionSection extends StatelessWidget {
-  const _OptionSection({
-    required this.title,
-    required this.hint,
-    required this.drafts,
-    required this.uploading,
-    required this.onAdd,
-    required this.onRemove,
-    required this.onPickImage,
-  });
-
-  final String title;
-  final String hint;
-  final List<_OptionDraft> drafts;
-  final bool uploading;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<_OptionDraft> onPickImage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppTypography.title),
-        const SizedBox(height: 4),
-        Text(hint, style: AppTypography.bodySmall),
-        const SizedBox(height: 10),
-        for (var i = 0; i < drafts.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: DecoratedBox(
-              decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: uploading ? null : () => onPickImage(drafts[i]),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: drafts[i].imageUrl == null
-                              ? const ColoredBox(
-                                  color: AppColors.sky,
-                                  child: Icon(Icons.add_a_photo_outlined, size: 20),
-                                )
-                              : ContainedMedia(url: drafts[i].imageUrl!, padding: 6),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          WhimsicalTextField(controller: drafts[i].name, hint: 'Name'),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: WhimsicalTextField(
-                                  controller: drafts[i].price,
-                                  hint: 'Price ₱',
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: WhimsicalTextField(
-                                  controller: drafts[i].stock,
-                                  hint: 'Left',
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => onRemove(i),
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: Text('Add $title'.toLowerCase()),
-          ),
-        ),
-      ],
     );
   }
 }

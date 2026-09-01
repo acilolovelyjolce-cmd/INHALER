@@ -2,14 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:mongo_dart/mongo_dart.dart';
 import 'package:shelf/shelf.dart';
 
+const _jsonHeaders = {HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8'};
+
 Response jsonOk(Object body, {int status = 200}) {
-  return Response(
-    status,
-    body: jsonEncode(body),
-    headers: {HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8'},
-  );
+  try {
+    return Response(status, body: jsonEncode(body), headers: _jsonHeaders);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] jsonOk failed: $error\n$stack');
+    return Response(
+      500,
+      body: jsonEncode({'error': 'Could not read that just now.'}),
+      headers: _jsonHeaders,
+    );
+  }
 }
 
 Response jsonError(int status, String message) {
@@ -35,14 +43,19 @@ Map<String, dynamic> apiDoc(Map<String, dynamic> doc) {
 }
 
 Object? _jsonValue(Object? value) {
+  if (value == null) return null;
   if (value is DateTime) return value.toUtc().toIso8601String();
+  if (value is ObjectId) return value.oid;
   if (value is Map) {
-    return value.map((key, item) => MapEntry(key.toString(), _jsonValue(item)));
+    return {
+      for (final entry in value.entries) entry.key.toString(): _jsonValue(entry.value),
+    };
   }
-  if (value is Iterable && value is! String && value is! Uint8List) {
-    return value.map(_jsonValue).toList();
+  if (value is Iterable && value is! String && value is! TypedData) {
+    return [for (final item in value) _jsonValue(item)];
   }
-  return value;
+  if (value is num || value is bool || value is String) return value;
+  return value.toString();
 }
 
 DateTime parseDate(Object? value, {DateTime? fallback}) {

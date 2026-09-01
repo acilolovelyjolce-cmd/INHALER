@@ -4,6 +4,7 @@ import '../data/orders_repository.dart';
 import '../data/products_repository.dart';
 import '../models/order_request.dart';
 import '../models/owner_profile.dart';
+import '../models/parts_catalog.dart';
 import '../models/product.dart';
 import 'auth_provider.dart';
 
@@ -32,6 +33,11 @@ class OwnerProducts extends _$OwnerProducts {
     return ref.watch(productsRepositoryProvider).watchAll();
   }
 }
+
+final ownerPartsProvider = StreamProvider<PartsCatalog>((ref) {
+  ref.watch(authProvider);
+  return ref.watch(productsRepositoryProvider).watchParts();
+});
 
 @Riverpod(keepAlive: true)
 class ShopProfile extends _$ShopProfile {

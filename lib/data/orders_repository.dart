@@ -21,7 +21,7 @@ class OrdersRepository {
       return;
     }
     yield await _fetch();
-    yield* Stream.periodic(const Duration(seconds: 2)).asyncMap((_) => _fetch());
+    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => _fetch());
   }
 
   Future<List<OrderRequest>> _fetch() async {

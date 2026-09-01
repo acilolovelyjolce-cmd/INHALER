@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
 import '../../config/validators.dart';
+import '../../models/parts_catalog.dart';
 import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/dashboard/part_form_sheet.dart';
 import '../../widgets/dashboard/product_form_sheet.dart';
 import '../../widgets/ui/feedback.dart';
 import '../../widgets/ui/whimsical_badge.dart';
@@ -13,20 +15,38 @@ import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_sheet.dart';
 import '../../widgets/ui/whimsical_text_field.dart';
 
-class ProductsScreen extends ConsumerWidget {
+enum _CatalogSection { inhalers, paracords, trinkets }
+
+class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProductsScreen> createState() => _ProductsScreenState();
+}
+
+class _ProductsScreenState extends ConsumerState<ProductsScreen> {
+  var _section = _CatalogSection.inhalers;
+
+  @override
+  Widget build(BuildContext context) {
     final catalog = ref.watch(ownerProductsProvider);
+    final parts = ref.watch(ownerPartsProvider);
 
     return catalog.when(
       loading: () => const DinoLoading(),
       error: (e, _) => WhimsicalError(
         message: e.toString(),
-        onRetry: () => ref.invalidate(ownerProductsProvider),
+        onRetry: () {
+          ref.invalidate(ownerProductsProvider);
+          ref.invalidate(ownerPartsProvider);
+        },
       ),
       data: (products) {
+        final bag = parts.valueOrNull ??
+            PartsCatalog(
+              paracords: _unique(products, (p) => p.paracords),
+              trinkets: _unique(products, (p) => p.trinkets),
+            );
         return Column(
           children: [
             Padding(
@@ -48,59 +68,130 @@ class ProductsScreen extends ConsumerWidget {
                   ),
                   Flexible(
                     child: WhimsicalButton(
-                      label: 'Add product',
+                      label: switch (_section) {
+                        _CatalogSection.inhalers => 'Add inhaler',
+                        _CatalogSection.paracords => 'Add paracord',
+                        _CatalogSection.trinkets => 'Add trinket',
+                      },
                       icon: Icons.add,
-                      onPressed: () => showWhimsicalSheet(
-                        context: context,
-                        builder: (_) => const ProductFormSheet(),
-                      ),
+                      onPressed: () => _openAdd(context),
                     ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: products.isEmpty
-                  ? const WhimsicalEmpty(
-                      title: 'No charms yet',
-                      body: 'Add your first inhaler keychain and it will bloom on the public link.',
-                    )
-                  : ReorderableListView.builder(
-                      buildDefaultDragHandles: false,
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-                      itemCount: products.length,
-                      onReorder: (oldIndex, newIndex) async {
-                        var nextIndex = newIndex;
-                        if (nextIndex > oldIndex) nextIndex--;
-                        final next = [...products];
-                        final item = next.removeAt(oldIndex);
-                        next.insert(nextIndex, item);
-                        await ref.read(productsRepositoryProvider).reorder(next);
-                      },
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-                        return _ProductRow(
-                          key: ValueKey(product.id),
-                          index: index,
-                          product: product,
-                          onEdit: () => showWhimsicalSheet(
-                            context: context,
-                            builder: (_) => ProductFormSheet(existing: product),
-                          ),
-                          onDuplicate: () =>
-                              ref.read(productsRepositoryProvider).duplicate(product),
-                          onToggle: (v) => ref.read(productsRepositoryProvider).upsert(
-                                product.copyWith(isPublished: v, updatedAt: DateTime.now()),
-                              ),
-                          onDelete: () => _deleteProduct(context, ref, product),
-                        );
-                      },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final section in _CatalogSection.values)
+                    ChoiceChip(
+                      label: Text(switch (section) {
+                        _CatalogSection.inhalers => 'Inhalers',
+                        _CatalogSection.paracords => 'Paracords',
+                        _CatalogSection.trinkets => 'Trinkets',
+                      }),
+                      selected: _section == section,
+                      onSelected: (_) => setState(() => _section = section),
                     ),
+                ],
+              ),
             ),
+            Expanded(child: _body(products, bag)),
           ],
         );
       },
     );
+  }
+
+  Widget _body(List<Product> products, PartsCatalog bag) {
+    if (_section == _CatalogSection.inhalers) {
+      if (products.isEmpty) {
+        return const WhimsicalEmpty(
+          title: 'No inhalers yet',
+          body: 'Add an inhaler and every paracord and trinket in the catalog will be offered with it.',
+        );
+      }
+      return ReorderableListView.builder(
+        buildDefaultDragHandles: false,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+        itemCount: products.length,
+        onReorder: (oldIndex, newIndex) async {
+          var nextIndex = newIndex;
+          if (nextIndex > oldIndex) nextIndex--;
+          final next = [...products];
+          final item = next.removeAt(oldIndex);
+          next.insert(nextIndex, item);
+          await ref.read(productsRepositoryProvider).reorder(next);
+        },
+        itemBuilder: (context, index) {
+          final product = products[index];
+          return _ProductRow(
+            key: ValueKey(product.id),
+            index: index,
+            product: product,
+            onEdit: () => showWhimsicalSheet(
+              context: context,
+              builder: (_) => ProductFormSheet(existing: product),
+            ),
+            onDuplicate: () => ref.read(productsRepositoryProvider).duplicate(product),
+            onToggle: (v) => ref.read(productsRepositoryProvider).upsert(
+                  product.copyWith(isPublished: v, updatedAt: DateTime.now()),
+                ),
+            onDelete: () => _deleteProduct(context, ref, product),
+          );
+        },
+      );
+    }
+
+    final trinket = _section == _CatalogSection.trinkets;
+    final options = trinket ? bag.trinkets : bag.paracords;
+    if (options.isEmpty) {
+      return WhimsicalEmpty(
+        title: trinket ? 'No trinkets yet' : 'No paracords yet',
+        body: trinket
+            ? 'Add a charm once. It will show up as an option on every inhaler.'
+            : 'Add a cord color once. It will show up as an option on every inhaler.',
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      itemCount: options.length,
+      itemBuilder: (context, index) {
+        final option = options[index];
+        return _PartRow(
+          option: option,
+          onEdit: () => showWhimsicalSheet(
+            context: context,
+            builder: (_) => PartFormSheet(trinket: trinket, existing: option),
+          ),
+          onDelete: () => _deletePart(context, option),
+        );
+      },
+    );
+  }
+
+  Future<void> _openAdd(BuildContext context) {
+    return showWhimsicalSheet(
+      context: context,
+      builder: (_) => switch (_section) {
+        _CatalogSection.inhalers => const ProductFormSheet(),
+        _CatalogSection.paracords => const PartFormSheet(trinket: false),
+        _CatalogSection.trinkets => const PartFormSheet(trinket: true),
+      },
+    );
+  }
+
+  List<ProductOption> _unique(List<Product> products, List<ProductOption> Function(Product) pick) {
+    final out = <String, ProductOption>{};
+    for (final product in products) {
+      for (final option in pick(product)) {
+        out[option.id] = option;
+      }
+    }
+    return out.values.toList();
   }
 
   Future<void> _bulk(BuildContext context, WidgetRef ref, List<Product> products) async {
@@ -163,9 +254,9 @@ class ProductsScreen extends ConsumerWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete this product?'),
+          title: const Text('Delete this inhaler?'),
           content: Text(
-            '${product.name} will leave the catalog and the public shop. This cannot be undone.',
+            '${product.name} will leave the catalog and the public shop. Cords and trinkets stay.',
             style: AppTypography.body,
           ),
           actions: [
@@ -177,6 +268,28 @@ class ProductsScreen extends ConsumerWidget {
     );
     if (ok == true && context.mounted) {
       await ref.read(productsRepositoryProvider).delete(product.id);
+    }
+  }
+
+  Future<void> _deletePart(BuildContext context, ProductOption option) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remove this option?'),
+          content: Text(
+            '${option.name} will leave every inhaler.',
+            style: AppTypography.body,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          ],
+        );
+      },
+    );
+    if (ok == true && context.mounted) {
+      await ref.read(productsRepositoryProvider).deletePart(option.id);
     }
   }
 
@@ -201,7 +314,7 @@ class ProductsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'This removes the group from the shop and deletes every product in it.',
+                    'This removes the group from the shop and deletes every inhaler in it.',
                     style: AppTypography.body,
                   ),
                   const SizedBox(height: 14),
@@ -215,7 +328,7 @@ class ProductsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    count == 1 ? '1 product will be deleted.' : '$count products will be deleted.',
+                    count == 1 ? '1 inhaler will be deleted.' : '$count inhalers will be deleted.',
                     style: AppTypography.bodySmall,
                   ),
                 ],
@@ -232,6 +345,72 @@ class ProductsScreen extends ConsumerWidget {
     if (ok == true && context.mounted) {
       await ref.read(productsRepositoryProvider).deleteCategory(category);
     }
+  }
+}
+
+class _PartRow extends StatelessWidget {
+  const _PartRow({
+    required this.option,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final ProductOption option;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppColors.cloud,
+        borderRadius: AppRadii.cardBorder,
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: AppRadii.cardBorder,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: option.imageUrl == null
+                        ? const ColoredBox(color: AppColors.blush)
+                        : SmartProductImage(url: option.imageUrl!),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(option.name, style: AppTypography.price),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${Formatters.php(option.price)}  ·  ${option.stock} left',
+                        style: AppTypography.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (v) {
+                    if (v == 'del') onDelete();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'del', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -295,15 +474,6 @@ class _ProductRow extends StatelessWidget {
                         '${product.category}  ·  ${Formatters.php(product.price)}',
                         style: AppTypography.bodySmall,
                       ),
-                      if (product.optionStockSummary.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          product.optionStockSummary,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.bodySmall,
-                        ),
-                      ],
                       const SizedBox(height: 6),
                       WhimsicalBadge(label: product.stockStatus.label, color: color),
                     ],

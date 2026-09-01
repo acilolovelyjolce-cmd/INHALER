@@ -20,6 +20,7 @@ class Mongo {
 
   DbCollection get owners => db.collection('owners');
   DbCollection get products => db.collection('products');
+  DbCollection get parts => db.collection('parts');
   DbCollection get orders => db.collection('orders');
   DbCollection get migrations => db.collection('schema_migrations');
 
