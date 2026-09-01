@@ -174,3 +174,11 @@ int _distSq(img.Pixel pixel, int r, int g, int b) {
   final db = pixel.b.toInt() - b;
   return dr * dr + dg * dg + db * db;
 }
+
+/// Reads width/height from a PNG IHDR so mix layout can keep true proportions.
+(int, int) pngPixelSize(Uint8List bytes) {
+  if (bytes.length < 24 || bytes[0] != 0x89) return (1, 1);
+  final width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+  final height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+  return (width.clamp(1, 4096), height.clamp(1, 4096));
+}

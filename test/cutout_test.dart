@@ -63,4 +63,11 @@ void main() {
     expect(result.width, lessThan(48));
     expect(result.height, lessThan(48));
   });
+
+  test('reads png pixel size from the ihdr', () {
+    final image = img.Image(width: 32, height: 18, numChannels: 4);
+    img.fill(image, color: img.ColorRgba8(20, 80, 40, 255));
+    final bytes = Uint8List.fromList(img.encodePng(image));
+    expect(pngPixelSize(bytes), (32, 18));
+  });
 }

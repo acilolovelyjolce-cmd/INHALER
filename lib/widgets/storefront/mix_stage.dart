@@ -1,12 +1,14 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../data/cutout.dart';
 import '../../data/demo_catalog.dart';
 import '../../models/product.dart';
 import 'cutout_sprite.dart';
 
-/// Compact mix of the inhaler with the chosen cord and charms in front.
+/// Mix of the inhaler with the chosen cord and charms, sized from each sprite.
 class MixStage extends StatefulWidget {
   const MixStage({
     super.key,
@@ -25,12 +27,62 @@ class MixStage extends StatefulWidget {
 
 class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin {
   late final AnimationController _float;
+  late Future<Map<String, Size>> _metrics;
 
   @override
   void initState() {
     super.initState();
     _float = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))
       ..repeat(reverse: true);
+    _metrics = _loadMetrics();
+  }
+
+  @override
+  void didUpdateWidget(MixStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.inhalerUrl != widget.inhalerUrl ||
+        oldWidget.paracord?.id != widget.paracord?.id ||
+        !_sameTrinkets(oldWidget.trinkets, widget.trinkets)) {
+      _metrics = _loadMetrics();
+    }
+  }
+
+  bool _sameTrinkets(List<ProductOption> a, List<ProductOption> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
+  }
+
+  List<String> get _urls {
+    final cord = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
+    return [
+      ?widget.inhalerUrl,
+      ?cord,
+      for (final item in widget.trinkets) ?optionPreviewUrl(item),
+    ];
+  }
+
+  Future<Map<String, Size>> _loadMetrics() async {
+    if (_urls.isEmpty) return {};
+    final entries = await Future.wait([
+      for (final url in _urls)
+        CutoutCache.instance.load(url).then((bytes) => MapEntry(url, _sizeOf(bytes))),
+    ]);
+    return Map.fromEntries(entries);
+  }
+
+  Size _sizeOf(Uint8List bytes) {
+    final pixels = pngPixelSize(bytes);
+    return Size(pixels.$1.toDouble(), pixels.$2.toDouble());
+  }
+
+  double _aspect(Map<String, Size> metrics, String? url, double fallback) {
+    if (url == null) return fallback;
+    final size = metrics[url];
+    if (size == null || size.height < 1) return fallback;
+    return size.width / size.height;
   }
 
   @override
@@ -46,92 +98,205 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
       builder: (context, child) {
         final bob = math.sin(_float.value * math.pi) * 3;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+          padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
           child: SizedBox(
-            height: 108,
+            height: 168,
             width: double.infinity,
             child: Transform.translate(offset: Offset(0, bob), child: child),
           ),
         );
       },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
-          final inhalerW = math.min(64.0, w * 0.2);
-          final inhalerH = h * 0.88;
-          final cordUrl = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
-          final hasCord = cordUrl != null;
-          final cx = w / 2;
-          final cy = h / 2 + (hasCord ? -4 : 2);
-          final picked = [
-            for (final item in widget.trinkets)
-              if (optionPreviewUrl(item) != null) (item.id, optionPreviewUrl(item)!),
-          ];
-          final cordW = inhalerW * 1.7;
-          final cordH = inhalerH * 0.34;
-
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              if (widget.inhalerUrl != null)
-                _piece(
-                  left: cx - inhalerW / 2,
-                  top: cy - inhalerH / 2,
-                  width: inhalerW,
-                  height: inhalerH,
-                  id: 'inhaler-${widget.inhalerUrl}',
-                  url: widget.inhalerUrl!,
-                ),
-              if (hasCord)
-                _piece(
-                  left: cx - cordW / 2,
-                  top: cy + inhalerH * 0.16,
-                  width: cordW,
-                  height: cordH,
-                  id: 'cord-${widget.paracord!.id}',
-                  url: cordUrl,
-                  angle: -0.06,
-                ),
-              for (var i = 0; i < picked.length; i++)
-                _trinket(
-                  index: i,
-                  count: picked.length,
-                  cx: cx + inhalerW * 0.18,
-                  cy: cy - inhalerH * 0.22,
-                  span: math.min(w * 0.16, 52),
-                  url: picked[i].$2,
-                  id: picked[i].$1,
-                ),
-            ],
+      child: FutureBuilder<Map<String, Size>>(
+        future: _metrics,
+        builder: (context, snapshot) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return _compose(constraints, snapshot.data ?? const {});
+            },
           );
         },
       ),
     );
   }
 
-  Widget _trinket({
+  Widget _compose(BoxConstraints constraints, Map<String, Size> metrics) {
+    final w = constraints.maxWidth;
+    final h = constraints.maxHeight;
+    final cordUrl = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
+    final picked = [
+      for (final item in widget.trinkets)
+        if (optionPreviewUrl(item) != null) (item.id, optionPreviewUrl(item)!),
+    ];
+
+    final inhalerAspect = _aspect(metrics, widget.inhalerUrl, 0.46);
+    final cordAspect = _aspect(metrics, cordUrl, 2.5);
+
+    var inhalerH = h * 0.9;
+    var inhalerW = inhalerH * inhalerAspect;
+    final maxInhalerW = w * 0.3;
+    if (inhalerW > maxInhalerW) {
+      inhalerW = maxInhalerW;
+      inhalerH = inhalerW / inhalerAspect;
+    }
+
+    final shiftRight = picked.isEmpty ? 0.0 : math.min(w * 0.16, inhalerW * 0.7);
+    final cx = w / 2 - shiftRight * 0.35;
+    final cy = h / 2 + (cordUrl != null ? -6 : 0);
+    final inhalerLeft = cx - inhalerW / 2;
+    final inhalerTop = cy - inhalerH / 2;
+
+    var cordW = 0.0;
+    var cordH = 0.0;
+    var cordLeft = 0.0;
+    var cordTop = 0.0;
+    if (cordUrl != null) {
+      cordW = math.min(w * 0.78, inhalerW * 2.4);
+      cordH = cordW / cordAspect;
+      if (cordH > inhalerH * 0.5) {
+        cordH = inhalerH * 0.5;
+        cordW = cordH * cordAspect;
+      }
+      if (cordH < inhalerH * 0.28) {
+        cordH = inhalerH * 0.32;
+        cordW = cordH * cordAspect;
+      }
+      final neckY = inhalerTop + inhalerH * 0.26;
+      cordLeft = cx - cordW / 2;
+      cordTop = neckY - cordH * 0.42;
+    }
+
+    final clip = Offset(
+      inhalerLeft + inhalerW * 0.86,
+      inhalerTop + inhalerH * 0.16,
+    );
+    final hip = Offset(
+      inhalerLeft + inhalerW * 0.78,
+      inhalerTop + inhalerH * 0.48,
+    );
+    final knee = Offset(
+      inhalerLeft + inhalerW * 0.7,
+      inhalerTop + inhalerH * 0.74,
+    );
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (widget.inhalerUrl != null)
+          _piece(
+            left: inhalerLeft,
+            top: inhalerTop,
+            width: inhalerW,
+            height: inhalerH,
+            id: 'inhaler-${widget.inhalerUrl}',
+            url: widget.inhalerUrl!,
+          ),
+        if (cordUrl != null)
+          _piece(
+            left: cordLeft,
+            top: cordTop,
+            width: cordW,
+            height: cordH,
+            id: 'cord-${widget.paracord!.id}',
+            url: cordUrl,
+            angle: -0.04,
+          ),
+        for (var i = 0; i < picked.length; i++)
+          _placedTrinket(
+            index: i,
+            count: picked.length,
+            url: picked[i].$2,
+            id: picked[i].$1,
+            aspect: _aspect(metrics, picked[i].$2, 0.9),
+            inhalerW: inhalerW,
+            inhalerH: inhalerH,
+            stageH: h,
+            clip: clip,
+            hip: hip,
+            knee: knee,
+          ),
+      ],
+    );
+  }
+
+  Widget _placedTrinket({
     required int index,
     required int count,
-    required double cx,
-    required double cy,
-    required double span,
     required String url,
     required String id,
+    required double aspect,
+    required double inhalerW,
+    required double inhalerH,
+    required double stageH,
+    required Offset clip,
+    required Offset hip,
+    required Offset knee,
   }) {
-    final t = count == 1 ? 0.0 : (index / (count - 1)) * 2 - 1;
-    final angle = t * 0.9;
-    final dx = math.sin(angle) * span;
-    final dy = -4 + (1 - math.cos(angle)) * 14;
+    final longSide = math.max(inhalerW * 1.05, math.min(88.0, stageH * 0.52));
+    var tw = aspect >= 1 ? longSide : longSide * aspect;
+    var th = aspect >= 1 ? longSide / aspect : longSide;
+    if (th > inhalerH * 0.72) {
+      final scale = inhalerH * 0.72 / th;
+      tw *= scale;
+      th *= scale;
+    }
+    if (tw < inhalerW * 0.85) {
+      final scale = (inhalerW * 0.85) / tw;
+      tw *= scale;
+      th *= scale;
+      if (th > inhalerH * 0.78) {
+        final down = inhalerH * 0.78 / th;
+        tw *= down;
+        th *= down;
+      }
+    }
+
+    final attach = switch (count) {
+      1 => hip,
+      2 => index == 0 ? clip : hip,
+      3 => index == 0
+          ? clip
+          : index == 1
+              ? hip
+              : knee,
+      _ => _along([clip, hip, knee], count == 1 ? 0 : index / (count - 1)),
+    };
+
+    late final double left;
+    late final double top;
+    late final double tilt;
+    if (aspect > 1.2) {
+      left = attach.dx - tw * 0.1;
+      top = attach.dy - th / 2;
+      tilt = 0.08;
+    } else if (aspect < 0.82) {
+      left = attach.dx - tw * 0.28;
+      top = attach.dy - th * 0.12;
+      tilt = 0.18;
+    } else {
+      left = attach.dx - tw * 0.22;
+      top = attach.dy - th * 0.28;
+      tilt = 0.12;
+    }
+
     return _piece(
-      left: cx + dx - 22,
-      top: cy + dy - 22,
-      width: 44,
-      height: 44,
+      left: left,
+      top: top,
+      width: tw,
+      height: th,
       id: 't-$id',
       url: url,
-      angle: angle * 0.28,
+      angle: (index - (count - 1) / 2) * 0.08 + tilt * (aspect < 1 ? 1 : 0.4),
     );
+  }
+
+  Offset _along(List<Offset> points, double t) {
+    if (points.isEmpty) return Offset.zero;
+    if (points.length == 1 || t <= 0) return points.first;
+    if (t >= 1) return points.last;
+    final scaled = t * (points.length - 1);
+    final i = scaled.floor().clamp(0, points.length - 2);
+    final local = scaled - i;
+    return Offset.lerp(points[i], points[i + 1], local)!;
   }
 
   Widget _piece({
@@ -154,7 +319,7 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
         key: ValueKey(id),
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutBack,
-        tween: Tween(begin: 0.72, end: 1),
+        tween: Tween(begin: 0.78, end: 1),
         builder: (context, value, child) {
           return Transform.rotate(
             angle: angle,
