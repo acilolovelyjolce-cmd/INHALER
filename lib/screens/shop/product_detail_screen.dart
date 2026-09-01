@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/catalog_providers.dart';
+import '../../theme/tokens.dart';
 import '../../widgets/storefront/product_door_flow.dart';
 import '../../widgets/ui/feedback.dart';
 
@@ -34,13 +35,21 @@ class ProductDetailScreen extends ConsumerWidget {
           );
         }
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => context.go('/shop/$slug'),
-                icon: const Icon(Icons.arrow_back_rounded),
-                label: const Text('All charms'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => context.go('/shop/$slug'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.plum,
+                    minimumSize: const Size(44, 44),
+                  ),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('All charms'),
+                ),
               ),
             ),
             Expanded(child: ProductDoorFlow(product: product)),

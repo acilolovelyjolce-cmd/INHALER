@@ -203,16 +203,20 @@ class QuantityStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: AppColors.sky,
-        shape: const StadiumBorder(side: BorderSide(color: AppColors.ink, width: 2)),
+      decoration: stickerFill(
+        color: AppColors.cloud,
+        radius: 99,
+        stroke: AppStroke.inkThin,
+        elevated: false,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             onPressed: value > min ? () => onChanged(value - 1) : null,
-            icon: const Icon(Icons.remove),
+            icon: const Icon(Icons.remove, color: AppColors.plum),
           ),
           SizedBox(
             width: 28,
@@ -223,8 +227,10 @@ class QuantityStepper extends StatelessWidget {
             ),
           ),
           IconButton(
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             onPressed: value < max ? () => onChanged(value + 1) : null,
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, color: AppColors.plum),
           ),
         ],
       ),

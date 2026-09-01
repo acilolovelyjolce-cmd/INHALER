@@ -26,14 +26,25 @@ class ShopShell extends ConsumerWidget {
         wordmark: name,
         hasPlayedIntro: introPlayed,
         onIntroComplete: () => ref.read(introFlagProvider.notifier).markPlayed(),
-        headerTrailing: Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        headerTrailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             TextButton(
               onPressed: () => context.go('/dashboard'),
-              child: Text('owner den', style: AppTypography.label),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.plum,
+                minimumSize: const Size(44, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'owner den',
+                style: AppTypography.bodySmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.plum,
+                ),
+              ),
             ),
             StorefrontCartButton(slug: slug, shopName: name),
           ],

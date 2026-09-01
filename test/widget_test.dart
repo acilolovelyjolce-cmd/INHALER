@@ -40,6 +40,7 @@ void main() {
     expect(find.text('psst, owner'), findsOneWidget);
     expect(find.text('hop in'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('back to the public shop'));
     await tester.tap(find.text('back to the public shop'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

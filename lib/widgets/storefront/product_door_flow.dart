@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
@@ -11,6 +10,8 @@ import '../../theme/tokens.dart';
 import '../ui/feedback.dart';
 import '../ui/whimsical_badge.dart';
 import '../ui/whimsical_button.dart';
+import 'mix_stage.dart';
+import 'cutout_sprite.dart';
 
 enum _Door { meet, paracord, trinkets, summary }
 
@@ -132,119 +133,130 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   @override
   Widget build(BuildContext context) {
     final sold = product.stockStatus == StockStatus.soldOut;
-    return Column(
-      children: [
-        _DoorTrack(index: _index, total: _doors.length, label: switch (_door) {
-          _Door.meet => 'meet the inhaler',
-          _Door.paracord => 'pick a paracord',
-          _Door.trinkets => 'add trinkets',
-          _Door.summary => 'check the mix',
-        }),
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 420),
-            switchInCurve: Curves.easeOutBack,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) {
-              final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-              return FadeTransition(
-                opacity: curved,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.12, 0),
-                    end: Offset.zero,
-                  ).animate(curved),
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.92, end: 1).animate(curved),
-                    child: child,
-                  ),
-                ),
-              );
+    return ColoredBox(
+      color: AppColors.blush,
+      child: Column(
+        children: [
+          _DoorTrack(
+            index: _index,
+            total: _doors.length,
+            label: switch (_door) {
+              _Door.meet => 'Meet the inhaler',
+              _Door.paracord => 'Pick a paracord',
+              _Door.trinkets => 'Add trinkets',
+              _Door.summary => 'Check the mix',
             },
-            child: KeyedSubtree(
-              key: ValueKey(_door),
-              child: switch (_door) {
-                _Door.meet => _MeetDoor(product: product),
-                _Door.paracord => _OptionGrid(
-                    title: 'One paracord',
-                    subtitle: product.paracords.every((item) => item.stock <= 0)
-                        ? 'These cords are all gone for now.'
-                        : 'Pick a single color for the cord.',
-                    options: product.paracords,
-                    selectedIds: {
-                      if (_paracord != null) _paracord!.id,
-                    },
-                    onTap: (option) {
-                      if (option.stock <= 0) return;
-                      setState(() => _paracord = option);
-                    },
-                  ),
-                _Door.trinkets => _OptionGrid(
-                    title: 'Trinkets',
-                    subtitle: 'Tap as many as you like. Tap again to take one off.',
-                    options: product.trinkets,
-                    selectedIds: _trinkets.map((item) => item.id).toSet(),
-                    onTap: (option) {
-                      if (option.stock <= 0) return;
-                      setState(() {
-                        final existing =
-                            _trinkets.where((item) => item.id == option.id).firstOrNull;
-                        if (existing != null) {
-                          _trinkets.remove(existing);
-                        } else {
-                          _trinkets.add(option);
-                        }
-                      });
-                    },
-                  ),
-                _Door.summary => _SummaryDoor(
-                    product: product,
-                    paracord: _paracord,
-                    trinkets: _trinkets.toList(),
-                    qty: _qty,
-                    maxQty: _maxQty,
-                    unit: _unit,
-                    onQty: (v) => setState(() => _qty = v),
-                  ),
-              },
-            ),
           ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                if (_index > 0)
-                  WhimsicalButton(
-                    label: 'back',
-                    kind: WhimsicalButtonKind.ghost,
-                    onPressed: _back,
-                  ),
-                if (_index > 0) const SizedBox(width: 10),
-                Expanded(
-                  child: _door == _Door.summary
-                      ? WhimsicalButton(
-                          label: sold
-                              ? 'all gone for now'
-                              : _stockOk
-                                  ? 'add to cart'
-                                  : 'not enough left',
-                          expand: true,
-                          onPressed: sold || !_stockOk ? null : _addToCart,
-                        )
-                      : WhimsicalButton(
-                          label: 'next door',
-                          expand: true,
-                          onPressed: _canNext ? _next : null,
-                        ),
+          MixStage(
+            inhalerUrl: product.imageUrls.isEmpty ? null : product.imageUrls.first,
+            paracord: _paracord,
+            trinkets: _trinkets.toList(),
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              layoutBuilder: (currentChild, _) => SizedBox.expand(
+                child: ColoredBox(
+                  color: AppColors.blush,
+                  child: currentChild ?? const SizedBox.shrink(),
                 ),
-              ],
+              ),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              child: KeyedSubtree(
+                key: ValueKey(_door),
+                child: ColoredBox(
+                  color: AppColors.blush,
+                  child: switch (_door) {
+                    _Door.meet => _MeetDoor(product: product),
+                    _Door.paracord => _OptionGrid(
+                        title: 'One paracord',
+                        subtitle: product.paracords.every((item) => item.stock <= 0)
+                            ? 'These cords are all gone for now.'
+                            : 'Pick a single color for the cord.',
+                        options: product.paracords,
+                        selectedIds: {
+                          if (_paracord != null) _paracord!.id,
+                        },
+                        onTap: (option) {
+                          if (option.stock <= 0) return;
+                          setState(() => _paracord = option);
+                        },
+                      ),
+                    _Door.trinkets => _OptionGrid(
+                        title: 'Trinkets',
+                        subtitle: 'Tap as many as you like. Tap again to take one off.',
+                        options: product.trinkets,
+                        selectedIds: _trinkets.map((item) => item.id).toSet(),
+                        onTap: (option) {
+                          if (option.stock <= 0) return;
+                          setState(() {
+                            final existing =
+                                _trinkets.where((item) => item.id == option.id).firstOrNull;
+                            if (existing != null) {
+                              _trinkets.remove(existing);
+                            } else {
+                              _trinkets.add(option);
+                            }
+                          });
+                        },
+                      ),
+                    _Door.summary => _SummaryDoor(
+                        product: product,
+                        paracord: _paracord,
+                        trinkets: _trinkets.toList(),
+                        qty: _qty,
+                        maxQty: _maxQty,
+                        unit: _unit,
+                        onQty: (v) => setState(() => _qty = v),
+                      ),
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          ColoredBox(
+            color: AppColors.blush,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
+                  children: [
+                    if (_index > 0)
+                      WhimsicalButton(
+                        label: 'Back',
+                        kind: WhimsicalButtonKind.ghost,
+                        onPressed: _back,
+                      ),
+                    if (_index > 0) const SizedBox(width: 12),
+                    Expanded(
+                      child: _door == _Door.summary
+                          ? WhimsicalButton(
+                              label: sold
+                                  ? 'All gone for now'
+                                  : _stockOk
+                                      ? 'Add to cart'
+                                      : 'Not enough left',
+                              expand: true,
+                              onPressed: sold || !_stockOk ? null : _addToCart,
+                            )
+                          : WhimsicalButton(
+                              label: 'Next',
+                              expand: true,
+                              onPressed: _canNext ? _next : null,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -259,27 +271,27 @@ class _DoorTrack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTypography.label),
-          const SizedBox(height: 8),
+          Text(label.toUpperCase(), style: AppTypography.kicker),
+          const SizedBox(height: 12),
           Row(
             children: [
               for (var i = 0; i < total; i++) ...[
                 Expanded(
                   child: AnimatedContainer(
                     duration: AppMotion.hover,
-                    height: 8,
+                    height: 10,
                     decoration: BoxDecoration(
                       color: i <= index ? AppColors.petal : AppColors.cloud,
                       borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: AppColors.ink, width: 2),
+                      border: Border.all(color: AppColors.ink, width: AppStroke.inkThin),
                     ),
                   ),
                 ),
-                if (i < total - 1) const SizedBox(width: 6),
+                if (i < total - 1) const SizedBox(width: 8),
               ],
             ],
           ),
@@ -296,43 +308,25 @@ class _MeetDoor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = product.imageUrls.isEmpty ? null : product.imageUrls.first;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: DecoratedBox(
-            decoration: stickerFill(color: AppColors.cloud, radius: AppRadii.image),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.image - 4),
-              child: image == null
-                  ? const ColoredBox(color: AppColors.sky)
-                  : ContainedMedia(url: image, padding: 18),
+        if (product.stockStatus != StockStatus.available) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: WhimsicalBadge(
+              label: product.stockStatus.label,
+              color: product.stockStatus == StockStatus.soldOut
+                  ? AppColors.cancelled.withValues(alpha: 0.25)
+                  : AppColors.meadow,
             ),
           ),
-        )
-            .animate()
-            .fadeIn(duration: 280.ms)
-            .scale(begin: const Offset(0.94, 0.94), curve: Curves.easeOutBack),
-        const SizedBox(height: 18),
-        if (product.stockStatus != StockStatus.available)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: WhimsicalBadge(
-                label: product.stockStatus.label,
-                color: product.stockStatus == StockStatus.soldOut
-                    ? AppColors.cancelled.withValues(alpha: 0.25)
-                    : AppColors.meadow,
-              ),
-            ),
-          ),
+          const SizedBox(height: 16),
+        ],
         Text(product.name, style: AppTypography.displayMedium),
-        const SizedBox(height: 6),
-        Text('from ${Formatters.php(product.price)}', style: AppTypography.displaySmall),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        Text('from ${Formatters.php(product.price)}', style: AppTypography.title),
+        const SizedBox(height: 16),
         Text(product.description, style: AppTypography.body),
       ],
     );
@@ -357,21 +351,21 @@ class _OptionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         Text(title, style: AppTypography.displaySmall),
-        const SizedBox(height: 4),
-        Text(subtitle, style: AppTypography.bodySmall),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Text(subtitle, style: AppTypography.body),
+        const SizedBox(height: 24),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: options.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 0.72,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.86,
           ),
           itemBuilder: (context, index) {
             final option = options[index];
@@ -381,9 +375,9 @@ class _OptionGrid extends StatelessWidget {
               onTap: gone ? null : () => onTap(option),
               child: AnimatedScale(
                 duration: AppMotion.squish,
-                scale: selected ? 1.03 : 1,
+                scale: selected ? 1.02 : 1,
                 child: Opacity(
-                  opacity: gone ? 0.45 : 1,
+                  opacity: gone ? 0.5 : 1,
                   child: DecoratedBox(
                     decoration: stickerFill(
                       color: selected ? AppColors.petal : AppColors.cloud,
@@ -391,29 +385,36 @@ class _OptionGrid extends StatelessWidget {
                       pressed: selected,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         children: [
                           Expanded(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(18),
-                              child: option.imageUrl == null
-                                  ? const ColoredBox(color: AppColors.sky)
-                                  : ContainedMedia(url: option.imageUrl!, padding: 8),
+                              child: ColoredBox(
+                                color: const Color(0xFFFFF6FB),
+                                child: option.imageUrl == null
+                                    ? const SizedBox.expand()
+                                    : Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: CutoutSprite(url: option.imageUrl!),
+                                      ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             option.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.title.copyWith(fontSize: 14),
+                            style: AppTypography.title.copyWith(fontSize: 15),
                           ),
-                          Text(Formatters.php(option.price), style: AppTypography.bodySmall),
+                          const SizedBox(height: 4),
+                          Text(Formatters.php(option.price), style: AppTypography.body),
                           Text(
                             gone ? 'sold out' : '${option.stock} left',
                             style: AppTypography.bodySmall.copyWith(
-                              color: gone ? AppColors.plum : AppColors.plumSoft,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -452,34 +453,35 @@ class _SummaryDoor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
-        Text('Your mix', style: AppTypography.displaySmall),
-        const SizedBox(height: 14),
+        Text('YOUR MIX', style: AppTypography.kicker),
+        const SizedBox(height: 16),
         DecoratedBox(
-          decoration: stickerFill(),
+          decoration: stickerFill(color: AppColors.cloud, radius: 28),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(product.name, style: AppTypography.title),
+                Text(product.name, style: AppTypography.title.copyWith(fontSize: 18)),
                 const SizedBox(height: 8),
-                Text('Inhaler  ${Formatters.php(product.price)}', style: AppTypography.body),
+                Text(
+                  'Inhaler  ${Formatters.php(product.price)}',
+                  style: AppTypography.body,
+                ),
                 if (paracord != null)
                   Text(
                     'Paracord  ${paracord!.name}  ${Formatters.php(paracord!.price)}',
                     style: AppTypography.body,
                   ),
-                if (trinkets.isEmpty)
-                  Text('Trinkets  none', style: AppTypography.bodySmall)
-                else
-                  for (final item in trinkets)
-                    Text(
-                      'Trinket  ${item.name}  ${Formatters.php(item.price)}',
-                      style: AppTypography.body,
-                    ),
-                const SizedBox(height: 12),
+                Text(
+                  trinkets.isEmpty
+                      ? 'Trinkets  none'
+                      : 'Trinkets  ${trinkets.map((item) => item.name).join(', ')}',
+                  style: AppTypography.body,
+                ),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     QuantityStepper(value: qty, max: maxQty, onChanged: onQty),

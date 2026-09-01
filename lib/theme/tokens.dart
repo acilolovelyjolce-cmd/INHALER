@@ -103,8 +103,8 @@ abstract final class AppTypography {
   static const body = TextStyle(
     fontFamily: bodyFamily,
     fontWeight: FontWeight.w500,
-    fontSize: 15,
-    height: 1.4,
+    fontSize: 16,
+    height: 1.45,
     color: AppColors.plum,
   );
 
@@ -113,7 +113,7 @@ abstract final class AppTypography {
     fontWeight: FontWeight.w500,
     fontSize: 13,
     height: 1.4,
-    color: AppColors.plumSoft,
+    color: AppColors.plum,
   );
 
   static const price = TextStyle(
@@ -127,7 +127,7 @@ abstract final class AppTypography {
   static const button = TextStyle(
     fontFamily: bodyFamily,
     fontWeight: FontWeight.w600,
-    fontSize: 15,
+    fontSize: 16,
     height: 1.15,
     color: AppColors.plum,
   );
@@ -135,9 +135,18 @@ abstract final class AppTypography {
   static const label = TextStyle(
     fontFamily: bodyFamily,
     fontWeight: FontWeight.w600,
-    fontSize: 12,
+    fontSize: 13,
     height: 1.2,
-    color: AppColors.plumSoft,
+    color: AppColors.plum,
+  );
+
+  static const kicker = TextStyle(
+    fontFamily: bodyFamily,
+    fontWeight: FontWeight.w600,
+    fontSize: 13,
+    height: 1.2,
+    letterSpacing: 1.6,
+    color: AppColors.plum,
   );
 }
 
@@ -161,11 +170,16 @@ BoxDecoration stickerFill({
   double radius = AppRadii.card,
   bool pressed = false,
   double stroke = AppStroke.ink,
+  bool elevated = true,
 }) {
   return BoxDecoration(
     color: color,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: AppColors.ink, width: stroke),
-    boxShadow: pressed ? AppShadows.cardPressed : AppShadows.card,
+    boxShadow: !elevated
+        ? const []
+        : pressed
+            ? AppShadows.cardPressed
+            : AppShadows.card,
   );
 }
