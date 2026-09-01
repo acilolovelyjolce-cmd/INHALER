@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../theme/tokens.dart';
 import '../doodles/dino_mascot.dart';
+import '../ui/whimsical_app_bar.dart';
 
 class IntroOrchestrator extends StatefulWidget {
   const IntroOrchestrator({
@@ -141,6 +142,22 @@ class _IntroOrchestratorState extends State<IntroOrchestrator>
   Widget build(BuildContext context) {
     final padding = MediaQuery.paddingOf(context);
     final reduced = MediaQuery.disableAnimationsOf(context);
+
+    if (_completed) {
+      return ColoredBox(
+        color: AppColors.blush,
+        child: Column(
+          children: [
+            SizedBox(height: padding.top),
+            WhimsicalAppBar(
+              wordmark: widget.wordmark,
+              trailing: widget.headerTrailing,
+            ),
+            Expanded(child: widget.child),
+          ],
+        ),
+      );
+    }
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

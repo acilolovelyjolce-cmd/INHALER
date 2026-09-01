@@ -11,12 +11,17 @@ abstract final class AppTheme {
       splashFactory: InkRipple.splashFactory,
     );
 
+    final inkBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(24),
+      borderSide: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
+    );
+
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.blush,
       colorScheme: const ColorScheme.light(
         primary: AppColors.petal,
         onPrimary: AppColors.plum,
-        secondary: AppColors.meadow,
+        secondary: AppColors.sky,
         onSecondary: AppColors.plum,
         tertiary: AppColors.yolk,
         onTertiary: AppColors.plum,
@@ -48,12 +53,15 @@ abstract final class AppTheme {
         ),
       ),
       canvasColor: AppColors.blush,
-      dividerColor: AppColors.plum.withValues(alpha: 0.08),
+      dividerColor: AppColors.ink.withValues(alpha: 0.12),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.plum,
-        contentTextStyle: AppTypography.body.copyWith(color: AppColors.cloud),
+        backgroundColor: AppColors.yolk,
+        contentTextStyle: AppTypography.body.copyWith(color: AppColors.ink),
         behavior: SnackBarBehavior.floating,
-        shape: const StadiumBorder(),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
+        ),
         elevation: 0,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -67,7 +75,10 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.cloud,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: AppRadii.cardBorder),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.cardBorder,
+          side: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
+        ),
         titleTextStyle: AppTypography.displaySmall,
         contentTextStyle: AppTypography.body,
       ),
@@ -77,21 +88,13 @@ abstract final class AppTheme {
         hintStyle: AppTypography.body.copyWith(color: AppColors.plumSoft),
         labelStyle: AppTypography.label,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: AppColors.plum.withValues(alpha: 0.08)),
+        border: inkBorder,
+        enabledBorder: inkBorder,
+        focusedBorder: inkBorder.copyWith(
+          borderSide: const BorderSide(color: AppColors.petalDeep, width: 3.5),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: AppColors.plum.withValues(alpha: 0.08)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: const BorderSide(color: AppColors.petal, width: 1.6),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: const BorderSide(color: AppColors.cancelled),
+        errorBorder: inkBorder.copyWith(
+          borderSide: const BorderSide(color: AppColors.cancelled, width: AppStroke.ink),
         ),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -99,36 +102,36 @@ abstract final class AppTheme {
           if (states.contains(WidgetState.selected)) return AppColors.petal;
           return AppColors.cloud;
         }),
-        checkColor: WidgetStateProperty.all(AppColors.plum),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        checkColor: WidgetStateProperty.all(AppColors.ink),
+        side: const BorderSide(color: AppColors.ink, width: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          return AppColors.cloud;
-        }),
+        thumbColor: WidgetStateProperty.all(AppColors.cloud),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return AppColors.meadow;
           return AppColors.plum.withValues(alpha: 0.18);
         }),
-        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        trackOutlineColor: WidgetStateProperty.all(AppColors.ink),
+        trackOutlineWidth: WidgetStateProperty.all(2),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.blush,
+        backgroundColor: AppColors.sky,
         selectedColor: AppColors.petal,
         labelStyle: AppTypography.label.copyWith(color: AppColors.plum),
-        shape: const StadiumBorder(),
-        side: BorderSide.none,
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.ink, width: 2)),
+        side: const BorderSide(color: AppColors.ink, width: 2),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.cloud,
         indicatorColor: AppColors.petal,
         elevation: 0,
-        height: 72,
+        height: 78,
         surfaceTintColor: Colors.transparent,
-        labelTextStyle: WidgetStateProperty.all(AppTypography.label),
+        labelTextStyle: WidgetStateProperty.all(AppTypography.label.copyWith(color: AppColors.plum)),
         iconTheme: WidgetStateProperty.all(
-          const IconThemeData(color: AppColors.plum),
+          const IconThemeData(color: AppColors.plum, size: 26),
         ),
       ),
       navigationRailTheme: const NavigationRailThemeData(

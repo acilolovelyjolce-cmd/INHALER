@@ -88,7 +88,7 @@ class _CheckPainter extends CustomPainter {
 }
 
 class DinoLoading extends StatelessWidget {
-  const DinoLoading({super.key, this.message = 'waddling over…'});
+  const DinoLoading({super.key, this.message = 'snoozing a sec…'});
 
   final String message;
 
@@ -98,10 +98,10 @@ class DinoLoading extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const DinoMascot(size: 72)
+          const FluffyCat(pose: CatPose.sleepy, size: 88)
               .animate(onPlay: (c) => c.repeat(reverse: true))
-              .moveX(begin: -10, end: 10, duration: 700.ms, curve: Curves.easeInOut)
-              .rotate(begin: -0.04, end: 0.04, duration: 700.ms),
+              .moveY(begin: -6, end: 6, duration: 900.ms, curve: Curves.easeInOut)
+              .scale(begin: const Offset(0.96, 1), end: const Offset(1.04, 1), duration: 900.ms),
           const SizedBox(height: 12),
           Text(message, style: AppTypography.bodySmall),
         ],
@@ -116,25 +116,37 @@ class WhimsicalError extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
+  String get _copy {
+    if (message.contains('already been listened')) {
+      return 'The shop had a hiccup loading. Try again in a moment.';
+    }
+    return message;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('a little tumble', style: AppTypography.displaySmall),
-            const SizedBox(height: 8),
-            Text(message, style: AppTypography.bodySmall, textAlign: TextAlign.center),
-            if (onRetry != null) ...[
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const FluffyCat(pose: CatPose.yell, size: 96),
               const SizedBox(height: 16),
-              TextButton(
-                onPressed: onRetry,
-                child: const Text('Try again'),
-              ),
+              Text('ack!! a little tumble', style: AppTypography.displaySmall, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(_copy, style: AppTypography.bodySmall, textAlign: TextAlign.center),
+              if (onRetry != null) ...[
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text('Try again'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -159,7 +171,7 @@ class WhimsicalEmpty extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
       child: Column(
         children: [
-          const DinoMascot(size: 88),
+          const FluffyCat(pose: CatPose.heart, size: 96),
           const SizedBox(height: 16),
           Text(title, style: AppTypography.displaySmall, textAlign: TextAlign.center),
           const SizedBox(height: 8),
@@ -192,8 +204,8 @@ class QuantityStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: AppColors.blush,
-        shape: const StadiumBorder(),
+        color: AppColors.sky,
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.ink, width: 2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

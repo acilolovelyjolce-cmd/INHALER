@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/doodles/dino_mascot.dart';
 import '../../widgets/storefront/cart_sheet.dart';
 import '../../widgets/storefront/product_grid.dart';
+import '../../widgets/ui/atelier_backdrop.dart';
 import '../../widgets/ui/feedback.dart';
+import '../../widgets/ui/page_canvas.dart';
 import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_sheet.dart';
 
@@ -19,51 +22,89 @@ class StorefrontScreen extends ConsumerWidget {
     final profile = ref.watch(shopProfileProvider(slug));
     final products = ref.watch(publishedProductsProvider(slug));
 
-    return profile.when(
-      loading: () => const DinoLoading(),
-      error: (e, _) => WhimsicalError(message: e.toString()),
-      data: (shop) {
-        if (shop == null) {
-          return const WhimsicalEmpty(
-            title: 'This shop is still packing',
-            body: 'The link might be a little off — try another slug, or check back after the owner publishes.',
-          );
-        }
+    return AtelierBackdrop(
+      child: profile.when(
+        loading: () => const DinoLoading(),
+        error: (e, _) => WhimsicalError(
+          message: e.toString(),
+          onRetry: () {
+            ref.invalidate(shopProfileProvider(slug));
+            ref.invalidate(publishedProductsProvider(slug));
+          },
+        ),
+        data: (shop) {
+          if (shop == null) {
+            return const WhimsicalEmpty(
+              title: 'This shop is still packing',
+              body: 'The link might be a little off — try another slug, or check back after the owner publishes.',
+            );
+          }
 
-        return products.when(
-          loading: () => const DinoLoading(),
-          error: (e, _) => WhimsicalError(message: e.toString()),
-          data: (items) {
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 4, 28, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (shop.bio != null && shop.bio!.isNotEmpty)
-                          Text(shop.bio!, style: AppTypography.body),
-                      ],
+          return products.when(
+            loading: () => const DinoLoading(),
+            error: (e, _) => WhimsicalError(
+              message: e.toString(),
+              onRetry: () => ref.invalidate(publishedProductsProvider(slug)),
+            ),
+            data: (items) {
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: PageCanvas(
+                      maxWidth: AppLayout.storefrontMax,
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const FluffyCat(pose: CatPose.strawberry, size: 72),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'tiny charms, huge heart',
+                                  style: AppTypography.displayMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            (shop.bio != null && shop.bio!.isNotEmpty)
+                                ? shop.bio!
+                                : 'Squishy pastel keychains, made-to-order dinos, and little shells you can tap to request.',
+                            style: AppTypography.body.copyWith(height: 1.5),
+                          ),
+                          const SizedBox(height: 22),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                  sliver: SliverToBoxAdapter(
-                    child: items.isEmpty
-                        ? const WhimsicalEmpty(
-                            title: 'Restocking the nest',
-                            body: 'Nothing is published just yet — check back after the next tiny launch.',
-                          )
-                        : ProductGrid(slug: slug, products: items),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                    sliver: SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: AppLayout.storefrontMax),
+                          child: CreamPanel(
+                            padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
+                            child: items.isEmpty
+                                ? const WhimsicalEmpty(
+                                    title: 'Restocking the nest',
+                                    body: 'Nothing is published just yet — check back after the next tiny launch.',
+                                  )
+                                : ProductGrid(slug: slug, products: items),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

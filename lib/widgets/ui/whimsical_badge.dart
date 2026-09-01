@@ -17,11 +17,11 @@ class WhimsicalBadge extends StatelessWidget {
     return DecoratedBox(
       decoration: ShapeDecoration(
         color: color,
-        shape: const StadiumBorder(),
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.ink, width: 2)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Text(label, style: AppTypography.label.copyWith(color: AppColors.plum)),
+        child: Text(label, style: AppTypography.label.copyWith(color: AppColors.ink)),
       ),
     );
   }
@@ -44,14 +44,10 @@ class WhimsicalSegmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.cloud,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: stickerFill(color: AppColors.cloud, radius: 24, stroke: AppStroke.inkThin),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(6),
         child: Row(
           children: [
             for (final value in values)
@@ -64,13 +60,17 @@ class WhimsicalSegmented<T> extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: ShapeDecoration(
                       color: value == selected ? AppColors.petal : Colors.transparent,
-                      shape: const StadiumBorder(),
+                      shape: StadiumBorder(
+                        side: value == selected
+                            ? const BorderSide(color: AppColors.ink, width: 2)
+                            : BorderSide.none,
+                      ),
                     ),
                     child: Text(
                       labelOf(value),
                       style: AppTypography.label.copyWith(
                         color: AppColors.plum,
-                        fontWeight: value == selected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: value == selected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                   ),

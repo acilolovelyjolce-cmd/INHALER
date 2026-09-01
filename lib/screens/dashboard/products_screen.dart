@@ -42,12 +42,14 @@ class ProductsScreen extends ConsumerWidget {
                       PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
                     ],
                   ),
-                  WhimsicalButton(
-                    label: 'Add product',
-                    icon: Icons.add,
-                    onPressed: () => showWhimsicalSheet(
-                      context: context,
-                      builder: (_) => const ProductFormSheet(),
+                  Flexible(
+                    child: WhimsicalButton(
+                      label: 'Add product',
+                      icon: Icons.add,
+                      onPressed: () => showWhimsicalSheet(
+                        context: context,
+                        builder: (_) => const ProductFormSheet(),
+                      ),
                     ),
                   ),
                 ],

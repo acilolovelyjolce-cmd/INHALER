@@ -44,12 +44,13 @@ class ProductGrid extends StatelessWidget {
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
+                clipBehavior: Clip.none,
                 itemCount: entry.value.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: cols,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.68,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: cols >= 3 ? 0.76 : 0.7,
                 ),
                 itemBuilder: (context, index) {
                   final product = entry.value[index];
@@ -81,7 +82,9 @@ class _ProductTile extends StatelessWidget {
       onTap: onTap,
       child: Opacity(
         opacity: sold ? 0.55 : 1,
-        child: Column(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(2, 2, 6, 8),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
@@ -90,15 +93,11 @@ class _ProductTile extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppColors.cloud,
-                        borderRadius: AppRadii.imageBorder,
-                        boxShadow: AppShadows.card,
-                      ),
+                      decoration: stickerFill(color: AppColors.cloud, radius: AppRadii.image),
                       child: ClipRRect(
                         borderRadius: AppRadii.imageBorder,
                         child: product.imageUrls.isEmpty
-                            ? const ColoredBox(color: AppColors.blush)
+                            ? const ColoredBox(color: AppColors.sky)
                             : Transform.translate(
                                 offset: const Offset(0, 8),
                                 child: SmartProductImage(url: product.imageUrls.first),
@@ -126,7 +125,7 @@ class _ProductTile extends StatelessWidget {
               product.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.price.copyWith(fontWeight: FontWeight.w500),
+              style: AppTypography.title.copyWith(fontSize: 16),
             ),
             const SizedBox(height: 4),
             Row(
@@ -144,6 +143,7 @@ class _ProductTile extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );

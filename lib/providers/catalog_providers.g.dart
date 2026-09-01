@@ -41,7 +41,7 @@ final ordersRepositoryProvider = Provider<OrdersRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef OrdersRepositoryRef = ProviderRef<OrdersRepository>;
-String _$publishedProductsHash() => r'ab84c56e93d08f942ed50949d9c7eb3e9279f99e';
+String _$publishedProductsHash() => r'31aa5e9173fd09038f9273ab69bf5fcd76d478a5';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -65,10 +65,10 @@ class _SystemHash {
 }
 
 abstract class _$PublishedProducts
-    extends BuildlessAutoDisposeAsyncNotifier<List<Product>> {
+    extends BuildlessStreamNotifier<List<Product>> {
   late final String slug;
 
-  FutureOr<List<Product>> build(String slug);
+  Stream<List<Product>> build(String slug);
 }
 
 /// See also [PublishedProducts].
@@ -109,8 +109,7 @@ class PublishedProductsFamily extends Family<AsyncValue<List<Product>>> {
 
 /// See also [PublishedProducts].
 class PublishedProductsProvider
-    extends
-        AutoDisposeAsyncNotifierProviderImpl<PublishedProducts, List<Product>> {
+    extends StreamNotifierProviderImpl<PublishedProducts, List<Product>> {
   /// See also [PublishedProducts].
   PublishedProductsProvider(String slug)
     : this._internal(
@@ -139,9 +138,7 @@ class PublishedProductsProvider
   final String slug;
 
   @override
-  FutureOr<List<Product>> runNotifierBuild(
-    covariant PublishedProducts notifier,
-  ) {
+  Stream<List<Product>> runNotifierBuild(covariant PublishedProducts notifier) {
     return notifier.build(slug);
   }
 
@@ -162,7 +159,7 @@ class PublishedProductsProvider
   }
 
   @override
-  AutoDisposeAsyncNotifierProviderElement<PublishedProducts, List<Product>>
+  StreamNotifierProviderElement<PublishedProducts, List<Product>>
   createElement() {
     return _PublishedProductsProviderElement(this);
   }
@@ -183,18 +180,13 @@ class PublishedProductsProvider
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-mixin PublishedProductsRef
-    on AutoDisposeAsyncNotifierProviderRef<List<Product>> {
+mixin PublishedProductsRef on StreamNotifierProviderRef<List<Product>> {
   /// The parameter `slug` of this provider.
   String get slug;
 }
 
 class _PublishedProductsProviderElement
-    extends
-        AutoDisposeAsyncNotifierProviderElement<
-          PublishedProducts,
-          List<Product>
-        >
+    extends StreamNotifierProviderElement<PublishedProducts, List<Product>>
     with PublishedProductsRef {
   _PublishedProductsProviderElement(super.provider);
 
@@ -202,12 +194,12 @@ class _PublishedProductsProviderElement
   String get slug => (origin as PublishedProductsProvider).slug;
 }
 
-String _$ownerProductsHash() => r'e4eb7ed3f5ae777152b963cb3adbc6227ae2ab8c';
+String _$ownerProductsHash() => r'396e8153d676818efe1a216b9275d456112e03d4';
 
 /// See also [OwnerProducts].
 @ProviderFor(OwnerProducts)
 final ownerProductsProvider =
-    AutoDisposeAsyncNotifierProvider<OwnerProducts, List<Product>>.internal(
+    StreamNotifierProvider<OwnerProducts, List<Product>>.internal(
       OwnerProducts.new,
       name: r'ownerProductsProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -217,14 +209,13 @@ final ownerProductsProvider =
       allTransitiveDependencies: null,
     );
 
-typedef _$OwnerProducts = AutoDisposeAsyncNotifier<List<Product>>;
-String _$shopProfileHash() => r'233ede4f43c2dad0f1ed4aa9c3dec66d013f7e9b';
+typedef _$OwnerProducts = StreamNotifier<List<Product>>;
+String _$shopProfileHash() => r'68cb1b18e0894a631f02ec006c1cf53acb42f333';
 
-abstract class _$ShopProfile
-    extends BuildlessAutoDisposeAsyncNotifier<OwnerProfile?> {
+abstract class _$ShopProfile extends BuildlessStreamNotifier<OwnerProfile?> {
   late final String slug;
 
-  FutureOr<OwnerProfile?> build(String slug);
+  Stream<OwnerProfile?> build(String slug);
 }
 
 /// See also [ShopProfile].
@@ -265,7 +256,7 @@ class ShopProfileFamily extends Family<AsyncValue<OwnerProfile?>> {
 
 /// See also [ShopProfile].
 class ShopProfileProvider
-    extends AutoDisposeAsyncNotifierProviderImpl<ShopProfile, OwnerProfile?> {
+    extends StreamNotifierProviderImpl<ShopProfile, OwnerProfile?> {
   /// See also [ShopProfile].
   ShopProfileProvider(String slug)
     : this._internal(
@@ -293,7 +284,7 @@ class ShopProfileProvider
   final String slug;
 
   @override
-  FutureOr<OwnerProfile?> runNotifierBuild(covariant ShopProfile notifier) {
+  Stream<OwnerProfile?> runNotifierBuild(covariant ShopProfile notifier) {
     return notifier.build(slug);
   }
 
@@ -314,8 +305,7 @@ class ShopProfileProvider
   }
 
   @override
-  AutoDisposeAsyncNotifierProviderElement<ShopProfile, OwnerProfile?>
-  createElement() {
+  StreamNotifierProviderElement<ShopProfile, OwnerProfile?> createElement() {
     return _ShopProfileProviderElement(this);
   }
 
@@ -335,13 +325,13 @@ class ShopProfileProvider
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-mixin ShopProfileRef on AutoDisposeAsyncNotifierProviderRef<OwnerProfile?> {
+mixin ShopProfileRef on StreamNotifierProviderRef<OwnerProfile?> {
   /// The parameter `slug` of this provider.
   String get slug;
 }
 
 class _ShopProfileProviderElement
-    extends AutoDisposeAsyncNotifierProviderElement<ShopProfile, OwnerProfile?>
+    extends StreamNotifierProviderElement<ShopProfile, OwnerProfile?>
     with ShopProfileRef {
   _ShopProfileProviderElement(super.provider);
 
@@ -349,12 +339,12 @@ class _ShopProfileProviderElement
   String get slug => (origin as ShopProfileProvider).slug;
 }
 
-String _$myProfileHash() => r'7d79f0ea1b03284275af81798a52f64c1805e93d';
+String _$myProfileHash() => r'eb805afd4b605a8291d5c2259334184e1d3f3ab7';
 
 /// See also [MyProfile].
 @ProviderFor(MyProfile)
 final myProfileProvider =
-    AutoDisposeAsyncNotifierProvider<MyProfile, OwnerProfile?>.internal(
+    StreamNotifierProvider<MyProfile, OwnerProfile?>.internal(
       MyProfile.new,
       name: r'myProfileProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -364,7 +354,7 @@ final myProfileProvider =
       allTransitiveDependencies: null,
     );
 
-typedef _$MyProfile = AutoDisposeAsyncNotifier<OwnerProfile?>;
+typedef _$MyProfile = StreamNotifier<OwnerProfile?>;
 String _$ordersInboxHash() => r'04804ee508a110f1104224c59b71e25b6f481bf8';
 
 /// See also [OrdersInbox].

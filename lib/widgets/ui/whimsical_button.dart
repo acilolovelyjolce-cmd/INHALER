@@ -4,7 +4,7 @@ import '../../theme/tokens.dart';
 
 enum WhimsicalButtonKind { petal, meadow, ghost, yolk }
 
-class WhimsicalButton extends StatelessWidget {
+class WhimsicalButton extends StatefulWidget {
   const WhimsicalButton({
     super.key,
     required this.label,
@@ -23,51 +23,63 @@ class WhimsicalButton extends StatelessWidget {
   final bool busy;
 
   @override
-  Widget build(BuildContext context) {
-    final bg = switch (kind) {
-      WhimsicalButtonKind.petal => AppColors.petal,
-      WhimsicalButtonKind.meadow => AppColors.meadow,
-      WhimsicalButtonKind.yolk => AppColors.yolk,
-      WhimsicalButtonKind.ghost => Colors.transparent,
-    };
-    final border = kind == WhimsicalButtonKind.ghost
-        ? BorderSide(color: AppColors.plum.withValues(alpha: 0.16))
-        : BorderSide.none;
+  State<WhimsicalButton> createState() => _WhimsicalButtonState();
+}
 
-    final child = FilledButton(
-      onPressed: busy ? null : onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: bg,
-        disabledBackgroundColor: bg.withValues(alpha: 0.5),
-        foregroundColor: AppColors.plum,
-        disabledForegroundColor: AppColors.plumSoft,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        shape: const StadiumBorder(),
-        side: border,
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-        textStyle: AppTypography.button,
-      ),
-      child: busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.plum),
-            )
-          : Row(
-              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18),
-                  const SizedBox(width: 8),
+class _WhimsicalButtonState extends State<WhimsicalButton> {
+  var _down = false;
+
+  Color get _bg => switch (widget.kind) {
+        WhimsicalButtonKind.petal => AppColors.petal,
+        WhimsicalButtonKind.meadow => AppColors.meadow,
+        WhimsicalButtonKind.yolk => AppColors.yolk,
+        WhimsicalButtonKind.ghost => AppColors.cloud,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onPressed != null && !widget.busy;
+    final child = GestureDetector(
+      onTapDown: enabled ? (_) => setState(() => _down = true) : null,
+      onTapCancel: enabled ? () => setState(() => _down = false) : null,
+      onTapUp: enabled
+          ? (_) {
+              setState(() => _down = false);
+              widget.onPressed!();
+            }
+          : null,
+      child: AnimatedContainer(
+        duration: AppMotion.squish,
+        curve: Curves.easeOutBack,
+        transform: Matrix4.translationValues(0, _down ? 3 : 0, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: stickerFill(
+          color: _bg,
+          radius: AppRadii.button,
+          pressed: _down,
+          stroke: AppStroke.inkThin,
+        ),
+        child: widget.busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.ink),
+              )
+            : Row(
+                mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.icon != null) ...[
+                    Icon(widget.icon, size: 18, color: AppColors.ink),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(widget.label, style: AppTypography.button.copyWith(color: AppColors.ink)),
                 ],
-                Text(label),
-              ],
-            ),
+              ),
+      ),
     );
 
-    if (expand) return SizedBox(width: double.infinity, child: child);
+    if (widget.expand) return SizedBox(width: double.infinity, child: child);
     return child;
   }
 }

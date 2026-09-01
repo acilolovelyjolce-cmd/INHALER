@@ -5,10 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../platform/haptic.dart';
 import '../../providers/catalog_providers.dart';
-import '../../providers/intro_provider.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
-import '../../widgets/intro/intro_orchestrator.dart';
+import '../../widgets/doodles/dino_mascot.dart';
+import '../../widgets/ui/atelier_backdrop.dart';
 
 class DashboardShell extends ConsumerStatefulWidget {
   const DashboardShell({super.key, required this.child});
@@ -48,7 +48,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
         _confetti.play();
         whimsyHaptic();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A new request just landed 💌')),
+          const SnackBar(content: Text('a new request just landed!!')),
         );
       }
     });
@@ -62,7 +62,8 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
       }
     }
     final compact = Breakpoints.isCompact(context);
-    final introPlayed = ref.watch(introFlagProvider);
+    final shopName = ref.watch(myProfileProvider).valueOrNull?.shopName ?? 'Whimsical';
+    final slug = ref.watch(myProfileProvider).valueOrNull?.shopSlug ?? 'whimsical';
 
     final navRail = NavigationRail(
       backgroundColor: Colors.transparent,
@@ -99,35 +100,76 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
 
     return Scaffold(
       backgroundColor: AppColors.blush,
-      body: Stack(
-        children: [
-          IntroOrchestrator(
-            wordmark: 'Whimsical',
-            hasPlayedIntro: introPlayed,
-            onIntroComplete: () => ref.read(introFlagProvider.notifier).markPlayed(),
-            child: Row(
+      body: AtelierBackdrop(
+        child: Stack(
+          children: [
+            Column(
               children: [
-                if (!compact) navRail,
-                Expanded(child: widget.child),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 12, 8),
+                    child: Row(
+                      children: [
+                        const FluffyCat(pose: CatPose.owner, size: 52),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('the nest', style: AppTypography.title),
+                              Text(
+                                shopName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.go('/shop/$slug'),
+                          child: const Text('View shop'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (!compact) navRail,
+                      Expanded(child: widget.child),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirectionality: BlastDirectionality.explosive,
-              emissionFrequency: 0.12,
-              numberOfParticles: 16,
-              maxBlastForce: 14,
-              minBlastForce: 5,
-              gravity: 0.28,
-              colors: const [AppColors.petal, AppColors.meadow, AppColors.yolk],
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confetti,
+                blastDirectionality: BlastDirectionality.explosive,
+                emissionFrequency: 0.12,
+                numberOfParticles: 16,
+                maxBlastForce: 14,
+                minBlastForce: 5,
+                gravity: 0.28,
+                colors: const [AppColors.petal, AppColors.meadow, AppColors.yolk],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      bottomNavigationBar: compact ? bottom : null,
+      bottomNavigationBar: compact
+          ? DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.cloud,
+                border: Border(top: BorderSide(color: AppColors.ink, width: 3)),
+              ),
+              child: bottom,
+            )
+          : null,
     );
   }
 }

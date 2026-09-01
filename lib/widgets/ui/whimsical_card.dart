@@ -24,31 +24,33 @@ class WhimsicalCard extends StatefulWidget {
 
 class _WhimsicalCardState extends State<WhimsicalCard> {
   var _hover = false;
+  var _down = false;
 
   @override
   Widget build(BuildContext context) {
+    final pressed = _down || (_hover && widget.onTap != null);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
-      child: AnimatedContainer(
-        duration: AppMotion.hover,
-        curve: Curves.easeOutCubic,
-        transform: Matrix4.translationValues(0, _hover && widget.onTap != null ? -3 : 0, 0),
-        decoration: BoxDecoration(
-          color: widget.color ?? AppColors.cloud,
-          borderRadius: AppRadii.cardBorder,
-          boxShadow: AppShadows.card,
-        ),
-        clipBehavior: widget.clip ? Clip.antiAlias : Clip.none,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: AppRadii.cardBorder,
-            splashColor: AppColors.petal.withValues(alpha: 0.16),
-            highlightColor: AppColors.petal.withValues(alpha: 0.08),
-            child: Padding(padding: widget.padding, child: widget.child),
+      child: GestureDetector(
+        onTapDown: widget.onTap == null ? null : (_) => setState(() => _down = true),
+        onTapUp: widget.onTap == null
+            ? null
+            : (_) {
+                setState(() => _down = false);
+                widget.onTap!();
+              },
+        onTapCancel: widget.onTap == null ? null : () => setState(() => _down = false),
+        child: AnimatedContainer(
+          duration: AppMotion.squish,
+          curve: Curves.easeOutBack,
+          transform: Matrix4.translationValues(0, pressed ? 2 : 0, 0),
+          decoration: stickerFill(
+            color: widget.color ?? AppColors.cloud,
+            pressed: _down,
           ),
+          clipBehavior: widget.clip ? Clip.antiAlias : Clip.none,
+          child: Padding(padding: widget.padding, child: widget.child),
         ),
       ),
     );

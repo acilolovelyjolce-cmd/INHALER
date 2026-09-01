@@ -9,6 +9,7 @@ import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/dashboard/shop_link_card.dart';
 import '../../widgets/ui/feedback.dart';
+import '../../widgets/ui/page_canvas.dart';
 import '../../widgets/ui/whimsical_card.dart';
 
 class DashboardOverviewScreen extends ConsumerWidget {
@@ -21,7 +22,10 @@ class DashboardOverviewScreen extends ConsumerWidget {
 
     return orders.when(
       loading: () => const DinoLoading(message: 'counting today’s hugs…'),
-      error: (e, _) => WhimsicalError(message: e.toString()),
+      error: (e, _) => WhimsicalError(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(ordersInboxProvider),
+      ),
       data: (list) {
         final now = DateTime.now();
         final today = list.where((o) {
@@ -48,12 +52,18 @@ class DashboardOverviewScreen extends ConsumerWidget {
                 ? 'Good afternoon'
                 : 'Good evening';
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-          children: [
+        return PageCanvas(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
             Text(hello, style: AppTypography.bodySmall),
             const SizedBox(height: 4),
-            Text('Here’s the nest today', style: AppTypography.displayMedium),
+            Text('hihi, nest check', style: AppTypography.displayMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Today’s hugs, the public link, and anything still wiggle-in-progress.',
+              style: AppTypography.bodySmall,
+            ),
             const SizedBox(height: 22),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -91,6 +101,7 @@ class DashboardOverviewScreen extends ConsumerWidget {
               ),
             ),
           ],
+          ),
         );
       },
     );

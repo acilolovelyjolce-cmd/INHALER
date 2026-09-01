@@ -21,7 +21,7 @@ class WhimsicalAppBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 16, 8),
       child: Row(
         children: [
-          DinoMascot(size: 48 * scale),
+          DinoMascot(size: 52 * scale, pose: CatPose.happy),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -31,7 +31,7 @@ class WhimsicalAppBar extends StatelessWidget {
               style: AppTypography.displaySmall.copyWith(fontSize: 22 * scale),
             ),
           ),
-          ?trailing,
+          if (trailing != null) Flexible(child: Align(alignment: Alignment.centerRight, child: trailing)),
         ],
       ),
     );

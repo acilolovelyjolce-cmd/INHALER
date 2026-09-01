@@ -1,8 +1,11 @@
+# Deploy via Blueprint (New → Blueprint) or a Web Service with Runtime = Docker.
+# Do not use Render's Rust/Node native runtimes — there is no Cargo.toml.
 services:
   - type: web
     name: whimsical-hub
     runtime: docker
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/health
     envVars:
       - key: MONGODB_URI

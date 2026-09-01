@@ -17,7 +17,10 @@ class ProductDetailScreen extends ConsumerWidget {
     final products = ref.watch(publishedProductsProvider(slug));
     return products.when(
       loading: () => const DinoLoading(),
-      error: (e, _) => WhimsicalError(message: e.toString()),
+      error: (e, _) => WhimsicalError(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(publishedProductsProvider(slug)),
+      ),
       data: (items) {
         final product = items.where((p) => p.id == id).firstOrNull;
         if (product == null) {

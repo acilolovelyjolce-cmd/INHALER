@@ -12,7 +12,10 @@ Future<T?> showWhimsicalSheet<T>({
     isScrollControlled: true,
     backgroundColor: AppColors.cloud,
     barrierColor: AppColors.plum.withValues(alpha: 0.28),
-    shape: const RoundedRectangleBorder(borderRadius: AppRadii.sheetBorder),
+    shape: RoundedRectangleBorder(
+      borderRadius: AppRadii.sheetBorder,
+      side: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
+    ),
     builder: (context) {
       return Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -43,11 +46,11 @@ class SheetScaffold extends StatelessWidget {
       children: [
         const SizedBox(height: 12),
         Container(
-          width: 42,
-          height: 5,
+          width: 48,
+          height: 8,
           decoration: ShapeDecoration(
-            color: AppColors.plum.withValues(alpha: 0.12),
-            shape: const StadiumBorder(),
+            color: AppColors.petal,
+            shape: const StadiumBorder(side: BorderSide(color: AppColors.ink, width: 2)),
           ),
         ),
         Padding(

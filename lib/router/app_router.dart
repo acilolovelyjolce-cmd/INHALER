@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -17,6 +18,8 @@ import '../screens/dashboard/settings_screen.dart';
 import '../screens/shop/product_detail_screen.dart';
 import '../screens/shop/shop_shell.dart';
 import '../screens/shop/storefront_screen.dart';
+import '../theme/tokens.dart';
+import '../widgets/ui/feedback.dart';
 
 part 'app_router.g.dart';
 
@@ -57,6 +60,12 @@ GoRouter appRouter(AppRouterRef ref) {
       if (signedIn && loggingIn) return '/dashboard';
       return null;
     },
+    errorBuilder: (context, state) => Scaffold(
+      backgroundColor: AppColors.blush,
+      body: WhimsicalError(
+        message: state.error?.toString() ?? 'That page wandered off.',
+      ),
+    ),
     routes: [
       GoRoute(
         path: '/',

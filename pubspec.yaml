@@ -44,6 +44,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/doodles/
+    - assets/doodles/cats/
     - assets/products/
   fonts:
     - family: Fredoka

@@ -24,7 +24,7 @@ class WhimsicalApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
-      color: AppColors.blush,
+      color: AppColors.cream,
       builder: (context, child) => DeepLinkHost(child: child ?? const SizedBox.shrink()),
     );
   }

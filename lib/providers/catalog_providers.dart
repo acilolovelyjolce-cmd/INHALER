@@ -16,53 +16,37 @@ ProductsRepository productsRepository(ProductsRepositoryRef ref) =>
 @Riverpod(keepAlive: true)
 OrdersRepository ordersRepository(OrdersRepositoryRef ref) => OrdersRepository();
 
-@riverpod
+@Riverpod(keepAlive: true)
 class PublishedProducts extends _$PublishedProducts {
   @override
-  Future<List<Product>> build(String slug) async {
-    final repo = ref.watch(productsRepositoryProvider);
-    final stream = repo.watchPublished(slug);
-    final sub = stream.skip(1).listen((next) => state = AsyncData(next));
-    ref.onDispose(sub.cancel);
-    return stream.first;
+  Stream<List<Product>> build(String slug) {
+    return ref.watch(productsRepositoryProvider).watchPublished(slug);
   }
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class OwnerProducts extends _$OwnerProducts {
   @override
-  Future<List<Product>> build() async {
+  Stream<List<Product>> build() {
     ref.watch(authProvider);
-    final repo = ref.watch(productsRepositoryProvider);
-    final stream = repo.watchAll();
-    final sub = stream.skip(1).listen((next) => state = AsyncData(next));
-    ref.onDispose(sub.cancel);
-    return stream.first;
+    return ref.watch(productsRepositoryProvider).watchAll();
   }
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class ShopProfile extends _$ShopProfile {
   @override
-  Future<OwnerProfile?> build(String slug) async {
-    final repo = ref.watch(ownerRepositoryProvider);
-    final stream = repo.watchBySlug(slug);
-    final sub = stream.skip(1).listen((next) => state = AsyncData(next));
-    ref.onDispose(sub.cancel);
-    return stream.first;
+  Stream<OwnerProfile?> build(String slug) {
+    return ref.watch(ownerRepositoryProvider).watchBySlug(slug);
   }
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class MyProfile extends _$MyProfile {
   @override
-  Future<OwnerProfile?> build() async {
+  Stream<OwnerProfile?> build() {
     ref.watch(authProvider);
-    final repo = ref.watch(ownerRepositoryProvider);
-    final stream = repo.watchMine();
-    final sub = stream.skip(1).listen((next) => state = AsyncData(next));
-    ref.onDispose(sub.cancel);
-    return stream.first;
+    return ref.watch(ownerRepositoryProvider).watchMine();
   }
 }
 

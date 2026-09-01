@@ -29,7 +29,19 @@ On first boot the server runs idempotent migrations: indexes, then seeds the own
 
 ## Render
 
-The Docker image builds Flutter web, compiles the Dart API, and serves both on `$PORT`. On startup it connects to Atlas (with retries) and applies any pending rows in `schema_migrations`.
+This is **not** a Rust app. If the build log shows `rustc` / `cargo build --release`, Render is on the wrong runtime. There is no `Cargo.toml` here.
+
+**Create or switch the service to Docker:**
+
+1. Dashboard → the web service → **Settings** → **Build** → **Edit** (source).
+2. Set **Runtime** to **Docker** (not Rust, Node, or Python).
+3. Dockerfile path: `./Dockerfile`. Leave start/build commands empty — the image `CMD` starts the server.
+4. Health check path: `/api/health`.
+5. Save and **Deploy**.
+
+Or delete the failed service and create a new one: **New** → **Blueprint** (uses `render.yaml`), or **Web Service** with Language **Docker**.
+
+The Docker image builds Flutter web, compiles the Dart API, and serves both on `$PORT`. The first build can take several minutes. On startup the server connects to Atlas (with retries) and applies any pending rows in `schema_migrations`.
 
 Set at least:
 
@@ -37,6 +49,7 @@ Set at least:
 - `JWT_SECRET`
 - `OWNER_EMAIL`
 - `OWNER_PASSWORD`
+- `PUBLIC_BASE_URL` (your live `https://….onrender.com` URL, after the first deploy)
 
 Atlas → Network Access must allow Render (`0.0.0.0/0` is simplest). Flutter web is built with an empty `API_URL` so the browser calls `/api` on the same host. Deep links (`/shop/:slug`, `/dashboard/*`) fall back to `index.html`.
 

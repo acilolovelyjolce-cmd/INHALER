@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../config/env.dart';
 import '../../config/validators.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/doodles/dino_mascot.dart';
+import '../../widgets/ui/atelier_backdrop.dart';
 import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_text_field.dart';
 
@@ -52,70 +54,111 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = Breakpoints.isExpanded(context);
+
+    final form = CreamPanel(
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!wide) ...[
+              const Center(child: FluffyCat(pose: CatPose.owner, size: 92)),
+              const SizedBox(height: 12),
+            ],
+            Text('psst, owner', style: AppTypography.displayMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Squeeze in, add charms, and send your shop link to the humans.',
+              style: AppTypography.bodySmall,
+            ),
+            const SizedBox(height: 28),
+            WhimsicalTextField(
+              controller: _email,
+              label: 'Email',
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.email,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 14),
+            WhimsicalTextField(
+              controller: _password,
+              label: 'Password',
+              obscureText: true,
+              validator: Validators.password,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: AppTypography.bodySmall.copyWith(color: AppColors.cancelled)),
+            ],
+            const SizedBox(height: 24),
+            WhimsicalButton(
+              label: 'hop in',
+              expand: true,
+              busy: _busy,
+              onPressed: _submit,
+            ),
+            if (AppConfig.useDemo) ...[
+              const SizedBox(height: 12),
+              WhimsicalButton(
+                label: 'Preview with sample data',
+                kind: WhimsicalButtonKind.ghost,
+                expand: true,
+                onPressed: () => _submit(preview: true),
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => context.go('/shop/whimsical'),
+              child: const Text('back to the public shop'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final story = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 36, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const FluffyCat(pose: CatPose.owner, size: 120),
+          const SizedBox(height: 20),
+          Text('Whimsical', style: AppTypography.displayLarge.copyWith(fontSize: 48)),
+          const SizedBox(height: 12),
+          Text(
+            'The squishiest back pocket for your charm shop. Catalog, requests, and a link that lives on your phone.',
+            style: AppTypography.body.copyWith(height: 1.55),
+          ),
+        ],
+      ),
+    );
+
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 40, 28, 32),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    const DinoMascot(size: 92),
-                    const SizedBox(height: 12),
-                    Text('Welcome back', style: AppTypography.displayMedium),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Add products on this phone, then share your shop link. Customers browse in their browser.',
-                      style: AppTypography.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    WhimsicalTextField(
-                      controller: _email,
-                      label: 'Email',
-                      keyboardType: TextInputType.emailAddress,
-                      validator: Validators.email,
-                      autofillHints: const [AutofillHints.email],
-                    ),
-                    const SizedBox(height: 14),
-                    WhimsicalTextField(
-                      controller: _password,
-                      label: 'Password',
-                      obscureText: true,
-                      validator: Validators.password,
-                      autofillHints: const [AutofillHints.password],
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_error!, style: AppTypography.bodySmall.copyWith(color: AppColors.cancelled)),
-                    ],
-                    const SizedBox(height: 22),
-                    WhimsicalButton(
-                      label: 'Sign in',
-                      expand: true,
-                      busy: _busy,
-                      onPressed: _submit,
-                    ),
-                    if (AppConfig.useDemo) ...[
-                      const SizedBox(height: 12),
-                      WhimsicalButton(
-                        label: 'Preview dashboard',
-                        kind: WhimsicalButtonKind.ghost,
-                        expand: true,
-                        onPressed: () => _submit(preview: true),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Debug preview uses local sample data. Point API_URL at the Dart server to use MongoDB Atlas.',
-                        style: AppTypography.bodySmall,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ],
-                ),
+      backgroundColor: AppColors.blush,
+      body: AtelierBackdrop(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: AppLayout.loginMax),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(child: story),
+                          const SizedBox(width: 28),
+                          Expanded(child: form),
+                        ],
+                      )
+                    : form,
               ),
             ),
           ),
