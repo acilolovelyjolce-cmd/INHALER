@@ -39,11 +39,22 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
   }
 
   Future<void> _save(OrderRequest next) async {
+    final previous = _order;
     setState(() {
       _busy = true;
       _order = next;
     });
-    await ref.read(ordersRepositoryProvider).update(next);
+    try {
+      await ref.read(ordersRepositoryProvider).update(next);
+      ref.invalidate(ownerProductsProvider);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _order = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
     if (mounted) setState(() => _busy = false);
   }
 
@@ -62,7 +73,13 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
         children: [
           Text(_order.customerContact, style: AppTypography.bodySmall),
           const SizedBox(height: 6),
-          Text(Formatters.dayTime.format(_order.createdAt.toLocal()), style: AppTypography.bodySmall),
+          Text(
+            [
+              Formatters.dayTime.format(_order.createdAt.toLocal()),
+              if (_order.paymentMethod != null) _order.paymentMethod!.label,
+            ].join(' · '),
+            style: AppTypography.bodySmall,
+          ),
           const SizedBox(height: 20),
           Text('Status', style: AppTypography.title),
           const SizedBox(height: 12),
@@ -108,7 +125,19 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(item.productName, style: AppTypography.body),
-                        if (item.variantSelection != null && item.variantSelection!.isNotEmpty)
+                        if (item.paracord != null)
+                          Text(
+                            'Paracord  ${item.paracord!['name']}',
+                            style: AppTypography.bodySmall,
+                          ),
+                        if (item.trinkets != null && item.trinkets!.isNotEmpty)
+                          Text(
+                            'Trinkets  ${item.trinkets!.map((row) => row['name']).join(', ')}',
+                            style: AppTypography.bodySmall,
+                          ),
+                        if (item.variantSelection != null &&
+                            item.variantSelection!.isNotEmpty &&
+                            item.paracord == null)
                           Text(
                             item.variantSelection!.values.join(' · '),
                             style: AppTypography.bodySmall,

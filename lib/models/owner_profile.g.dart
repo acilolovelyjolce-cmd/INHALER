@@ -13,6 +13,7 @@ _OwnerProfile _$OwnerProfileFromJson(Map<String, dynamic> json) =>
       shopSlug: json['shop_slug'] as String,
       bio: json['bio'] as String?,
       logoUrl: json['logo_url'] as String?,
+      ewalletQrUrl: json['ewallet_qr_url'] as String?,
       contactInfo: const StringMapConverter().fromJson(json['contact_info']),
     );
 
@@ -23,5 +24,6 @@ Map<String, dynamic> _$OwnerProfileToJson(_OwnerProfile instance) =>
       'shop_slug': instance.shopSlug,
       'bio': instance.bio,
       'logo_url': instance.logoUrl,
+      'ewallet_qr_url': instance.ewalletQrUrl,
       'contact_info': const StringMapConverter().toJson(instance.contactInfo),
     };

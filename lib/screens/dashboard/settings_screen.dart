@@ -27,6 +27,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _keys = <TextEditingController>[];
   final _values = <TextEditingController>[];
   String? _logo;
+  String? _qr;
   var _inited = false;
   var _saving = false;
 
@@ -48,6 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _slug.text = profile.shopSlug;
     _bio.text = profile.bio ?? '';
     _logo = profile.logoUrl;
+    _qr = profile.ewalletQrUrl;
     if (profile.contactInfo.isEmpty) {
       _addRow('gcash', '');
     } else {
@@ -77,6 +79,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             shopSlug: _slug.text.trim(),
             bio: _bio.text.trim(),
             logoUrl: _logo,
+            ewalletQrUrl: _qr,
             contactInfo: contact,
           ),
         );
@@ -140,7 +143,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              Text('Contact & payment', style: AppTypography.title),
+              Text('E-wallet QR', style: AppTypography.title),
+              const SizedBox(height: 6),
+              Text(
+                'Customers see this when they check out with e-wallet.',
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              if (_qr != null && _qr!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: DecoratedBox(
+                      decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: ContainedMedia(url: _qr!, padding: 8),
+                      ),
+                    ),
+                  ),
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: WhimsicalButton(
+                  label: _qr == null ? 'Upload QR' : 'Replace QR',
+                  kind: WhimsicalButtonKind.ghost,
+                  onPressed: () async {
+                    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+                    if (file == null) return;
+                    final url = await ref
+                        .read(ownerRepositoryProvider)
+                        .uploadWalletQr(await file.readAsBytes());
+                    setState(() => _qr = url);
+                  },
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text('Contact notes', style: AppTypography.title),
               const SizedBox(height: 8),
               for (var i = 0; i < _keys.length; i++)
                 Padding(

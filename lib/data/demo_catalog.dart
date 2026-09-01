@@ -18,6 +18,61 @@ OwnerProfile get demoOwner => OwnerProfile(
       },
     );
 
+List<ProductOption> get _demoCords => const [
+      ProductOption(
+        id: 'cord-mint',
+        name: 'Mint paracord',
+        price: 40,
+        imageUrl: 'asset:assets/products/baby_rex.svg',
+        stock: 8,
+      ),
+      ProductOption(
+        id: 'cord-blush',
+        name: 'Blush paracord',
+        price: 40,
+        imageUrl: 'asset:assets/products/pastel_ptero.svg',
+        stock: 8,
+      ),
+      ProductOption(
+        id: 'cord-sky',
+        name: 'Sky paracord',
+        price: 40,
+        imageUrl: 'asset:assets/products/cloud_trice.svg',
+        stock: 6,
+      ),
+    ];
+
+List<ProductOption> get _demoTrinkets => const [
+      ProductOption(
+        id: 't-rex',
+        name: 'Baby Rex',
+        price: 80,
+        imageUrl: 'asset:assets/products/baby_rex.svg',
+        stock: 5,
+      ),
+      ProductOption(
+        id: 't-stego',
+        name: 'Sleepy Stego',
+        price: 80,
+        imageUrl: 'asset:assets/products/sleepy_stego.svg',
+        stock: 5,
+      ),
+      ProductOption(
+        id: 't-star',
+        name: 'Tiny Star',
+        price: 35,
+        imageUrl: 'asset:assets/doodles/doodle_sparkle.svg',
+        stock: 12,
+      ),
+      ProductOption(
+        id: 't-heart',
+        name: 'Heart charm',
+        price: 35,
+        imageUrl: 'asset:assets/doodles/doodle_heart.svg',
+        stock: 12,
+      ),
+    ];
+
 List<Product> demoProducts() {
   final now = DateTime.now();
   return [
@@ -31,10 +86,8 @@ List<Product> demoProducts() {
       compareAtPrice: 520,
       imageUrls: const ['asset:assets/products/baby_rex.svg'],
       category: 'Dino Series',
-      variants: {
-        'color': ['Mint', 'Blush', 'Sky'],
-        'charm': ['Baby Rex', 'Tiny Star'],
-      },
+      paracords: _demoCords,
+      trinkets: _demoTrinkets,
       stockStatus: StockStatus.available,
       isPublished: true,
       sortOrder: 0,
@@ -50,10 +103,8 @@ List<Product> demoProducts() {
       price: 480,
       imageUrls: const ['asset:assets/products/sleepy_stego.svg'],
       category: 'Dino Series',
-      variants: {
-        'color': ['Yolk', 'Cream'],
-        'charm': ['Sleepy Stego'],
-      },
+      paracords: _demoCords,
+      trinkets: _demoTrinkets,
       stockStatus: StockStatus.madeToOrder,
       isPublished: true,
       sortOrder: 1,
@@ -70,10 +121,8 @@ List<Product> demoProducts() {
       compareAtPrice: 690,
       imageUrls: const ['asset:assets/products/pastel_ptero.svg'],
       category: 'Pastel Series',
-      variants: {
-        'color': ['Lilac', 'Petal'],
-        'charm': ['Ptero', 'Heart'],
-      },
+      paracords: _demoCords,
+      trinkets: _demoTrinkets,
       stockStatus: StockStatus.available,
       isPublished: true,
       sortOrder: 2,
@@ -89,10 +138,8 @@ List<Product> demoProducts() {
       price: 430,
       imageUrls: const ['asset:assets/products/cloud_trice.svg'],
       category: 'Pastel Series',
-      variants: {
-        'color': ['Sky', 'Cloud'],
-        'charm': ['Trice', 'Cloud'],
-      },
+      paracords: _demoCords,
+      trinkets: _demoTrinkets,
       stockStatus: StockStatus.soldOut,
       isPublished: true,
       sortOrder: 3,
@@ -114,15 +161,20 @@ List<OrderRequest> demoOrders() {
         OrderItem(
           productId: 'p-baby-rex',
           productName: 'Baby Rex Inhaler Keychain',
-          variantSelection: {'color': 'Mint', 'charm': 'Baby Rex'},
+          variantSelection: {'paracord': 'Mint paracord', 'trinkets': 'Baby Rex'},
           quantity: 1,
-          priceAtOrder: 450,
+          priceAtOrder: 570,
+          paracord: {'id': 'cord-mint', 'name': 'Mint paracord', 'price': 40},
+          trinkets: [
+            {'id': 't-rex', 'name': 'Baby Rex', 'price': 80},
+          ],
         ),
       ],
-      totalAmount: 450,
+      totalAmount: 570,
       customerNote: 'Can you pack it as a gift?',
       status: OrderStatus.newRequest,
       paymentStatus: PaymentStatus.unpaid,
+      paymentMethod: PaymentMethod.eWallet,
       createdAt: now.subtract(const Duration(hours: 2)),
       updatedAt: now.subtract(const Duration(hours: 2)),
     ),

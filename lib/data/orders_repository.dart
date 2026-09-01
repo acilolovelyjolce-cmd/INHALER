@@ -40,6 +40,7 @@ class OrdersRepository {
     required double totalAmount,
     String? customerNote,
     String? honeypot,
+    PaymentMethod? paymentMethod,
   }) async {
     if (honeypot != null && honeypot.trim().isNotEmpty) {
       return OrderRequest(
@@ -52,6 +53,7 @@ class OrdersRepository {
         customerNote: customerNote,
         status: OrderStatus.newRequest,
         paymentStatus: PaymentStatus.unpaid,
+        paymentMethod: paymentMethod,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -68,9 +70,14 @@ class OrdersRepository {
         customerNote: customerNote,
         status: OrderStatus.newRequest,
         paymentStatus: PaymentStatus.unpaid,
+        paymentMethod: paymentMethod,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
+      final shortage = DemoMemoryStore.instance.applyOrderStock(items, restore: false);
+      if (shortage != null) {
+        throw ApiException(shortage, status: 409);
+      }
       DemoMemoryStore.instance.orders.insert(0, order);
       DemoMemoryStore.instance.emitOrders();
       return order;
@@ -82,6 +89,7 @@ class OrdersRepository {
       'items': items.map((item) => item.toJson()).toList(),
       'total_amount': totalAmount,
       'customer_note': customerNote,
+      'payment_method': paymentMethod?.name == 'eWallet' ? 'e_wallet' : paymentMethod?.name,
       'honeypot': honeypot,
     }) as Map<String, dynamic>;
     return OrderRequest.fromJson(row);
@@ -91,7 +99,20 @@ class OrdersRepository {
     if (AppConfig.useDemo) {
       final store = DemoMemoryStore.instance;
       final idx = store.orders.indexWhere((o) => o.id == order.id);
-      if (idx >= 0) store.orders[idx] = order;
+      if (idx >= 0) {
+        final previous = store.orders[idx];
+        final wasCancelled = previous.status == OrderStatus.cancelled;
+        final nowCancelled = order.status == OrderStatus.cancelled;
+        if (!wasCancelled && nowCancelled) {
+          store.applyOrderStock(previous.items, restore: true);
+        } else if (wasCancelled && !nowCancelled) {
+          final shortage = store.applyOrderStock(order.items, restore: false);
+          if (shortage != null) {
+            throw ApiException(shortage, status: 409);
+          }
+        }
+        store.orders[idx] = order;
+      }
       store.emitOrders();
       return;
     }

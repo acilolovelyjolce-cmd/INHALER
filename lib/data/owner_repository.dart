@@ -74,6 +74,12 @@ class OwnerRepository {
     return _api.upload('/api/me/logo', compressed);
   }
 
+  Future<String> uploadWalletQr(Uint8List bytes) async {
+    final compressed = await compressForUpload(bytes, maxWidth: 1200);
+    if (AppConfig.useDemo) return 'asset:assets/doodles/doodle_sparkle.svg';
+    return _api.upload('/api/me/ewallet-qr', compressed);
+  }
+
   Future<AuthSnapshot> signIn(String email, String password) async {
     if (AppConfig.useDemo) {
       DemoMemoryStore.instance.signedIn = true;

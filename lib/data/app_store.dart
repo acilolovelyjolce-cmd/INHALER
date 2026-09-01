@@ -4,6 +4,7 @@ import '../models/order_request.dart';
 import '../models/owner_profile.dart';
 import '../models/product.dart';
 import 'demo_catalog.dart';
+import 'option_stock.dart';
 
 class DemoMemoryStore {
   DemoMemoryStore._() {
@@ -30,4 +31,32 @@ class DemoMemoryStore {
   void emitProducts() => productsCtrl.add(List.unmodifiable(products));
   void emitOrders() => ordersCtrl.add(List.unmodifiable(orders));
   void emitOwner() => ownerCtrl.add(owner);
+
+  String? applyOrderStock(Iterable<OrderItem> items, {required bool restore}) {
+    final need = OptionStock.needed(items);
+    if (!restore) {
+      final message = OptionStock.shortage(products, need);
+      if (message != null) return message;
+    }
+    final next = OptionStock.apply(products, need, sign: restore ? 1 : -1);
+    products
+      ..clear()
+      ..addAll(next);
+    emitProducts();
+    return null;
+  }
+
+  void upsertProduct(Product product) {
+    final idx = products.indexWhere((item) => item.id == product.id);
+    if (idx >= 0) {
+      products[idx] = product;
+    } else {
+      products.add(product);
+    }
+    final synced = OptionStock.syncFrom(products, product);
+    products
+      ..clear()
+      ..addAll(synced);
+    emitProducts();
+  }
 }

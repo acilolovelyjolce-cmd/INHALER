@@ -6,6 +6,26 @@ part of 'product.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_ProductOption _$ProductOptionFromJson(Map<String, dynamic> json) =>
+    _ProductOption(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      price: const NumDoubleConverter().fromJson(json['price']),
+      imageUrl: json['image_url'] as String?,
+      stock: json['stock'] == null
+          ? 0
+          : const IntConverter().fromJson(json['stock']),
+    );
+
+Map<String, dynamic> _$ProductOptionToJson(_ProductOption instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'price': const NumDoubleConverter().toJson(instance.price),
+      'image_url': instance.imageUrl,
+      'stock': const IntConverter().toJson(instance.stock),
+    };
+
 _Product _$ProductFromJson(Map<String, dynamic> json) => _Product(
   id: json['id'] as String,
   ownerId: json['owner_id'] as String?,
@@ -17,7 +37,12 @@ _Product _$ProductFromJson(Map<String, dynamic> json) => _Product(
   ),
   imageUrls: const StringListConverter().fromJson(json['image_urls']),
   category: json['category'] as String,
-  variants: json['variants'] as Map<String, dynamic>?,
+  paracords: json['paracords'] == null
+      ? const []
+      : const ProductOptionListConverter().fromJson(json['paracords']),
+  trinkets: json['trinkets'] == null
+      ? const []
+      : const ProductOptionListConverter().fromJson(json['trinkets']),
   stockStatus: $enumDecode(_$StockStatusEnumMap, json['stock_status']),
   isPublished: json['is_published'] as bool,
   sortOrder: (json['sort_order'] as num).toInt(),
@@ -36,7 +61,8 @@ Map<String, dynamic> _$ProductToJson(_Product instance) => <String, dynamic>{
   ),
   'image_urls': const StringListConverter().toJson(instance.imageUrls),
   'category': instance.category,
-  'variants': instance.variants,
+  'paracords': const ProductOptionListConverter().toJson(instance.paracords),
+  'trinkets': const ProductOptionListConverter().toJson(instance.trinkets),
   'stock_status': _$StockStatusEnumMap[instance.stockStatus]!,
   'is_published': instance.isPublished,
   'sort_order': instance.sortOrder,

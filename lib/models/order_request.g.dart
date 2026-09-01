@@ -12,6 +12,10 @@ _OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => _OrderItem(
   variantSelection: json['variant_selection'] as Map<String, dynamic>?,
   quantity: (json['quantity'] as num).toInt(),
   priceAtOrder: const NumDoubleConverter().fromJson(json['price_at_order']),
+  paracord: json['paracord'] as Map<String, dynamic>?,
+  trinkets: (json['trinkets'] as List<dynamic>?)
+      ?.map((e) => e as Map<String, dynamic>)
+      .toList(),
 );
 
 Map<String, dynamic> _$OrderItemToJson(
@@ -22,6 +26,8 @@ Map<String, dynamic> _$OrderItemToJson(
   'variant_selection': instance.variantSelection,
   'quantity': instance.quantity,
   'price_at_order': const NumDoubleConverter().toJson(instance.priceAtOrder),
+  'paracord': instance.paracord,
+  'trinkets': instance.trinkets,
 };
 
 _OrderRequest _$OrderRequestFromJson(Map<String, dynamic> json) =>
@@ -40,6 +46,10 @@ _OrderRequest _$OrderRequestFromJson(Map<String, dynamic> json) =>
         _$PaymentStatusEnumMap,
         json['payment_status'],
       ),
+      paymentMethod: $enumDecodeNullable(
+        _$PaymentMethodEnumMap,
+        json['payment_method'],
+      ),
       internalNotes: json['internal_notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -56,6 +66,7 @@ Map<String, dynamic> _$OrderRequestToJson(_OrderRequest instance) =>
       'customer_note': instance.customerNote,
       'status': _$OrderStatusEnumMap[instance.status]!,
       'payment_status': _$PaymentStatusEnumMap[instance.paymentStatus]!,
+      'payment_method': _$PaymentMethodEnumMap[instance.paymentMethod],
       'internal_notes': instance.internalNotes,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt.toIso8601String(),
@@ -74,4 +85,9 @@ const _$PaymentStatusEnumMap = {
   PaymentStatus.unpaid: 'unpaid',
   PaymentStatus.paid: 'paid',
   PaymentStatus.partial: 'partial',
+};
+
+const _$PaymentMethodEnumMap = {
+  PaymentMethod.eWallet: 'e_wallet',
+  PaymentMethod.cash: 'cash',
 };

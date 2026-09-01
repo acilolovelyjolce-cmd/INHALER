@@ -15,6 +15,7 @@ Future<void> runMigrations() async {
   final steps = <String, Future<void> Function()>{
     '001_indexes': _indexes,
     '002_seed_owner_and_catalog': _seedOwnerAndCatalog,
+    '003_option_stock': _optionStock,
   };
 
   for (final entry in steps.entries) {
@@ -76,6 +77,18 @@ Future<void> _seedOwnerAndCatalog() async {
 }
 
 List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
+  const paracords = [
+    {'id': 'cord-mint', 'name': 'Mint paracord', 'price': 40, 'image_url': 'asset:assets/products/baby_rex.svg', 'stock': 8},
+    {'id': 'cord-blush', 'name': 'Blush paracord', 'price': 40, 'image_url': 'asset:assets/products/pastel_ptero.svg', 'stock': 8},
+    {'id': 'cord-sky', 'name': 'Sky paracord', 'price': 40, 'image_url': 'asset:assets/products/cloud_trice.svg', 'stock': 6},
+  ];
+  const trinkets = [
+    {'id': 't-rex', 'name': 'Baby Rex', 'price': 80, 'image_url': 'asset:assets/products/baby_rex.svg', 'stock': 5},
+    {'id': 't-stego', 'name': 'Sleepy Stego', 'price': 80, 'image_url': 'asset:assets/products/sleepy_stego.svg', 'stock': 5},
+    {'id': 't-star', 'name': 'Tiny Star', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_sparkle.svg', 'stock': 12},
+    {'id': 't-heart', 'name': 'Heart charm', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_heart.svg', 'stock': 12},
+  ];
+
   Map<String, dynamic> product({
     required String id,
     required String name,
@@ -84,7 +97,6 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
     double? compareAtPrice,
     required String asset,
     required String category,
-    required Map<String, dynamic> variants,
     required String stockStatus,
     required int sortOrder,
   }) {
@@ -98,7 +110,8 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       'compare_at_price': compareAtPrice,
       'image_urls': ['asset:assets/products/$asset'],
       'category': category,
-      'variants': variants,
+      'paracords': paracords,
+      'trinkets': trinkets,
       'stock_status': stockStatus,
       'is_published': true,
       'sort_order': sortOrder,
@@ -117,10 +130,6 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       compareAtPrice: 520,
       asset: 'baby_rex.svg',
       category: 'Dino Series',
-      variants: {
-        'color': ['Mint', 'Blush', 'Sky'],
-        'charm': ['Baby Rex', 'Tiny Star'],
-      },
       stockStatus: 'available',
       sortOrder: 0,
     ),
@@ -132,10 +141,6 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       price: 480,
       asset: 'sleepy_stego.svg',
       category: 'Dino Series',
-      variants: {
-        'color': ['Yolk', 'Cream'],
-        'charm': ['Sleepy Stego'],
-      },
       stockStatus: 'made_to_order',
       sortOrder: 1,
     ),
@@ -148,10 +153,6 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       compareAtPrice: 690,
       asset: 'pastel_ptero.svg',
       category: 'Pastel Series',
-      variants: {
-        'color': ['Lilac', 'Petal'],
-        'charm': ['Ptero', 'Heart'],
-      },
       stockStatus: 'available',
       sortOrder: 2,
     ),
@@ -163,12 +164,32 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       price: 430,
       asset: 'cloud_trice.svg',
       category: 'Pastel Series',
-      variants: {
-        'color': ['Sky', 'Cloud'],
-        'charm': ['Trice', 'Cloud'],
-      },
       stockStatus: 'sold_out',
       sortOrder: 3,
     ),
   ];
+}
+
+Future<void> _optionStock() async {
+  final rows = await Mongo.instance.products.find().toList();
+  final now = DateTime.now().toUtc();
+  for (final row in rows) {
+    row.remove('variants');
+    for (final key in const ['paracords', 'trinkets']) {
+      final list = row[key];
+      if (list is! List) continue;
+      row[key] = [
+        for (final raw in list)
+          if (raw is Map)
+            {
+              ...Map<String, dynamic>.from(raw),
+              'stock': (raw['stock'] as num?)?.toInt() ?? 0,
+            }
+          else
+            raw,
+      ];
+    }
+    row['updated_at'] = now;
+    await Mongo.instance.products.replaceOne(where.eq('_id', row['_id']), row);
+  }
 }

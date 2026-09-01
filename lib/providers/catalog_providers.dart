@@ -91,6 +91,8 @@ class CartLine {
     required this.quantity,
     this.imageUrl,
     this.variantSelection = const {},
+    this.paracord,
+    this.trinkets = const [],
   });
 
   final String productId;
@@ -99,11 +101,23 @@ class CartLine {
   final int quantity;
   final String? imageUrl;
   final Map<String, String> variantSelection;
+  final ProductOption? paracord;
+  final List<ProductOption> trinkets;
 
   double get lineTotal => price * quantity;
 
-  String get variantKey =>
-      variantSelection.entries.map((e) => '${e.key}:${e.value}').join('|');
+  String get variantKey {
+    final trinketIds = trinkets.map((item) => item.id).toList()..sort();
+    return '${paracord?.id ?? ''}|${trinketIds.join(',')}';
+  }
+
+  String get optionsLabel {
+    final parts = <String>[
+      if (paracord != null) paracord!.name,
+      ...trinkets.map((item) => item.name),
+    ];
+    return parts.join(' · ');
+  }
 
   CartLine copyWith({int? quantity}) => CartLine(
         productId: productId,
@@ -112,6 +126,8 @@ class CartLine {
         quantity: quantity ?? this.quantity,
         imageUrl: imageUrl,
         variantSelection: variantSelection,
+        paracord: paracord,
+        trinkets: trinkets,
       );
 }
 

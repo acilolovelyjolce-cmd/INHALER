@@ -20,6 +20,13 @@ enum OrderStatus {
   cancelled,
 }
 
+enum PaymentMethod {
+  @JsonValue('e_wallet')
+  eWallet,
+  @JsonValue('cash')
+  cash,
+}
+
 enum PaymentStatus {
   @JsonValue('unpaid')
   unpaid,
@@ -38,6 +45,8 @@ abstract class OrderItem with _$OrderItem {
     @JsonKey(name: 'variant_selection') Map<String, dynamic>? variantSelection,
     required int quantity,
     @NumDoubleConverter() @JsonKey(name: 'price_at_order') required double priceAtOrder,
+    Map<String, dynamic>? paracord,
+    List<Map<String, dynamic>>? trinkets,
   }) = _OrderItem;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => _$OrderItemFromJson(json);
@@ -56,6 +65,7 @@ abstract class OrderRequest with _$OrderRequest {
     @JsonKey(name: 'customer_note') String? customerNote,
     required OrderStatus status,
     @JsonKey(name: 'payment_status') required PaymentStatus paymentStatus,
+    @JsonKey(name: 'payment_method') PaymentMethod? paymentMethod,
     @JsonKey(name: 'internal_notes') String? internalNotes,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') required DateTime updatedAt,
@@ -82,6 +92,13 @@ extension OrderStatusX on OrderStatus {
         OrderStatus.ready => OrderStatus.completed,
         OrderStatus.completed => null,
         OrderStatus.cancelled => null,
+      };
+}
+
+extension PaymentMethodX on PaymentMethod {
+  String get label => switch (this) {
+        PaymentMethod.eWallet => 'E-wallet',
+        PaymentMethod.cash => 'Cash',
       };
 }
 

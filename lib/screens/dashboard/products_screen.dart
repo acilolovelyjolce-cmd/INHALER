@@ -37,9 +37,13 @@ class ProductsScreen extends ConsumerWidget {
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'bulk') _bulk(context, ref, products);
+                      if (value == 'deleteCategory') {
+                        _deleteCategory(context, ref, products);
+                      }
                     },
                     itemBuilder: (_) => const [
                       PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
+                      PopupMenuItem(value: 'deleteCategory', child: Text('Delete category')),
                     ],
                   ),
                   Flexible(
@@ -88,8 +92,7 @@ class ProductsScreen extends ConsumerWidget {
                           onToggle: (v) => ref.read(productsRepositoryProvider).upsert(
                                 product.copyWith(isPublished: v, updatedAt: DateTime.now()),
                               ),
-                          onDelete: () =>
-                              ref.read(productsRepositoryProvider).delete(product.id),
+                          onDelete: () => _deleteProduct(context, ref, product),
                         );
                       },
                     ),
@@ -154,6 +157,82 @@ class ProductsScreen extends ConsumerWidget {
     }
     amount.dispose();
   }
+
+  Future<void> _deleteProduct(BuildContext context, WidgetRef ref, Product product) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete this product?'),
+          content: Text(
+            '${product.name} will leave the catalog and the public shop. This cannot be undone.',
+            style: AppTypography.body,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          ],
+        );
+      },
+    );
+    if (ok == true && context.mounted) {
+      await ref.read(productsRepositoryProvider).delete(product.id);
+    }
+  }
+
+  Future<void> _deleteCategory(
+    BuildContext context,
+    WidgetRef ref,
+    List<Product> products,
+  ) async {
+    final categories = products.map((p) => p.category).toSet().toList();
+    if (categories.isEmpty) return;
+    var category = categories.first;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final count = products.where((p) => p.category == category).length;
+            return AlertDialog(
+              title: const Text('Delete a category?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This removes the group from the shop and deletes every product in it.',
+                    style: AppTypography.body,
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButton<String>(
+                    value: category,
+                    isExpanded: true,
+                    items: [
+                      for (final c in categories) DropdownMenuItem(value: c, child: Text(c)),
+                    ],
+                    onChanged: (v) => setState(() => category = v ?? category),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    count == 1 ? '1 product will be deleted.' : '$count products will be deleted.',
+                    style: AppTypography.bodySmall,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (ok == true && context.mounted) {
+      await ref.read(productsRepositoryProvider).deleteCategory(category);
+    }
+  }
 }
 
 class _ProductRow extends StatelessWidget {
@@ -212,7 +291,19 @@ class _ProductRow extends StatelessWidget {
                     children: [
                       Text(product.name, style: AppTypography.price),
                       const SizedBox(height: 4),
-                      Text(Formatters.php(product.price), style: AppTypography.bodySmall),
+                      Text(
+                        '${product.category}  ·  ${Formatters.php(product.price)}',
+                        style: AppTypography.bodySmall,
+                      ),
+                      if (product.optionStockSummary.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          product.optionStockSummary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.bodySmall,
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       WhimsicalBadge(label: product.stockStatus.label, color: color),
                     ],

@@ -33,8 +33,8 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   late List<String> _images;
   late StockStatus _stock;
   late bool _published;
-  final _variantKeys = <TextEditingController>[];
-  final _variantValues = <TextEditingController>[];
+  late List<_OptionDraft> _paracords;
+  late List<_OptionDraft> _trinkets;
   var _uploading = false;
   var _saving = false;
 
@@ -52,16 +52,12 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _images = [...?p?.imageUrls];
     _stock = p?.stockStatus ?? StockStatus.available;
     _published = p?.isPublished ?? true;
-    final variants = p?.variants;
-    if (variants != null && variants.isNotEmpty) {
-      for (final entry in variants.entries) {
-        _variantKeys.add(TextEditingController(text: entry.key));
-        final values = entry.value is List ? (entry.value as List).join(', ') : '${entry.value}';
-        _variantValues.add(TextEditingController(text: values));
-      }
-    } else {
-      _addVariantRow(key: 'color', values: 'Mint, Blush', notify: false);
-    }
+    _paracords = [
+      for (final option in p?.paracords ?? const <ProductOption>[]) _OptionDraft.from(option),
+    ];
+    _trinkets = [
+      for (final option in p?.trinkets ?? const <ProductOption>[]) _OptionDraft.from(option),
+    ];
   }
 
   @override
@@ -71,38 +67,39 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _price.dispose();
     _compare.dispose();
     _category.dispose();
-    for (final c in [..._variantKeys, ..._variantValues]) {
-      c.dispose();
+    for (final draft in [..._paracords, ..._trinkets]) {
+      draft.dispose();
     }
     super.dispose();
   }
 
-  void _addVariantRow({String key = '', String values = '', bool notify = true}) {
-    void apply() {
-      _variantKeys.add(TextEditingController(text: key));
-      _variantValues.add(TextEditingController(text: values));
-    }
-
-    if (notify) {
-      setState(apply);
-    } else {
-      apply();
-    }
+  List<ProductOption> _collect(List<_OptionDraft> drafts) {
+    return [
+      for (final draft in drafts)
+        if (draft.name.text.trim().isNotEmpty)
+          ProductOption(
+            id: draft.id,
+            name: draft.name.text.trim(),
+            price: double.tryParse(draft.price.text.replaceAll(',', '').trim()) ?? 0,
+            imageUrl: draft.imageUrl,
+            stock: int.tryParse(draft.stock.text.trim())?.clamp(0, 999999) ?? 0,
+          ),
+    ];
   }
 
-  Map<String, dynamic> _variantsMap() {
-    final map = <String, dynamic>{};
-    for (var i = 0; i < _variantKeys.length; i++) {
-      final key = _variantKeys[i].text.trim();
-      if (key.isEmpty) continue;
-      map[key] = _variantValues[i]
-          .text
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
+  Future<void> _pickOptionImage(_OptionDraft draft) async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 92);
+    if (file == null) return;
+    setState(() => _uploading = true);
+    try {
+      final url = await ref.read(productsRepositoryProvider).uploadImage(
+            await file.readAsBytes(),
+            ownerId: ref.read(authProvider).valueOrNull?.userId,
+          );
+      setState(() => draft.imageUrl = url);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
-    return map;
   }
 
   Future<void> _pickImages() async {
@@ -140,7 +137,8 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
           : double.tryParse(_compare.text.replaceAll(',', '').trim()),
       imageUrls: _images,
       category: _category.text.trim(),
-      variants: _variantsMap(),
+      paracords: _collect(_paracords),
+      trinkets: _collect(_trinkets),
       stockStatus: _stock,
       isPublished: _published,
       sortOrder: existing?.sortOrder ?? 99,
@@ -269,47 +267,27 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
               validator: (v) => Validators.requiredField(v, label: 'Category'),
             ),
             const SizedBox(height: 18),
-            Text('Variants', style: AppTypography.title),
-            const SizedBox(height: 8),
-            for (var i = 0; i < _variantKeys.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: WhimsicalTextField(controller: _variantKeys[i], hint: 'color'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 3,
-                      child: WhimsicalTextField(
-                        controller: _variantValues[i],
-                        hint: 'Mint, Blush',
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _variantKeys.removeAt(i).dispose();
-                          _variantValues.removeAt(i).dispose();
-                        });
-                      },
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
-              ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _addVariantRow,
-                icon: const Icon(Icons.add),
-                label: const Text('Add option'),
-              ),
+            _OptionSection(
+              title: 'Paracords',
+              hint: 'Customers pick exactly one. Photo, price, and how many of this color are left.',
+              drafts: _paracords,
+              uploading: _uploading,
+              onAdd: () => setState(() => _paracords.add(_OptionDraft.empty())),
+              onRemove: (i) => setState(() => _paracords.removeAt(i).dispose()),
+              onPickImage: (draft) => _pickOptionImage(draft),
+            ),
+            const SizedBox(height: 18),
+            _OptionSection(
+              title: 'Trinkets',
+              hint: 'Customers can pick many. Photo, price, and leftover stock for each charm.',
+              drafts: _trinkets,
+              uploading: _uploading,
+              onAdd: () => setState(() => _trinkets.add(_OptionDraft.empty())),
+              onRemove: (i) => setState(() => _trinkets.removeAt(i).dispose()),
+              onPickImage: (draft) => _pickOptionImage(draft),
             ),
             const SizedBox(height: 8),
-            Text('Stock', style: AppTypography.label),
+            Text('Availability', style: AppTypography.label),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -331,6 +309,153 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _OptionDraft {
+  _OptionDraft({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.stock,
+    this.imageUrl,
+  });
+
+  factory _OptionDraft.empty() => _OptionDraft(
+        id: const Uuid().v4(),
+        name: TextEditingController(),
+        price: TextEditingController(),
+        stock: TextEditingController(text: '0'),
+      );
+
+  factory _OptionDraft.from(ProductOption option) => _OptionDraft(
+        id: option.id,
+        name: TextEditingController(text: option.name),
+        price: TextEditingController(text: option.price.toStringAsFixed(0)),
+        stock: TextEditingController(text: '${option.stock}'),
+        imageUrl: option.imageUrl,
+      );
+
+  final String id;
+  final TextEditingController name;
+  final TextEditingController price;
+  final TextEditingController stock;
+  String? imageUrl;
+
+  void dispose() {
+    name.dispose();
+    price.dispose();
+    stock.dispose();
+  }
+}
+
+class _OptionSection extends StatelessWidget {
+  const _OptionSection({
+    required this.title,
+    required this.hint,
+    required this.drafts,
+    required this.uploading,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onPickImage,
+  });
+
+  final String title;
+  final String hint;
+  final List<_OptionDraft> drafts;
+  final bool uploading;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
+  final ValueChanged<_OptionDraft> onPickImage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: AppTypography.title),
+        const SizedBox(height: 4),
+        Text(hint, style: AppTypography.bodySmall),
+        const SizedBox(height: 10),
+        for (var i = 0; i < drafts.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: DecoratedBox(
+              decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: uploading ? null : () => onPickImage(drafts[i]),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: drafts[i].imageUrl == null
+                              ? const ColoredBox(
+                                  color: AppColors.sky,
+                                  child: Icon(Icons.add_a_photo_outlined, size: 20),
+                                )
+                              : ContainedMedia(url: drafts[i].imageUrl!, padding: 6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          WhimsicalTextField(controller: drafts[i].name, hint: 'Name'),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: WhimsicalTextField(
+                                  controller: drafts[i].price,
+                                  hint: 'Price ₱',
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: WhimsicalTextField(
+                                  controller: drafts[i].stock,
+                                  hint: 'Left',
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => onRemove(i),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: Text('Add $title'.toLowerCase()),
+          ),
+        ),
+      ],
     );
   }
 }

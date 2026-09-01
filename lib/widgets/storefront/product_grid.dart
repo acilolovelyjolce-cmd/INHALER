@@ -95,13 +95,10 @@ class _ProductTile extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: stickerFill(color: AppColors.cloud, radius: AppRadii.image),
                       child: ClipRRect(
-                        borderRadius: AppRadii.imageBorder,
+                        borderRadius: BorderRadius.circular(AppRadii.image - 4),
                         child: product.imageUrls.isEmpty
                             ? const ColoredBox(color: AppColors.sky)
-                            : Transform.translate(
-                                offset: const Offset(0, 8),
-                                child: SmartProductImage(url: product.imageUrls.first),
-                              ),
+                            : ContainedMedia(url: product.imageUrls.first, padding: 10),
                       ),
                     ),
                   ),

@@ -122,7 +122,7 @@ class StorefrontCartButton extends ConsumerWidget {
       clipBehavior: Clip.none,
       children: [
         WhimsicalButton(
-          label: 'Request',
+          label: 'Cart',
           kind: WhimsicalButtonKind.petal,
           onPressed: () => showWhimsicalSheet(
             context: context,

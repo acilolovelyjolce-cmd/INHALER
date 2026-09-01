@@ -268,7 +268,7 @@ class SmartProductImage extends StatelessWidget {
   const SmartProductImage({
     super.key,
     required this.url,
-    this.fit = BoxFit.cover,
+    this.fit = BoxFit.contain,
   });
 
   final String url;
@@ -283,5 +283,30 @@ class SmartProductImage extends StatelessWidget {
       );
     }
     return ProductImageView(url: ApiClient.resolveMedia(url), fit: fit);
+  }
+}
+
+/// Keeps doodles and photos inside a rounded box instead of spilling out.
+class ContainedMedia extends StatelessWidget {
+  const ContainedMedia({
+    super.key,
+    required this.url,
+    this.padding = 12,
+    this.background = AppColors.cloud,
+  });
+
+  final String url;
+  final double padding;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: background,
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: SmartProductImage(url: url, fit: BoxFit.contain),
+      ),
+    );
   }
 }

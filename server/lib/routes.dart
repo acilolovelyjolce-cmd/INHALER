@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'auth.dart';
 import 'http_util.dart';
 import 'mongo.dart';
+import 'option_stock.dart';
 
 const _uuid = Uuid();
 
@@ -22,12 +23,14 @@ Router buildRouter() {
     ..get('/api/me', _me)
     ..put('/api/me', _updateMe)
     ..post('/api/me/logo', _uploadLogo)
+    ..post('/api/me/ewallet-qr', _uploadWalletQr)
     ..get('/api/products', _myProducts)
     ..post('/api/products', _upsertProduct)
     ..put('/api/products/<id>', _upsertProduct)
     ..delete('/api/products/<id>', _deleteProduct)
     ..post('/api/products/reorder', _reorder)
     ..post('/api/products/bulk-price', _bulkPrice)
+    ..post('/api/products/delete-category', _deleteCategory)
     ..get('/api/orders', _myOrders)
     ..put('/api/orders/<id>', _updateOrder)
     ..post('/api/files', _uploadFile)
@@ -101,6 +104,7 @@ Future<Response> _submitOrder(Request request) async {
     'customer_note': body['customer_note'],
     'status': 'new_request',
     'payment_status': 'unpaid',
+    'payment_method': body['payment_method'],
     'internal_notes': null,
     'created_at': now,
     'updated_at': now,
@@ -109,6 +113,14 @@ Future<Response> _submitOrder(Request request) async {
       (doc['customer_contact'] as String).isEmpty) {
     return jsonError(400, 'Name and contact are required');
   }
+
+  final products = await Mongo.instance.products.find(where.eq('shop_slug', slug)).toList();
+  final need = neededFromItems(doc['items']);
+  final shortage = shortageMessage(products, need);
+  if (shortage != null) return jsonError(409, shortage);
+  applyOptionStock(products, need, sign: -1);
+  await _persistProducts(products);
+
   await Mongo.instance.orders.insertOne(doc);
   return jsonOk(apiDoc(doc), status: 201);
 }
@@ -130,6 +142,7 @@ Future<Response> _updateMe(Request request) async {
     'shop_slug': body['shop_slug'] ?? owner['shop_slug'],
     'bio': body['bio'] ?? owner['bio'],
     'logo_url': body['logo_url'] ?? owner['logo_url'],
+    'ewallet_qr_url': body['ewallet_qr_url'] ?? owner['ewallet_qr_url'],
     'contact_info': body['contact_info'] ?? owner['contact_info'],
     'updated_at': now,
   };
@@ -143,6 +156,16 @@ Future<Response> _uploadLogo(Request request) async {
   final bytes = await _readBytes(request);
   final url = await _storeFile(bytes, contentType: request.mimeType ?? 'image/jpeg');
   final next = {...owner, 'logo_url': url, 'updated_at': DateTime.now().toUtc()};
+  await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
+  return jsonOk({'url': url, 'user': apiDoc(next)});
+}
+
+Future<Response> _uploadWalletQr(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final bytes = await _readBytes(request);
+  final url = await _storeFile(bytes, contentType: request.mimeType ?? 'image/jpeg');
+  final next = {...owner, 'ewallet_qr_url': url, 'updated_at': DateTime.now().toUtc()};
   await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
   return jsonOk({'url': url, 'user': apiDoc(next)});
 }
@@ -176,7 +199,8 @@ Future<Response> _upsertProduct(Request request) async {
     'compare_at_price': body['compare_at_price'] ?? existing?['compare_at_price'],
     'image_urls': body['image_urls'] ?? existing?['image_urls'] ?? [],
     'category': body['category'] ?? existing?['category'] ?? 'Dino Series',
-    'variants': body['variants'] ?? existing?['variants'],
+    'paracords': body['paracords'] ?? existing?['paracords'] ?? [],
+    'trinkets': body['trinkets'] ?? existing?['trinkets'] ?? [],
     'stock_status': body['stock_status'] ?? existing?['stock_status'] ?? 'available',
     'is_published': body['is_published'] ?? existing?['is_published'] ?? false,
     'sort_order': body['sort_order'] ?? existing?['sort_order'] ?? 99,
@@ -188,6 +212,14 @@ Future<Response> _upsertProduct(Request request) async {
   } else {
     await Mongo.instance.products.replaceOne(where.eq('_id', id), doc);
   }
+  final shopRows = await Mongo.instance.products
+      .find(where.eq('shop_slug', owner['shop_slug']))
+      .toList();
+  syncOptionStockFrom(shopRows, doc);
+  await _persistProducts([
+    for (final row in shopRows)
+      if (row['_id'] != id) row,
+  ]);
   return jsonOk(apiDoc(doc));
 }
 
@@ -238,6 +270,21 @@ Future<Response> _bulkPrice(Request request) async {
   return jsonOk({'ok': true});
 }
 
+Future<Response> _deleteCategory(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final category = (body['category'] as String? ?? '').trim();
+  if (category.isEmpty) return jsonError(400, 'Category is required');
+  final rows = await Mongo.instance.products
+      .find(where.eq('owner_id', owner['_id']).eq('category', category))
+      .toList();
+  for (final row in rows) {
+    await Mongo.instance.products.deleteOne(where.eq('_id', row['_id']));
+  }
+  return jsonOk({'ok': true, 'deleted': rows.length});
+}
+
 Future<Response> _myOrders(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
@@ -259,6 +306,8 @@ Future<Response> _updateOrder(Request request) async {
     return jsonError(403, 'Not your order');
   }
   final body = await readJson(request);
+  final previousStatus = existing['status']?.toString() ?? '';
+  final nextStatus = (body['status'] ?? existing['status']).toString();
   final next = {
     ...existing,
     'status': body['status'] ?? existing['status'],
@@ -266,8 +315,33 @@ Future<Response> _updateOrder(Request request) async {
     'internal_notes': body['internal_notes'] ?? existing['internal_notes'],
     'updated_at': DateTime.now().toUtc(),
   };
+
+  if (previousStatus != nextStatus) {
+    final products = await Mongo.instance.products
+        .find(where.eq('shop_slug', owner['shop_slug']))
+        .toList();
+    final need = neededFromItems(existing['items']);
+    if (previousStatus != 'cancelled' && nextStatus == 'cancelled') {
+      applyOptionStock(products, need, sign: 1);
+      await _persistProducts(products);
+    } else if (previousStatus == 'cancelled' && nextStatus != 'cancelled') {
+      final shortage = shortageMessage(products, need);
+      if (shortage != null) return jsonError(409, shortage);
+      applyOptionStock(products, need, sign: -1);
+      await _persistProducts(products);
+    }
+  }
+
   await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
   return jsonOk(apiDoc(next));
+}
+
+Future<void> _persistProducts(List<Map<String, dynamic>> products) async {
+  final now = DateTime.now().toUtc();
+  for (final product in products) {
+    product['updated_at'] = now;
+    await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+  }
 }
 
 Future<Response> _uploadFile(Request request) async {

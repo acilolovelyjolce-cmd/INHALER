@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/catalog_providers.dart';
-import '../../widgets/storefront/product_detail_view.dart';
+import '../../widgets/storefront/product_door_flow.dart';
 import '../../widgets/ui/feedback.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
@@ -43,7 +43,7 @@ class ProductDetailScreen extends ConsumerWidget {
                 label: const Text('All charms'),
               ),
             ),
-            Expanded(child: ProductDetailView(product: product)),
+            Expanded(child: ProductDoorFlow(product: product)),
           ],
         );
       },

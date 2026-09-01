@@ -42,6 +42,21 @@ class StringListConverter implements JsonConverter<List<String>, dynamic> {
   dynamic toJson(List<String> object) => object;
 }
 
+class IntConverter implements JsonConverter<int, dynamic> {
+  const IntConverter();
+
+  @override
+  int fromJson(dynamic json) {
+    if (json == null) return 0;
+    if (json is int) return json;
+    if (json is num) return json.toInt();
+    return int.tryParse(json.toString()) ?? 0;
+  }
+
+  @override
+  dynamic toJson(int object) => object;
+}
+
 class StringMapConverter implements JsonConverter<Map<String, String>, dynamic> {
   const StringMapConverter();
 

@@ -65,14 +65,7 @@ class ProductsRepository {
 
   Future<void> upsert(Product product) async {
     if (AppConfig.useDemo) {
-      final store = DemoMemoryStore.instance;
-      final idx = store.products.indexWhere((p) => p.id == product.id);
-      if (idx >= 0) {
-        store.products[idx] = product;
-      } else {
-        store.products.add(product);
-      }
-      store.emitProducts();
+      DemoMemoryStore.instance.upsertProduct(product);
       return;
     }
     await _api.put('/api/products/${product.id}', product.toJson());
@@ -104,6 +97,12 @@ class ProductsRepository {
       id: _uuid.v4(),
       name: '${product.name} (copy)',
       isPublished: false,
+      paracords: [
+        for (final option in product.paracords) option.copyWith(id: _uuid.v4()),
+      ],
+      trinkets: [
+        for (final option in product.trinkets) option.copyWith(id: _uuid.v4()),
+      ],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -133,6 +132,15 @@ class ProductsRepository {
       'percent': percent,
       'amount': amount,
     });
+  }
+
+  Future<void> deleteCategory(String category) async {
+    if (AppConfig.useDemo) {
+      DemoMemoryStore.instance.products.removeWhere((p) => p.category == category);
+      DemoMemoryStore.instance.emitProducts();
+      return;
+    }
+    await _api.post('/api/products/delete-category', {'category': category});
   }
 
   Future<String> uploadImage(Uint8List bytes, {String? ownerId}) async {

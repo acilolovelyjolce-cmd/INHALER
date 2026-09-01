@@ -21,17 +21,6 @@ class ProductDetailView extends ConsumerStatefulWidget {
 class _ProductDetailViewState extends ConsumerState<ProductDetailView> {
   var _page = 0;
   var _qty = 1;
-  late Map<String, String> _selection;
-
-  @override
-  void initState() {
-    super.initState();
-    _selection = {
-      for (final entry in (widget.product.variants ?? {}).entries)
-        if (entry.value is List && (entry.value as List).isNotEmpty)
-          entry.key: '${(entry.value as List).first}',
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,23 +106,6 @@ class _ProductDetailViewState extends ConsumerState<ProductDetailView> {
         const SizedBox(height: 16),
         Text(product.description, style: AppTypography.body),
         const SizedBox(height: 20),
-        for (final entry in (product.variants ?? {}).entries) ...[
-          Text(entry.key, style: AppTypography.label),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final option in (entry.value is List ? entry.value as List : const []))
-                ChoiceChip(
-                  label: Text('$option'),
-                  selected: _selection[entry.key] == '$option',
-                  onSelected: (_) => setState(() => _selection[entry.key] = '$option'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-        ],
         Row(
           children: [
             QuantityStepper(value: _qty, onChanged: (v) => setState(() => _qty = v)),
@@ -154,7 +126,6 @@ class _ProductDetailViewState extends ConsumerState<ProductDetailView> {
                           price: product.price,
                           quantity: _qty,
                           imageUrl: product.imageUrls.isEmpty ? null : product.imageUrls.first,
-                          variantSelection: _selection,
                         ),
                       );
                   ScaffoldMessenger.of(context).showSnackBar(

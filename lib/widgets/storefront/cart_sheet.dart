@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/formatters.dart';
 import '../../config/validators.dart';
 import '../../models/order_request.dart';
+import '../../models/owner_profile.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../ui/feedback.dart';
@@ -11,109 +12,268 @@ import '../ui/whimsical_button.dart';
 import '../ui/whimsical_sheet.dart';
 import '../ui/whimsical_text_field.dart';
 
-class CartSheet extends ConsumerWidget {
+enum _CartStep { bag, pay, details, done }
+
+class CartSheet extends ConsumerStatefulWidget {
   const CartSheet({super.key, required this.slug, required this.shopName});
 
   final String slug;
   final String shopName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CartSheet> createState() => _CartSheetState();
+}
+
+class _CartSheetState extends ConsumerState<CartSheet> {
+  var _step = _CartStep.bag;
+  PaymentMethod? _method;
+
+  @override
+  Widget build(BuildContext context) {
     final lines = ref.watch(cartProvider);
+    if (_step == _CartStep.done) {
+      return SheetScaffold(
+        title: 'Order in',
+        child: ConfirmationView(ownerName: widget.shopName, method: _method),
+      );
+    }
+
     if (lines.isEmpty) {
       return const SheetScaffold(
-        title: 'Your request',
+        title: 'Your cart',
         child: WhimsicalEmpty(
-          title: 'Nothing in here yet',
-          body: 'Add a charm from the shop and it will land in this little tray.',
+          title: 'Cart is empty',
+          body: 'Tap a charm, walk through the doors, then add it here.',
         ),
       );
     }
 
     return SheetScaffold(
-      title: 'Your request',
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              itemCount: lines.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final line = lines[index];
-                return Row(
-                  children: [
-                    if (line.imageUrl != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: SmartProductImage(url: line.imageUrl!),
+      title: switch (_step) {
+        _CartStep.bag => 'Your cart',
+        _CartStep.pay => 'How will you pay?',
+        _CartStep.details => 'Almost there',
+        _CartStep.done => 'Order in',
+      },
+      child: switch (_step) {
+        _CartStep.bag => _BagStep(
+            slug: widget.slug,
+            onCheckout: () => setState(() => _step = _CartStep.pay),
+          ),
+        _CartStep.pay => _PayStep(
+            slug: widget.slug,
+            selected: _method,
+            onSelect: (method) => setState(() {
+              _method = method;
+              _step = _CartStep.details;
+            }),
+            onBack: () => setState(() => _step = _CartStep.bag),
+          ),
+        _CartStep.details => CheckoutForm(
+            slug: widget.slug,
+            shopName: widget.shopName,
+            method: _method!,
+            onBack: () => setState(() => _step = _CartStep.pay),
+            onDone: () => setState(() => _step = _CartStep.done),
+          ),
+        _CartStep.done => ConfirmationView(ownerName: widget.shopName, method: _method),
+      },
+    );
+  }
+}
+
+class _BagStep extends ConsumerWidget {
+  const _BagStep({required this.slug, required this.onCheckout});
+
+  final String slug;
+  final VoidCallback onCheckout;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lines = ref.watch(cartProvider);
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            itemCount: lines.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final line = lines[index];
+              return DecoratedBox(
+                decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      if (line.imageUrl != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: ContainedMedia(url: line.imageUrl!, padding: 6),
+                          ),
+                        ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(line.productName, style: AppTypography.price),
+                            if (line.optionsLabel.isNotEmpty)
+                              Text(line.optionsLabel, style: AppTypography.bodySmall),
+                            Text(Formatters.php(line.lineTotal), style: AppTypography.bodySmall),
+                          ],
                         ),
                       ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(line.productName, style: AppTypography.price),
-                          if (line.variantSelection.isNotEmpty)
-                            Text(
-                              line.variantSelection.values.join(' · '),
-                              style: AppTypography.bodySmall,
-                            ),
-                          Text(Formatters.php(line.lineTotal), style: AppTypography.bodySmall),
-                        ],
+                      QuantityStepper(
+                        value: line.quantity,
+                        onChanged: (v) => ref.read(cartProvider.notifier).setQuantity(index, v),
                       ),
-                    ),
-                    QuantityStepper(
-                      value: line.quantity,
-                      onChanged: (v) => ref.read(cartProvider.notifier).setQuantity(index, v),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Row(
-              children: [
-                const Text('Total', style: AppTypography.title),
-                const Spacer(),
-                Text(
-                  Formatters.php(ref.read(cartProvider.notifier).total),
-                  style: AppTypography.displaySmall,
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-          RequestForm(slug: slug, shopName: shopName),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Row(
+            children: [
+              const Text('Total', style: AppTypography.title),
+              const Spacer(),
+              Text(
+                Formatters.php(ref.read(cartProvider.notifier).total),
+                style: AppTypography.displaySmall,
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: WhimsicalButton(label: 'checkout', expand: true, onPressed: onCheckout),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayStep extends ConsumerWidget {
+  const _PayStep({
+    required this.slug,
+    required this.selected,
+    required this.onSelect,
+    required this.onBack,
+  });
+
+  final String slug;
+  final PaymentMethod? selected;
+  final ValueChanged<PaymentMethod> onSelect;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Pick one first. Then we’ll take your name.', style: AppTypography.bodySmall),
+          const SizedBox(height: 16),
+          _PayCard(
+            title: 'E-wallet',
+            body: 'GCash / Maya — we’ll show the shop QR next.',
+            selected: selected == PaymentMethod.eWallet,
+            onTap: () => onSelect(PaymentMethod.eWallet),
+          ),
+          const SizedBox(height: 12),
+          _PayCard(
+            title: 'Cash',
+            body: 'Pay when you pick up or meet the owner.',
+            selected: selected == PaymentMethod.cash,
+            onTap: () => onSelect(PaymentMethod.cash),
+          ),
+          const Spacer(),
+          TextButton(onPressed: onBack, child: const Text('back to cart')),
         ],
       ),
     );
   }
 }
 
-class RequestForm extends ConsumerStatefulWidget {
-  const RequestForm({super.key, required this.slug, required this.shopName});
+class _PayCard extends StatelessWidget {
+  const _PayCard({
+    required this.title,
+    required this.body,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String body;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedScale(
+        duration: AppMotion.squish,
+        scale: selected ? 1.02 : 1,
+        child: DecoratedBox(
+          decoration: stickerFill(
+            color: selected ? AppColors.petal : AppColors.cloud,
+            pressed: selected,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.displaySmall),
+                const SizedBox(height: 6),
+                Text(body, style: AppTypography.bodySmall),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CheckoutForm extends ConsumerStatefulWidget {
+  const CheckoutForm({
+    super.key,
+    required this.slug,
+    required this.shopName,
+    required this.method,
+    required this.onBack,
+    required this.onDone,
+  });
 
   final String slug;
   final String shopName;
+  final PaymentMethod method;
+  final VoidCallback onBack;
+  final VoidCallback onDone;
 
   @override
-  ConsumerState<RequestForm> createState() => _RequestFormState();
+  ConsumerState<CheckoutForm> createState() => _CheckoutFormState();
 }
 
-class _RequestFormState extends ConsumerState<RequestForm> {
+class _CheckoutFormState extends ConsumerState<CheckoutForm> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _contact = TextEditingController();
   final _note = TextEditingController();
   final _honeypot = TextEditingController();
   var _busy = false;
-  var _done = false;
+
+  OwnerProfile? get _shop => ref.watch(shopProfileProvider(widget.slug)).valueOrNull;
 
   @override
   void dispose() {
@@ -128,95 +288,131 @@ class _RequestFormState extends ConsumerState<RequestForm> {
     if (!_formKey.currentState!.validate()) return;
     if (ref.read(submitLockProvider.notifier).isLocked) return;
     setState(() => _busy = true);
-    final lines = ref.read(cartProvider);
-    final items = [
-      for (final line in lines)
-        OrderItem(
-          productId: line.productId,
-          productName: line.productName,
-          variantSelection: line.variantSelection,
-          quantity: line.quantity,
-          priceAtOrder: line.price,
-        ),
-    ];
-    // TODO v2: integrate PayMongo/GCash payment link here
-    await ref.read(ordersRepositoryProvider).submit(
-          shopSlug: widget.slug,
-          customerName: _name.text.trim(),
-          customerContact: _contact.text.trim(),
-          items: items,
-          totalAmount: ref.read(cartProvider.notifier).total,
-          customerNote: _note.text.trim().isEmpty ? null : _note.text.trim(),
-          honeypot: _honeypot.text,
+    try {
+      final lines = ref.read(cartProvider);
+      final items = [
+        for (final line in lines)
+          OrderItem(
+            productId: line.productId,
+            productName: line.productName,
+            variantSelection: line.variantSelection,
+            quantity: line.quantity,
+            priceAtOrder: line.price,
+            paracord: line.paracord?.toJson(),
+            trinkets: [for (final item in line.trinkets) item.toJson()],
+          ),
+      ];
+      await ref.read(ordersRepositoryProvider).submit(
+            shopSlug: widget.slug,
+            customerName: _name.text.trim(),
+            customerContact: _contact.text.trim(),
+            items: items,
+            totalAmount: ref.read(cartProvider.notifier).total,
+            customerNote: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            honeypot: _honeypot.text,
+            paymentMethod: widget.method,
+          );
+      ref.invalidate(publishedProductsProvider(widget.slug));
+      ref.read(cartProvider.notifier).clear();
+      ref.read(submitLockProvider.notifier).lock();
+      if (mounted) widget.onDone();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
         );
-    ref.read(cartProvider.notifier).clear();
-    ref.read(submitLockProvider.notifier).lock();
-    if (mounted) {
-      setState(() {
-        _busy = false;
-        _done = true;
-      });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_done) {
-      return ConfirmationView(ownerName: widget.shopName);
-    }
-
+    final qr = _shop?.ewalletQrUrl;
     return Form(
       key: _formKey,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        child: Column(
-          children: [
-            Offstage(
-              offstage: true,
-              child: TextFormField(
-                controller: _honeypot,
-                decoration: const InputDecoration(hintText: 'website'),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        children: [
+          if (widget.method == PaymentMethod.eWallet) ...[
+            Text('Scan to pay', style: AppTypography.title),
+            const SizedBox(height: 8),
+            if (qr == null || qr.isEmpty)
+              Text(
+                'The owner hasn’t uploaded a QR yet. You can still send the order and they’ll share it.',
+                style: AppTypography.bodySmall,
+              )
+            else
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 220,
+                  child: DecoratedBox(
+                    decoration: stickerFill(),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: ContainedMedia(url: qr, padding: 12),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Cash it is. The owner will confirm pickup or meetup.',
+                style: AppTypography.bodySmall,
               ),
             ),
-            WhimsicalTextField(
-              controller: _name,
-              label: 'Your name',
-              validator: (v) => Validators.requiredField(v, label: 'Name'),
-              textInputAction: TextInputAction.next,
+          Offstage(
+            offstage: true,
+            child: TextFormField(
+              controller: _honeypot,
+              decoration: const InputDecoration(hintText: 'website'),
             ),
-            const SizedBox(height: 12),
-            WhimsicalTextField(
-              controller: _contact,
-              label: 'Contact (mobile or social)',
-              hint: 'GCash number, IG, or FB name',
-              validator: Validators.contact,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            WhimsicalTextField(
-              controller: _note,
-              label: 'Note (optional)',
-              maxLines: 3,
-              hint: 'Gift wrap, pickup, shade of mint…',
-            ),
-            const SizedBox(height: 16),
-            WhimsicalButton(
-              label: 'Send request',
-              expand: true,
-              busy: _busy,
-              onPressed: _submit,
-            ),
-          ],
-        ),
+          ),
+          WhimsicalTextField(
+            controller: _name,
+            label: 'Your name',
+            validator: (v) => Validators.requiredField(v, label: 'Name'),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          WhimsicalTextField(
+            controller: _contact,
+            label: 'Contact (mobile or social)',
+            hint: 'GCash number, IG, or FB name',
+            validator: Validators.contact,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          WhimsicalTextField(
+            controller: _note,
+            label: 'Note (optional)',
+            maxLines: 3,
+            hint: 'Gift wrap, pickup, shade of mint…',
+          ),
+          const SizedBox(height: 16),
+          WhimsicalButton(
+            label: 'place order',
+            expand: true,
+            busy: _busy,
+            onPressed: _submit,
+          ),
+          TextButton(onPressed: widget.onBack, child: const Text('change payment')),
+        ],
       ),
     );
   }
 }
 
 class ConfirmationView extends StatelessWidget {
-  const ConfirmationView({super.key, required this.ownerName});
+  const ConfirmationView({super.key, required this.ownerName, this.method});
 
   final String ownerName;
+  final PaymentMethod? method;
 
   @override
   Widget build(BuildContext context) {
@@ -227,13 +423,15 @@ class ConfirmationView extends StatelessWidget {
           const AnimatedCheck(size: 72),
           const SizedBox(height: 16),
           Text(
-            'Yay! Your request is in 🦕💌',
+            'Yay! Your order is in',
             style: AppTypography.displaySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
-            '$ownerName will reach out to confirm.',
+            method == PaymentMethod.cash
+                ? '$ownerName will reach out to confirm cash pickup.'
+                : '$ownerName will match your e-wallet payment and confirm.',
             style: AppTypography.bodySmall,
             textAlign: TextAlign.center,
           ),

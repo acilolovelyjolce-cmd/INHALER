@@ -14,6 +14,7 @@ abstract class OwnerProfile with _$OwnerProfile {
     @JsonKey(name: 'shop_slug') required String shopSlug,
     String? bio,
     @JsonKey(name: 'logo_url') String? logoUrl,
+    @JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,
     @StringMapConverter() @JsonKey(name: 'contact_info') required Map<String, String> contactInfo,
   }) = _OwnerProfile;
 
