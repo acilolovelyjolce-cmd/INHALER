@@ -29,6 +29,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   late final TextEditingController _description;
   late final TextEditingController _price;
   late final TextEditingController _compare;
+  late final TextEditingController _qty;
   late List<String> _images;
   late StockStatus _stock;
   late bool _published;
@@ -45,6 +46,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _compare = TextEditingController(
       text: p?.compareAtPrice == null ? '' : p!.compareAtPrice!.toStringAsFixed(0),
     );
+    _qty = TextEditingController(text: p == null ? '10' : '${p.stock}');
     _images = [...?p?.imageUrls];
     _stock = p?.stockStatus ?? StockStatus.available;
     _published = p?.isPublished ?? true;
@@ -56,6 +58,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _description.dispose();
     _price.dispose();
     _compare.dispose();
+    _qty.dispose();
     super.dispose();
   }
 
@@ -87,6 +90,16 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     if (!_formKey.currentState!.validate()) return;
     final price = Validators.parseMoney(_price.text);
     if (price == null) return;
+    final qty = Validators.parseStock(_qty.text);
+    if (qty == null) return;
+    var status = _stock;
+    if (status != StockStatus.madeToOrder) {
+      if (qty <= 0) {
+        status = StockStatus.soldOut;
+      } else if (status == StockStatus.soldOut) {
+        status = StockStatus.available;
+      }
+    }
     setState(() => _saving = true);
     try {
       final now = DateTime.now();
@@ -103,7 +116,8 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
         category: '',
         paracords: existing?.paracords ?? const [],
         trinkets: existing?.trinkets ?? const [],
-        stockStatus: _stock,
+        stock: qty,
+        stockStatus: status,
         isPublished: _published,
         sortOrder: existing?.sortOrder ?? 99,
         createdAt: existing?.createdAt ?? now,
@@ -237,6 +251,15 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 14),
+            WhimsicalTextField(
+              controller: _qty,
+              label: 'Left',
+              hint: 'How many of this inhaler are ready',
+              keyboardType: TextInputType.number,
+              validator: Validators.stock,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9\s,]'))],
             ),
             const SizedBox(height: 18),
             Text(

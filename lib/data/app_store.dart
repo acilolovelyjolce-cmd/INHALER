@@ -72,12 +72,11 @@ class DemoMemoryStore {
   }
 
   String? applyOrderStock(Iterable<OrderItem> items, {required bool restore}) {
-    final need = OptionStock.needed(items);
     if (!restore) {
-      final message = OptionStock.shortage(products, need);
+      final message = OptionStock.shortage(products, items);
       if (message != null) return message;
     }
-    final next = OptionStock.apply(products, need, sign: restore ? 1 : -1);
+    final next = OptionStock.apply(products, items, sign: restore ? 1 : -1);
     products
       ..clear()
       ..addAll(next);

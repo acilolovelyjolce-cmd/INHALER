@@ -201,4 +201,23 @@ void main() {
     expect(state.debugTransforms[MixArrangement.cordId('cord-mint')]!.dx, closeTo(-20, 3));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('tapping empty space hides rotate and size handles', (tester) async {
+    final state = await pumpMix(tester, paracord: demoCords.first);
+    final cordId = MixArrangement.cordId(demoCords.first.id);
+    final cordBox = tester.getRect(piece(cordId));
+    await tester.tapAt(cordBox.topLeft + const Offset(12, 12));
+    await tester.pump();
+    expect(state.debugSelected, cordId);
+    expect(find.byKey(MixStage.rotateKey(cordId)), findsOneWidget);
+    expect(find.byKey(MixStage.scaleKey(cordId)), findsOneWidget);
+
+    final stageBox = tester.getRect(find.byType(MixStage));
+    await tester.tapAt(stageBox.topLeft + const Offset(8, 8));
+    await tester.pump();
+    expect(state.debugSelected, isNull);
+    expect(find.byKey(MixStage.rotateKey(cordId)), findsNothing);
+    expect(find.byKey(MixStage.scaleKey(cordId)), findsNothing);
+    expect(find.byKey(MixStage.resetKey(cordId)), findsNothing);
+  });
 }

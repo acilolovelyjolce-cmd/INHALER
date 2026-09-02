@@ -65,6 +65,7 @@ abstract class Product with _$Product {
     required String category,
     @ProductOptionListConverter() @Default([]) List<ProductOption> paracords,
     @ProductOptionListConverter() @Default([]) List<ProductOption> trinkets,
+    @IntConverter() @Default(0) int stock,
     @JsonKey(name: 'stock_status') required StockStatus stockStatus,
     @JsonKey(name: 'is_published') required bool isPublished,
     @JsonKey(name: 'sort_order') required int sortOrder,
@@ -80,6 +81,7 @@ abstract class Product with _$Product {
       'name': json['name']?.toString() ?? '',
       'description': json['description']?.toString() ?? '',
       'category': json['category']?.toString() ?? '',
+      'stock': _jsonStock(json),
       'stock_status': _stockStatus(json['stock_status']),
       'is_published': published == true || published == 'true' || published == 1,
       'sort_order': _jsonInt(json['sort_order'], 99),
@@ -94,6 +96,13 @@ String _stockStatus(Object? value) {
     'made_to_order' || 'sold_out' || 'available' => value as String,
     _ => 'available',
   };
+}
+
+int _jsonStock(Map<String, dynamic> json) {
+  if (json.containsKey('stock') && json['stock'] != null) {
+    return _jsonInt(json['stock'], 0);
+  }
+  return _stockStatus(json['stock_status']) == 'sold_out' ? 0 : 99;
 }
 
 String _jsonDate(Object? value) {
@@ -126,8 +135,14 @@ extension ProductPricingX on Product {
         pickedTrinkets.fold<double>(0, (sum, item) => sum + item.price);
   }
 
+  bool get tracksInhalerStock => stockStatus != StockStatus.madeToOrder;
+
+  bool get isSoldOut =>
+      stockStatus == StockStatus.soldOut || (tracksInhalerStock && stock <= 0);
+
   String get optionStockSummary {
     final bits = [
+      if (tracksInhalerStock) '$stock left',
       for (final option in [...paracords, ...trinkets]) '${option.name} ${option.stock}',
     ];
     if (bits.isEmpty) return '';

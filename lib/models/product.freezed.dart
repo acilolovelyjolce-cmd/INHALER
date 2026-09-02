@@ -286,11 +286,10 @@ as int,
 
 }
 
-
 /// @nodoc
 mixin _$Product {
 
- String get id;@JsonKey(name: 'owner_id') String? get ownerId; String get name; String get description;@NumDoubleConverter() double get price;@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? get compareAtPrice;@StringListConverter()@JsonKey(name: 'image_urls') List<String> get imageUrls; String get category;@ProductOptionListConverter() List<ProductOption> get paracords;@ProductOptionListConverter() List<ProductOption> get trinkets;@JsonKey(name: 'stock_status') StockStatus get stockStatus;@JsonKey(name: 'is_published') bool get isPublished;@JsonKey(name: 'sort_order') int get sortOrder;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'updated_at') DateTime get updatedAt;
+ String get id;@JsonKey(name: 'owner_id') String? get ownerId; String get name; String get description;@NumDoubleConverter() double get price;@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? get compareAtPrice;@StringListConverter()@JsonKey(name: 'image_urls') List<String> get imageUrls; String get category;@ProductOptionListConverter() List<ProductOption> get paracords;@ProductOptionListConverter() List<ProductOption> get trinkets;@IntConverter() int get stock;@JsonKey(name: 'stock_status') StockStatus get stockStatus;@JsonKey(name: 'is_published') bool get isPublished;@JsonKey(name: 'sort_order') int get sortOrder;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'updated_at') DateTime get updatedAt;
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -303,16 +302,16 @@ $ProductCopyWith<Product> get copyWith => _$ProductCopyWithImpl<Product>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.price, price) || other.price == price)&&(identical(other.compareAtPrice, compareAtPrice) || other.compareAtPrice == compareAtPrice)&&const DeepCollectionEquality().equals(other.imageUrls, imageUrls)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.paracords, paracords)&&const DeepCollectionEquality().equals(other.trinkets, trinkets)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.isPublished, isPublished) || other.isPublished == isPublished)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.price, price) || other.price == price)&&(identical(other.compareAtPrice, compareAtPrice) || other.compareAtPrice == compareAtPrice)&&const DeepCollectionEquality().equals(other.imageUrls, imageUrls)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.paracords, paracords)&&const DeepCollectionEquality().equals(other.trinkets, trinkets)&&(identical(other.stock, stock) || other.stock == stock)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.isPublished, isPublished) || other.isPublished == isPublished)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,id,ownerId,name,description,price,compareAtPrice,const DeepCollectionEquality().hash(imageUrls),category,const DeepCollectionEquality().hash(paracords),const DeepCollectionEquality().hash(trinkets),stockStatus,isPublished,sortOrder,createdAt,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,ownerId,name,description,price,compareAtPrice,const DeepCollectionEquality().hash(imageUrls),category,const DeepCollectionEquality().hash(paracords),const DeepCollectionEquality().hash(trinkets),stock,stockStatus,isPublished,sortOrder,createdAt,updatedAt);
 
 @override
 String toString() {
-  return 'Product(id: $id, ownerId: $ownerId, name: $name, description: $description, price: $price, compareAtPrice: $compareAtPrice, imageUrls: $imageUrls, category: $category, paracords: $paracords, trinkets: $trinkets, stockStatus: $stockStatus, isPublished: $isPublished, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
+  return 'Product(id: $id, ownerId: $ownerId, name: $name, description: $description, price: $price, compareAtPrice: $compareAtPrice, imageUrls: $imageUrls, category: $category, paracords: $paracords, trinkets: $trinkets, stock: $stock, stockStatus: $stockStatus, isPublished: $isPublished, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
 }
 
 
@@ -323,7 +322,7 @@ abstract mixin class $ProductCopyWith<$Res>  {
   factory $ProductCopyWith(Product value, $Res Function(Product) _then) = _$ProductCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'owner_id') String? ownerId, String name, String description,@NumDoubleConverter() double price,@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? compareAtPrice,@StringListConverter()@JsonKey(name: 'image_urls') List<String> imageUrls, String category,@ProductOptionListConverter() List<ProductOption> paracords,@ProductOptionListConverter() List<ProductOption> trinkets,@JsonKey(name: 'stock_status') StockStatus stockStatus,@JsonKey(name: 'is_published') bool isPublished,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'updated_at') DateTime updatedAt
+ String id,@JsonKey(name: 'owner_id') String? ownerId, String name, String description,@NumDoubleConverter() double price,@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? compareAtPrice,@StringListConverter()@JsonKey(name: 'image_urls') List<String> imageUrls, String category,@ProductOptionListConverter() List<ProductOption> paracords,@ProductOptionListConverter() List<ProductOption> trinkets,@IntConverter() int stock,@JsonKey(name: 'stock_status') StockStatus stockStatus,@JsonKey(name: 'is_published') bool isPublished,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'updated_at') DateTime updatedAt
 });
 
 
@@ -340,7 +339,7 @@ class _$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? ownerId = freezed,Object? name = null,Object? description = null,Object? price = null,Object? compareAtPrice = freezed,Object? imageUrls = null,Object? category = null,Object? paracords = null,Object? trinkets = null,Object? stockStatus = null,Object? isPublished = null,Object? sortOrder = null,Object? createdAt = null,Object? updatedAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? ownerId = freezed,Object? name = null,Object? description = null,Object? price = null,Object? compareAtPrice = freezed,Object? imageUrls = null,Object? category = null,Object? paracords = null,Object? trinkets = null,Object? stock = null,Object? stockStatus = null,Object? isPublished = null,Object? sortOrder = null,Object? createdAt = null,Object? updatedAt = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,ownerId: freezed == ownerId ? _self.ownerId : ownerId // ignore: cast_nullable_to_non_nullable
@@ -352,7 +351,8 @@ as double?,imageUrls: null == imageUrls ? _self.imageUrls : imageUrls // ignore:
 as List<String>,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as String,paracords: null == paracords ? _self.paracords : paracords // ignore: cast_nullable_to_non_nullable
 as List<ProductOption>,trinkets: null == trinkets ? _self.trinkets : trinkets // ignore: cast_nullable_to_non_nullable
-as List<ProductOption>,stockStatus: null == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
+as List<ProductOption>,stock: null == stock ? _self.stock : stock // ignore: cast_nullable_to_non_nullable
+as int,stockStatus: null == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
 as StockStatus,isPublished: null == isPublished ? _self.isPublished : isPublished // ignore: cast_nullable_to_non_nullable
 as bool,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
@@ -442,10 +442,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @IntConverter()  int stock, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stock,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
   return orElse();
 
 }
@@ -463,10 +463,10 @@ return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @IntConverter()  int stock, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _Product():
-return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stock,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -483,10 +483,10 @@ return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'owner_id')  String? ownerId,  String name,  String description, @NumDoubleConverter()  double price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price')  double? compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls')  List<String> imageUrls,  String category, @ProductOptionListConverter()  List<ProductOption> paracords, @ProductOptionListConverter()  List<ProductOption> trinkets, @IntConverter()  int stock, @JsonKey(name: 'stock_status')  StockStatus stockStatus, @JsonKey(name: 'is_published')  bool isPublished, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'updated_at')  DateTime updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
+return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,_that.compareAtPrice,_that.imageUrls,_that.category,_that.paracords,_that.trinkets,_that.stock,_that.stockStatus,_that.isPublished,_that.sortOrder,_that.createdAt,_that.updatedAt);case _:
   return null;
 
 }
@@ -498,8 +498,8 @@ return $default(_that.id,_that.ownerId,_that.name,_that.description,_that.price,
 
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class _Product implements Product {
-  const _Product({required this.id, @JsonKey(name: 'owner_id') this.ownerId, required this.name, required this.description, @NumDoubleConverter() required this.price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') this.compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls') required final  List<String> imageUrls, required this.category, @ProductOptionListConverter() final  List<ProductOption> paracords = const [], @ProductOptionListConverter() final  List<ProductOption> trinkets = const [], @JsonKey(name: 'stock_status') required this.stockStatus, @JsonKey(name: 'is_published') required this.isPublished, @JsonKey(name: 'sort_order') required this.sortOrder, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'updated_at') required this.updatedAt}): _imageUrls = imageUrls,_paracords = paracords,_trinkets = trinkets;
-  factory _Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  const _Product({required this.id, @JsonKey(name: 'owner_id') this.ownerId, required this.name, required this.description, @NumDoubleConverter() required this.price, @NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') this.compareAtPrice, @StringListConverter()@JsonKey(name: 'image_urls') required final  List<String> imageUrls, required this.category, @ProductOptionListConverter() final  List<ProductOption> paracords = const [], @ProductOptionListConverter() final  List<ProductOption> trinkets = const [], @IntConverter() this.stock = 0, @JsonKey(name: 'stock_status') required this.stockStatus, @JsonKey(name: 'is_published') required this.isPublished, @JsonKey(name: 'sort_order') required this.sortOrder, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'updated_at') required this.updatedAt}): _imageUrls = imageUrls,_paracords = paracords,_trinkets = trinkets;
+  
 
 @override final  String id;
 @override@JsonKey(name: 'owner_id') final  String? ownerId;
@@ -529,6 +529,7 @@ class _Product implements Product {
   return EqualUnmodifiableListView(_trinkets);
 }
 
+@override@JsonKey()@IntConverter() final  int stock;
 @override@JsonKey(name: 'stock_status') final  StockStatus stockStatus;
 @override@JsonKey(name: 'is_published') final  bool isPublished;
 @override@JsonKey(name: 'sort_order') final  int sortOrder;
@@ -548,16 +549,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.price, price) || other.price == price)&&(identical(other.compareAtPrice, compareAtPrice) || other.compareAtPrice == compareAtPrice)&&const DeepCollectionEquality().equals(other._imageUrls, _imageUrls)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other._paracords, _paracords)&&const DeepCollectionEquality().equals(other._trinkets, _trinkets)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.isPublished, isPublished) || other.isPublished == isPublished)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.id, id) || other.id == id)&&(identical(other.ownerId, ownerId) || other.ownerId == ownerId)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.price, price) || other.price == price)&&(identical(other.compareAtPrice, compareAtPrice) || other.compareAtPrice == compareAtPrice)&&const DeepCollectionEquality().equals(other._imageUrls, _imageUrls)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other._paracords, _paracords)&&const DeepCollectionEquality().equals(other._trinkets, _trinkets)&&(identical(other.stock, stock) || other.stock == stock)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.isPublished, isPublished) || other.isPublished == isPublished)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,id,ownerId,name,description,price,compareAtPrice,const DeepCollectionEquality().hash(_imageUrls),category,const DeepCollectionEquality().hash(_paracords),const DeepCollectionEquality().hash(_trinkets),stockStatus,isPublished,sortOrder,createdAt,updatedAt);
+int get hashCode => Object.hash(runtimeType,id,ownerId,name,description,price,compareAtPrice,const DeepCollectionEquality().hash(_imageUrls),category,const DeepCollectionEquality().hash(_paracords),const DeepCollectionEquality().hash(_trinkets),stock,stockStatus,isPublished,sortOrder,createdAt,updatedAt);
 
 @override
 String toString() {
-  return 'Product(id: $id, ownerId: $ownerId, name: $name, description: $description, price: $price, compareAtPrice: $compareAtPrice, imageUrls: $imageUrls, category: $category, paracords: $paracords, trinkets: $trinkets, stockStatus: $stockStatus, isPublished: $isPublished, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
+  return 'Product(id: $id, ownerId: $ownerId, name: $name, description: $description, price: $price, compareAtPrice: $compareAtPrice, imageUrls: $imageUrls, category: $category, paracords: $paracords, trinkets: $trinkets, stock: $stock, stockStatus: $stockStatus, isPublished: $isPublished, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
 }
 
 
@@ -568,7 +569,7 @@ abstract mixin class _$ProductCopyWith<$Res> implements $ProductCopyWith<$Res> {
   factory _$ProductCopyWith(_Product value, $Res Function(_Product) _then) = __$ProductCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'owner_id') String? ownerId, String name, String description,@NumDoubleConverter() double price,@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? compareAtPrice,@StringListConverter()@JsonKey(name: 'image_urls') List<String> imageUrls, String category,@ProductOptionListConverter() List<ProductOption> paracords,@ProductOptionListConverter() List<ProductOption> trinkets,@JsonKey(name: 'stock_status') StockStatus stockStatus,@JsonKey(name: 'is_published') bool isPublished,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'updated_at') DateTime updatedAt
+ String id,@JsonKey(name: 'owner_id') String? ownerId, String name, String description,@NumDoubleConverter() double price,@NullableNumDoubleConverter()@JsonKey(name: 'compare_at_price') double? compareAtPrice,@StringListConverter()@JsonKey(name: 'image_urls') List<String> imageUrls, String category,@ProductOptionListConverter() List<ProductOption> paracords,@ProductOptionListConverter() List<ProductOption> trinkets,@IntConverter() int stock,@JsonKey(name: 'stock_status') StockStatus stockStatus,@JsonKey(name: 'is_published') bool isPublished,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'updated_at') DateTime updatedAt
 });
 
 
@@ -585,7 +586,7 @@ class __$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? ownerId = freezed,Object? name = null,Object? description = null,Object? price = null,Object? compareAtPrice = freezed,Object? imageUrls = null,Object? category = null,Object? paracords = null,Object? trinkets = null,Object? stockStatus = null,Object? isPublished = null,Object? sortOrder = null,Object? createdAt = null,Object? updatedAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? ownerId = freezed,Object? name = null,Object? description = null,Object? price = null,Object? compareAtPrice = freezed,Object? imageUrls = null,Object? category = null,Object? paracords = null,Object? trinkets = null,Object? stock = null,Object? stockStatus = null,Object? isPublished = null,Object? sortOrder = null,Object? createdAt = null,Object? updatedAt = null,}) {
   return _then(_Product(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,ownerId: freezed == ownerId ? _self.ownerId : ownerId // ignore: cast_nullable_to_non_nullable
@@ -597,7 +598,8 @@ as double?,imageUrls: null == imageUrls ? _self._imageUrls : imageUrls // ignore
 as List<String>,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as String,paracords: null == paracords ? _self._paracords : paracords // ignore: cast_nullable_to_non_nullable
 as List<ProductOption>,trinkets: null == trinkets ? _self._trinkets : trinkets // ignore: cast_nullable_to_non_nullable
-as List<ProductOption>,stockStatus: null == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
+as List<ProductOption>,stock: null == stock ? _self.stock : stock // ignore: cast_nullable_to_non_nullable
+as int,stockStatus: null == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
 as StockStatus,isPublished: null == isPublished ? _self.isPublished : isPublished // ignore: cast_nullable_to_non_nullable
 as bool,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable

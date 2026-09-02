@@ -17,6 +17,7 @@ Future<void> runMigrations() async {
     '002_seed_owner_and_catalog': _seedOwnerAndCatalog,
     '003_option_stock': _optionStock,
     '004_parts_catalog': _partsCatalog,
+    '005_product_stock': _productStock,
   };
 
   for (final entry in steps.entries) {
@@ -114,6 +115,7 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       'category': category,
       'paracords': paracords,
       'trinkets': trinkets,
+      'stock': stockStatus == 'sold_out' ? 0 : 10,
       'stock_status': stockStatus,
       'is_published': true,
       'sort_order': sortOrder,
@@ -245,5 +247,17 @@ Future<void> _partsCatalog() async {
     if (existing == null) {
       await mongo.parts.insertOne(doc);
     }
+  }
+}
+
+Future<void> _productStock() async {
+  final rows = await Mongo.instance.products.find().toList();
+  final now = DateTime.now().toUtc();
+  for (final row in rows) {
+    if (row.containsKey('stock') && row['stock'] != null) continue;
+    final sold = row['stock_status']?.toString() == 'sold_out';
+    row['stock'] = sold ? 0 : 10;
+    row['updated_at'] = now;
+    await Mongo.instance.products.replaceOne(where.eq('_id', row['_id']), row);
   }
 }

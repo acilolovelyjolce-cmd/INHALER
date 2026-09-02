@@ -48,6 +48,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
 
   int get _maxQty {
     var max = 99;
+    if (product.tracksInhalerStock) max = math.min(max, product.stock);
     if (_paracord != null) max = math.min(max, _paracord!.stock);
     for (final item in _trinkets) {
       max = math.min(max, item.stock);
@@ -56,6 +57,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   }
 
   bool get _stockOk {
+    if (product.tracksInhalerStock && product.stock < _qty) return false;
     if (_paracord != null && _paracord!.stock < _qty) return false;
     for (final item in _trinkets) {
       if (item.stock < _qty) return false;
@@ -110,7 +112,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   }
 
   void _addToCart() {
-    final sold = product.stockStatus == StockStatus.soldOut;
+    final sold = product.isSoldOut;
     if (sold || !_stockOk) return;
     ref.read(cartProvider.notifier).add(
           CartLine(
@@ -135,7 +137,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
 
   @override
   Widget build(BuildContext context) {
-    final sold = product.stockStatus == StockStatus.soldOut;
+    final sold = product.isSoldOut;
     return ColoredBox(
       color: AppColors.blush,
       child: Column(
@@ -316,15 +318,21 @@ class _MeetDoor extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(28, 16, 28, 40),
       children: [
-        if (product.stockStatus != StockStatus.available) ...[
+        if (product.isSoldOut || product.stockStatus == StockStatus.madeToOrder) ...[
           Align(
             alignment: Alignment.centerLeft,
             child: WhimsicalBadge(
-              label: product.stockStatus.label,
-              color: product.stockStatus == StockStatus.soldOut
+              label: product.isSoldOut ? StockStatus.soldOut.label : product.stockStatus.label,
+              color: product.isSoldOut
                   ? AppColors.cancelled.withValues(alpha: 0.25)
                   : AppColors.meadow,
             ),
+          ),
+          const SizedBox(height: 24),
+        ] else if (product.tracksInhalerStock) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: WhimsicalBadge(label: '${product.stock} left', color: AppColors.meadow),
           ),
           const SizedBox(height: 24),
         ],

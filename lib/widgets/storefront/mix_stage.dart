@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/cutout.dart';
@@ -292,7 +291,10 @@ class MixStageState extends State<MixStage> {
                     behavior: HitTestBehavior.translucent,
                     onPointerDown: (event) {
                       final id = _hit(_toStage(event.position), bases);
-                      if (id == null) return;
+                      if (id == null) {
+                        if (_selected != null) setState(() => _selected = null);
+                        return;
+                      }
                       _pointer = event.pointer;
                       _dragging = id;
                       _select(id);

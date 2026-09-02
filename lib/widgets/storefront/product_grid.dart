@@ -60,7 +60,7 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sold = product.stockStatus == StockStatus.soldOut;
+    final sold = product.isSoldOut;
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
@@ -90,12 +90,18 @@ class _ProductTile extends StatelessWidget {
                       left: 10,
                       bottom: 10,
                       child: WhimsicalBadge(label: 'all gone for now'),
-                    ),
-                  if (product.stockStatus == StockStatus.madeToOrder)
+                    )
+                  else if (product.stockStatus == StockStatus.madeToOrder)
                     const Positioned(
                       left: 10,
                       bottom: 10,
                       child: WhimsicalBadge(label: 'made to order', color: AppColors.meadow),
+                    )
+                  else if (product.tracksInhalerStock && product.stock <= 5)
+                    Positioned(
+                      left: 10,
+                      bottom: 10,
+                      child: WhimsicalBadge(label: '${product.stock} left', color: AppColors.yolk),
                     ),
                 ],
               ),

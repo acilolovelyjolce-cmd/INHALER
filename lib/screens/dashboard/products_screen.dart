@@ -467,7 +467,18 @@ class _ProductRow extends StatelessWidget {
                         style: AppTypography.bodySmall,
                       ),
                       const SizedBox(height: 6),
-                      WhimsicalBadge(label: product.stockStatus.label, color: color),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          WhimsicalBadge(label: product.stockStatus.label, color: color),
+                          if (product.tracksInhalerStock)
+                            WhimsicalBadge(
+                              label: '${product.stock} left',
+                              color: product.stock <= 0 ? AppColors.petal : AppColors.sky,
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

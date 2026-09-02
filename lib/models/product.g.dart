@@ -43,6 +43,7 @@ _Product _$ProductFromJson(Map<String, dynamic> json) => _Product(
   trinkets: json['trinkets'] == null
       ? const []
       : const ProductOptionListConverter().fromJson(json['trinkets']),
+  stock: json['stock'] == null ? 0 : const IntConverter().fromJson(json['stock']),
   stockStatus: $enumDecode(_$StockStatusEnumMap, json['stock_status']),
   isPublished: json['is_published'] as bool,
   sortOrder: (json['sort_order'] as num).toInt(),
@@ -63,6 +64,7 @@ Map<String, dynamic> _$ProductToJson(_Product instance) => <String, dynamic>{
   'category': instance.category,
   'paracords': const ProductOptionListConverter().toJson(instance.paracords),
   'trinkets': const ProductOptionListConverter().toJson(instance.trinkets),
+  'stock': const IntConverter().toJson(instance.stock),
   'stock_status': _$StockStatusEnumMap[instance.stockStatus]!,
   'is_published': instance.isPublished,
   'sort_order': instance.sortOrder,

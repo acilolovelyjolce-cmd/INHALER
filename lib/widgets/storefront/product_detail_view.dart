@@ -25,7 +25,7 @@ class _ProductDetailViewState extends ConsumerState<ProductDetailView> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final sold = product.stockStatus == StockStatus.soldOut;
+    final sold = product.isSoldOut;
     final images = product.imageUrls.isEmpty ? <String>[] : product.imageUrls;
 
     return ListView(

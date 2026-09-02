@@ -19,6 +19,19 @@ void main() {
     expect(product.isPublished, isFalse);
     expect(product.paracords, hasLength(1));
     expect(product.paracords.first.name, 'Orange');
+    expect(product.stock, 99);
+    expect(product.isSoldOut, isFalse);
+  });
+
+  test('Product.fromJson treats a missing stock on a sold-out inhaler as zero', () {
+    final product = Product.fromJson({
+      'id': 'gone',
+      'name': 'Gone',
+      'price': 10,
+      'stock_status': 'sold_out',
+    });
+    expect(product.stock, 0);
+    expect(product.isSoldOut, isTrue);
   });
 
   test('OwnerProfile.fromJson accepts a public shop payload', () {

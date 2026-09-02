@@ -128,6 +128,14 @@ Future<List<Map<String, dynamic>>> _productsForOwner(Object ownerId) async {
   return rows;
 }
 
+Future<List<Map<String, dynamic>>> _catalogForOwner(Object ownerId, {String? slug}) async {
+  var rows = await _productsForOwner(ownerId);
+  if (rows.isEmpty && slug != null && slug.isNotEmpty) {
+    rows = await Mongo.instance.products.find(where.eq('shop_slug', slug)).toList();
+  }
+  return rows;
+}
+
 Future<Response> _publishedProducts(Request request) async {
   final slug = request.params['slug']!;
   final owner = await findPublicOwner(slug);
@@ -167,9 +175,10 @@ Future<Response> _submitOrder(Request request) async {
   }
 
   final now = DateTime.now().toUtc();
+  final shopSlug = shop['shop_slug']?.toString() ?? slug;
   final doc = {
     '_id': _uuid.v4(),
-    'shop_slug': slug,
+    'shop_slug': shopSlug,
     'customer_name': cleanLine(body['customer_name'], max: 80),
     'customer_contact': cleanLine(body['customer_contact'], max: 80),
     'items': body['items'] is List ? body['items'] : [],
@@ -187,11 +196,10 @@ Future<Response> _submitOrder(Request request) async {
     return jsonError(400, 'Name and contact are required');
   }
 
-  final products = await Mongo.instance.products.find(where.eq('shop_slug', slug)).toList();
-  final need = neededFromItems(doc['items']);
-  final shortage = shortageMessage(products, need);
+  final products = await _catalogForOwner(shop['_id'] as Object, slug: shopSlug);
+  final shortage = shortageMessage(products, doc['items']);
   if (shortage != null) return jsonError(409, shortage);
-  applyOptionStock(products, need, sign: -1);
+  applyOrderStock(products, doc['items'], sign: -1);
   await _persistProducts(products);
   await _writePartStocks(shop['_id'], products);
 
@@ -316,6 +324,7 @@ Future<Response> _upsertProduct(Request request) async {
     'category': '',
     'paracords': <Map<String, dynamic>>[],
     'trinkets': <Map<String, dynamic>>[],
+    'stock': parseInt(body['stock'] ?? existing?['stock']),
     'stock_status': parseStockStatus(
       body['stock_status'] ?? existing?['stock_status'],
     ),
@@ -332,6 +341,17 @@ Future<Response> _upsertProduct(Request request) async {
     doc['paracords'] = parseOptions(body['paracords'] ?? existing?['paracords']);
     doc['trinkets'] = parseOptions(body['trinkets'] ?? existing?['trinkets']);
   }
+  final stock = parseInt(doc['stock']);
+  var status = doc['stock_status']?.toString() ?? 'available';
+  if (status != 'made_to_order') {
+    if (stock <= 0) {
+      status = 'sold_out';
+    } else if (status == 'sold_out') {
+      status = 'available';
+    }
+  }
+  doc['stock'] = stock;
+  doc['stock_status'] = status;
   if (existing == null) {
     await Mongo.instance.products.insertOne(doc);
   } else {
@@ -437,18 +457,18 @@ Future<Response> _updateOrder(Request request) async {
   };
 
   if (previousStatus != nextStatus) {
-    final products = await Mongo.instance.products
-        .find(where.eq('shop_slug', owner['shop_slug']))
-        .toList();
-    final need = neededFromItems(existing['items']);
+    final products = await _catalogForOwner(
+      owner['_id'] as Object,
+      slug: owner['shop_slug']?.toString(),
+    );
     if (previousStatus != 'cancelled' && nextStatus == 'cancelled') {
-      applyOptionStock(products, need, sign: 1);
+      applyOrderStock(products, existing['items'], sign: 1);
       await _persistProducts(products);
       await _writePartStocks(owner['_id'], products);
     } else if (previousStatus == 'cancelled' && nextStatus != 'cancelled') {
-      final shortage = shortageMessage(products, need);
+      final shortage = shortageMessage(products, existing['items']);
       if (shortage != null) return jsonError(409, shortage);
-      applyOptionStock(products, need, sign: -1);
+      applyOrderStock(products, existing['items'], sign: -1);
       await _persistProducts(products);
       await _writePartStocks(owner['_id'], products);
     }
