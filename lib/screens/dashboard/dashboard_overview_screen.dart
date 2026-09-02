@@ -93,6 +93,44 @@ class DashboardOverviewScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             ShopLinkCard(url: shopUrlFor(slug)),
             const SizedBox(height: 18),
+            WhimsicalCard(
+              onTap: () => context.go('/dashboard/till'),
+              color: AppColors.yolk,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('TODAY’S TILL', style: AppTypography.kicker),
+                        const SizedBox(height: 8),
+                        Text(
+                          Formatters.php(
+                            list
+                                .where((order) {
+                                  final day = order.createdAt.toLocal();
+                                  return order.status != OrderStatus.cancelled &&
+                                      day.year == now.year &&
+                                      day.month == now.month &&
+                                      day.day == now.day;
+                                })
+                                .fold<double>(0, (sum, order) => sum + order.totalAmount),
+                          ),
+                          style: AppTypography.displayMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Open the till for yesterday, this week, this month, or any day.',
+                          style: AppTypography.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.plum),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
             TextButton(
               onPressed: () => context.go('/dashboard/orders'),
               child: const Align(

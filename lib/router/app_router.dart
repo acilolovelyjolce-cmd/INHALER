@@ -14,6 +14,7 @@ import '../screens/dashboard/dashboard_shell.dart';
 import '../screens/dashboard/login_screen.dart';
 import '../screens/dashboard/orders_screen.dart';
 import '../screens/dashboard/products_screen.dart';
+import '../screens/dashboard/revenue_screen.dart';
 import '../screens/dashboard/settings_screen.dart';
 import '../screens/shop/product_detail_screen.dart';
 import '../screens/shop/shop_shell.dart';
@@ -94,6 +95,12 @@ GoRouter appRouter(AppRouterRef ref) {
             path: '/dashboard/orders',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: OrdersScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dashboard/till',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: RevenueScreen(),
             ),
           ),
           GoRoute(

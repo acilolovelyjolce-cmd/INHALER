@@ -178,6 +178,10 @@ List<Product> demoProducts() {
 
 List<OrderRequest> demoOrders() {
   final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day, 15, 20);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final lastWeek = today.subtract(const Duration(days: 4));
+  final earlierMonth = DateTime(now.year, now.month, 1, 11, 5);
   return [
     OrderRequest(
       id: 'o-demo-1',
@@ -202,8 +206,97 @@ List<OrderRequest> demoOrders() {
       status: OrderStatus.newRequest,
       paymentStatus: PaymentStatus.unpaid,
       paymentMethod: PaymentMethod.eWallet,
-      createdAt: now.subtract(const Duration(hours: 2)),
-      updatedAt: now.subtract(const Duration(hours: 2)),
+      createdAt: today.subtract(const Duration(hours: 2)),
+      updatedAt: today.subtract(const Duration(hours: 2)),
+    ),
+    OrderRequest(
+      id: 'o-demo-2',
+      shopSlug: demoShopSlug,
+      customerName: 'Aya Lim',
+      customerContact: '@aya.lim',
+      items: const [
+        OrderItem(
+          productId: 'p-sleepy-stego',
+          productName: 'Sleepy Stego Puff',
+          variantSelection: {'paracord': 'Blush paracord', 'trinkets': 'Sleepy Stego'},
+          quantity: 1,
+          priceAtOrder: 600,
+          paracord: {'id': 'cord-blush', 'name': 'Blush paracord', 'price': 40},
+          trinkets: [
+            {'id': 't-stego', 'name': 'Sleepy Stego', 'price': 80},
+          ],
+        ),
+      ],
+      totalAmount: 600,
+      status: OrderStatus.completed,
+      paymentStatus: PaymentStatus.paid,
+      paymentMethod: PaymentMethod.eWallet,
+      createdAt: yesterday,
+      updatedAt: yesterday,
+    ),
+    OrderRequest(
+      id: 'o-demo-3',
+      shopSlug: demoShopSlug,
+      customerName: 'Noel Cruz',
+      customerContact: '09XX 555 2201',
+      items: const [
+        OrderItem(
+          productId: 'p-pastel-ptero',
+          productName: 'Pastel Ptero Set',
+          variantSelection: {'paracord': 'Sky paracord'},
+          quantity: 2,
+          priceAtOrder: 660,
+          paracord: {'id': 'cord-sky', 'name': 'Sky paracord', 'price': 40},
+        ),
+      ],
+      totalAmount: 1320,
+      customerNote: 'One for me, one for my sister.',
+      status: OrderStatus.preparing,
+      paymentStatus: PaymentStatus.paid,
+      paymentMethod: PaymentMethod.cash,
+      createdAt: lastWeek,
+      updatedAt: lastWeek,
+    ),
+    OrderRequest(
+      id: 'o-demo-4',
+      shopSlug: demoShopSlug,
+      customerName: 'Heart Dizon',
+      customerContact: 'fb.com/heart.dizon',
+      items: const [
+        OrderItem(
+          productId: 'p-baby-rex',
+          productName: 'Baby Rex Inhaler Keychain',
+          variantSelection: {'paracord': 'Mint paracord'},
+          quantity: 1,
+          priceAtOrder: 490,
+          paracord: {'id': 'cord-mint', 'name': 'Mint paracord', 'price': 40},
+        ),
+      ],
+      totalAmount: 490,
+      status: OrderStatus.completed,
+      paymentStatus: PaymentStatus.paid,
+      paymentMethod: PaymentMethod.eWallet,
+      createdAt: earlierMonth.isBefore(today) ? earlierMonth : lastWeek.subtract(const Duration(days: 2)),
+      updatedAt: earlierMonth.isBefore(today) ? earlierMonth : lastWeek.subtract(const Duration(days: 2)),
+    ),
+    OrderRequest(
+      id: 'o-demo-5',
+      shopSlug: demoShopSlug,
+      customerName: 'Gio Reyes',
+      customerContact: '09XX 555 0088',
+      items: const [
+        OrderItem(
+          productId: 'p-cloud-trice',
+          productName: 'Cloud Trice Charm',
+          quantity: 1,
+          priceAtOrder: 430,
+        ),
+      ],
+      totalAmount: 430,
+      status: OrderStatus.cancelled,
+      paymentStatus: PaymentStatus.unpaid,
+      createdAt: today.subtract(const Duration(hours: 5)),
+      updatedAt: today.subtract(const Duration(hours: 4)),
     ),
   ];
 }

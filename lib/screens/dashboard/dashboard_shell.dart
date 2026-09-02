@@ -27,6 +27,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     _Tab('/dashboard', 'Home', Icons.home_outlined, Icons.home_rounded),
     _Tab('/dashboard/products', 'Catalog', Icons.auto_awesome_outlined, Icons.auto_awesome),
     _Tab('/dashboard/orders', 'Requests', Icons.inbox_outlined, Icons.inbox),
+    _Tab('/dashboard/till', 'Till', Icons.savings_outlined, Icons.savings),
     _Tab('/dashboard/settings', 'Shop', Icons.storefront_outlined, Icons.storefront),
   ];
 
