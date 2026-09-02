@@ -74,27 +74,30 @@ Future<ShareMeta> shareMetaFor(Request request) async {
   final slug = slugFromPath(request.url.path) ?? Env.shopSlug;
   final fallback = ShareMeta.fallback(origin, slug: slug);
   try {
-    final owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
-    if (owner == null) return fallback;
-
+    var owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+    owner ??= await Mongo.instance.owners.findOne(where.eq('shop_slug', Env.shopSlug));
+    if (owner == null) {
+      final all = await Mongo.instance.owners.find().toList();
+      if (all.isEmpty) return fallback;
+      owner = all.first;
+    }
     final name = cleanLine(owner['shop_name'] ?? Env.shopName, max: 80);
     final headline = cleanLine(owner['headline'], max: 80);
     final bio = cleanMultiline(owner['bio'] ?? Env.ownerBio, max: 240);
     final description = headline.isNotEmpty ? headline : (bio.isNotEmpty ? bio : fallback.description);
     final stamp = parseDate(owner['updated_at']).millisecondsSinceEpoch;
-    var image = '$origin/api/shops/$slug/share-image?v=$stamp';
+    final shopSlug = owner['shop_slug']?.toString() ?? slug;
+    var image = '$origin/api/shops/$shopSlug/share-image?v=$stamp';
 
     final productId = productIdFromPath(request.url.path);
     var title = name.isEmpty ? fallback.title : name;
-    var pageUrl = '$origin/shop/$slug';
+    var pageUrl = '$origin/shop/$shopSlug';
     if (productId != null && productId.isNotEmpty) {
-      final product = await Mongo.instance.products.findOne(
-        where.eq('_id', productId).eq('shop_slug', slug),
-      );
+      final product = await Mongo.instance.products.findOne(where.eq('_id', productId));
       if (product != null && product['is_published'] != false) {
         final productName = cleanLine(product['name'], max: 80);
         if (productName.isNotEmpty) title = productName;
-        pageUrl = '$origin/shop/$slug/product/$productId';
+        pageUrl = '$origin/shop/$shopSlug/product/$productId';
         final urls = product['image_urls'];
         if (urls is List) {
           for (final raw in urls) {

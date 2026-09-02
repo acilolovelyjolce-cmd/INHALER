@@ -32,11 +32,20 @@ class ProductsRepository {
         return last;
       } catch (_) {
         if (staleOk && last.isNotEmpty) return last;
+        if (!staleOk) {
+          try {
+            last = await _fetchPublished(slug);
+            return last;
+          } catch (retryError) {
+            if (last.isNotEmpty) return last;
+            rethrow;
+          }
+        }
         rethrow;
       }
     }
     yield await once(staleOk: false);
-    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => once(staleOk: true));
+    yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => once(staleOk: true));
   }
 
   Stream<List<Product>> watchAll() async* {

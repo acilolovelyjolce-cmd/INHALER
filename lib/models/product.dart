@@ -82,7 +82,7 @@ abstract class Product with _$Product {
       'category': json['category']?.toString() ?? '',
       'stock_status': _stockStatus(json['stock_status']),
       'is_published': published == true || published == 'true' || published == 1,
-      'sort_order': json['sort_order'] ?? 99,
+      'sort_order': _jsonInt(json['sort_order'], 99),
       'created_at': _jsonDate(json['created_at']),
       'updated_at': _jsonDate(json['updated_at']),
     });
@@ -103,6 +103,12 @@ String _jsonDate(Object? value) {
         DateTime.now().toUtc().toIso8601String();
   }
   return DateTime.now().toUtc().toIso8601String();
+}
+
+int _jsonInt(Object? value, int fallback) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
 }
 
 extension StockStatusX on StockStatus {

@@ -75,7 +75,13 @@ class _CartSheetState extends ConsumerState<CartSheet> {
             shopName: widget.shopName,
             method: _method!,
             onBack: () => setState(() => _step = _CartStep.pay),
-            onDone: () => setState(() => _step = _CartStep.done),
+            onDone: () {
+              setState(() => _step = _CartStep.done);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                _showHandmadeLeadTimeDialog(context);
+              });
+            },
           ),
         _CartStep.done => ConfirmationView(ownerName: widget.shopName, method: _method),
       },
@@ -474,8 +480,42 @@ class ConfirmationView extends StatelessWidget {
             style: AppTypography.bodySmall,
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 16),
+          Text(
+            'Each piece is handmade, so please allow 5–7 business days for your order to be finished and packed.',
+            style: AppTypography.body.copyWith(height: 1.45),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
   }
+}
+
+Future<void> _showHandmadeLeadTimeDialog(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    barrierColor: AppColors.plum.withValues(alpha: 0.35),
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: AppColors.cloud,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
+        ),
+        title: Text('Handmade with care', style: AppTypography.title),
+        content: Text(
+          'Each piece is handmade, so please allow 5–7 business days for your order to be finished and packed.',
+          style: AppTypography.body.copyWith(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Got it', style: AppTypography.title),
+          ),
+        ],
+      );
+    },
+  );
 }

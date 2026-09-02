@@ -43,7 +43,7 @@ class StorefrontScreen extends ConsumerWidget {
     if (items == null && (profile.isLoading || products.isLoading)) {
       return const AtelierBackdrop(child: DinoLoading());
     }
-    if (shop == null && !profile.hasError && !profile.isLoading) {
+    if (shop == null && (items == null || items.isEmpty) && !profile.hasError && !profile.isLoading) {
       return const AtelierBackdrop(
         child: WhimsicalEmpty(
           title: 'This shop is still packing',

@@ -22,6 +22,7 @@ Router buildRouter() {
     ..get('/api/shops/<slug>', _shop)
     ..get('/api/shops/<slug>/products', _publishedProducts)
     ..get('/api/shops/<slug>/share-image', _shareImage)
+    ..get('/api/shop', _defaultShop)
     ..post('/api/shops/<slug>/orders', _submitOrder)
     ..get('/api/me', _me)
     ..put('/api/me', _updateMe)
@@ -71,10 +72,20 @@ Future<Response> _login(Request request) async {
 
 Future<Response> _shop(Request request) async {
   final slug = request.params['slug']!;
-  final owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+  final owner = await findPublicOwner(slug);
   if (owner == null) return jsonError(404, 'Shop not found');
+  return jsonOk(_shopPayload(owner, slug));
+}
+
+Future<Response> _defaultShop(Request request) async {
+  final owner = await findPublicOwner(Env.shopSlug);
+  if (owner == null) return jsonError(404, 'Shop not found');
+  return jsonOk(_shopPayload(owner, owner['shop_slug']?.toString() ?? Env.shopSlug));
+}
+
+Map<String, dynamic> _shopPayload(Map<String, dynamic> owner, String slug) {
   final doc = apiDoc(owner);
-  return jsonOk({
+  return {
     'id': doc['id']?.toString() ?? '',
     'shop_name': doc['shop_name'] ?? 'Whimsical',
     'shop_slug': doc['shop_slug'] ?? slug,
@@ -83,21 +94,59 @@ Future<Response> _shop(Request request) async {
     'logo_url': doc['logo_url'],
     'ewallet_qr_url': doc['ewallet_qr_url'],
     'contact_info': doc['contact_info'] is Map ? doc['contact_info'] : <String, String>{},
-  });
+  };
+}
+
+Future<Map<String, dynamic>?> findPublicOwner(String? slug) async {
+  final wanted = (slug ?? '').trim();
+  if (wanted.isNotEmpty) {
+    final exact = await Mongo.instance.owners.findOne(where.eq('shop_slug', wanted));
+    if (exact != null) return exact;
+  }
+  if (Env.shopSlug.isNotEmpty && Env.shopSlug != wanted) {
+    final seeded = await Mongo.instance.owners.findOne(where.eq('shop_slug', Env.shopSlug));
+    if (seeded != null) return seeded;
+  }
+  final all = await Mongo.instance.owners.find().toList();
+  if (all.isEmpty) return null;
+  return all.first;
+}
+
+bool _publishedFlag(Object? value) {
+  if (value == false || value == 'false' || value == 0 || value == '0') return false;
+  return true;
+}
+
+Future<List<Map<String, dynamic>>> _productsForOwner(Object ownerId) async {
+  var rows = await Mongo.instance.products.find(where.eq('owner_id', ownerId)).toList();
+  if (rows.isEmpty) {
+    final asText = ownerId.toString();
+    if (asText != ownerId) {
+      rows = await Mongo.instance.products.find(where.eq('owner_id', asText)).toList();
+    }
+  }
+  return rows;
 }
 
 Future<Response> _publishedProducts(Request request) async {
   final slug = request.params['slug']!;
-  final rows = await Mongo.instance.products
-      .find(where.eq('shop_slug', slug).eq('is_published', true))
-      .toList();
-  rows.sort((a, b) {
+  final owner = await findPublicOwner(slug);
+  if (owner == null) return jsonOk(<Map<String, dynamic>>[]);
+  var rows = await _productsForOwner(owner['_id'] as Object);
+  if (rows.isEmpty) {
+    rows = await Mongo.instance.products.find(where.eq('shop_slug', slug)).toList();
+  }
+  final published = [
+    for (final row in rows)
+      if (_publishedFlag(row['is_published'])) row,
+  ];
+  published.sort((a, b) {
     final aOrder = parseInt(a['sort_order'], fallback: 0, max: 99999);
     final bOrder = parseInt(b['sort_order'], fallback: 0, max: 99999);
     return aOrder.compareTo(bOrder);
   });
   final encoded = <Map<String, dynamic>>[];
-  for (final row in rows) {
+  for (final row in published) {
     try {
       encoded.add(apiDoc(Map<String, dynamic>.from(row)));
     } catch (error, stack) {
@@ -109,7 +158,7 @@ Future<Response> _publishedProducts(Request request) async {
 
 Future<Response> _submitOrder(Request request) async {
   final slug = request.params['slug']!;
-  final shop = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+  final shop = await findPublicOwner(slug);
   if (shop == null) return jsonError(404, 'Shop not found');
 
   final body = await readJson(request);
@@ -152,7 +201,7 @@ Future<Response> _submitOrder(Request request) async {
 
 Future<Response> _shareImage(Request request) async {
   final slug = request.params['slug']!;
-  final owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
+  final owner = await findPublicOwner(slug);
   final logo = owner?['logo_url']?.toString() ?? '';
   final fileId = RegExp(r'/api/files/([a-fA-F0-9]+)').firstMatch(logo)?.group(1);
   if (fileId != null) return _fileById(fileId);
@@ -196,6 +245,14 @@ Future<Response> _updateMe(Request request) async {
     'updated_at': now,
   };
   await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
+  if (slug != owner['shop_slug']) {
+    final products = await _productsForOwner(owner['_id'] as Object);
+    for (final product in products) {
+      product['shop_slug'] = slug;
+      product['updated_at'] = now;
+      await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+    }
+  }
   return jsonOk(apiDoc(next));
 }
 

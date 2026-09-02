@@ -17,12 +17,8 @@ class OwnerRepository {
   Stream<OwnerProfile?> watchBySlug(String slug) async* {
     if (AppConfig.useDemo) {
       final store = DemoMemoryStore.instance;
-      if (store.owner.shopSlug == slug) {
-        yield store.owner;
-        yield* store.ownerCtrl.stream.map((o) => o.shopSlug == slug ? o : null);
-      } else {
-        yield null;
-      }
+      yield store.owner;
+      yield* store.ownerCtrl.stream;
       return;
     }
     OwnerProfile? last;
@@ -51,15 +47,20 @@ class OwnerRepository {
 
   Future<OwnerProfile?> fetchBySlug(String slug) async {
     if (AppConfig.useDemo) {
-      final owner = DemoMemoryStore.instance.owner;
-      return owner.shopSlug == slug ? owner : null;
+      return DemoMemoryStore.instance.owner;
     }
     try {
       final row = await _api.get('/api/shops/$slug', auth: false) as Map<String, dynamic>;
       return OwnerProfile.fromJson(Map<String, dynamic>.from(row));
     } on ApiException catch (error) {
-      if (error.status == 404) return null;
-      rethrow;
+      if (error.status != 404) rethrow;
+      try {
+        final row = await _api.get('/api/shop', auth: false) as Map<String, dynamic>;
+        return OwnerProfile.fromJson(Map<String, dynamic>.from(row));
+      } on ApiException catch (fallback) {
+        if (fallback.status == 404) return null;
+        rethrow;
+      }
     }
   }
 
