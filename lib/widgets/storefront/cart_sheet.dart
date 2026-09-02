@@ -11,6 +11,7 @@ import '../ui/feedback.dart';
 import '../ui/whimsical_button.dart';
 import '../ui/whimsical_sheet.dart';
 import '../ui/whimsical_text_field.dart';
+import 'mix_bill.dart';
 
 enum _CartStep { bag, pay, details, done }
 
@@ -103,33 +104,46 @@ class _BagStep extends ConsumerWidget {
               return DecoratedBox(
                 decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (line.imageUrl != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: SizedBox(
-                            width: 64,
-                            height: 64,
-                            child: ContainedMedia(url: line.imageUrl!, padding: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (line.imageUrl != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SizedBox(
+                                width: 64,
+                                height: 64,
+                                child: ContainedMedia(url: line.imageUrl!, padding: 6),
+                              ),
+                            ),
+                          if (line.imageUrl != null) const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              line.productName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.title.copyWith(fontSize: 18),
+                            ),
                           ),
-                        ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(line.productName, style: AppTypography.price),
-                            if (line.optionsLabel.isNotEmpty)
-                              Text(line.optionsLabel, style: AppTypography.bodySmall),
-                            Text(Formatters.php(line.lineTotal), style: AppTypography.bodySmall),
-                          ],
-                        ),
+                        ],
                       ),
-                      QuantityStepper(
-                        value: line.quantity,
-                        onChanged: (v) => ref.read(cartProvider.notifier).setQuantity(index, v),
+                      const SizedBox(height: 12),
+                      MixBill(
+                        data: MixBillData.fromCartLine(line),
+                        showProductName: false,
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: QuantityStepper(
+                          value: line.quantity,
+                          onChanged: (v) =>
+                              ref.read(cartProvider.notifier).setQuantity(index, v),
+                        ),
                       ),
                     ],
                   ),
@@ -330,11 +344,34 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
   @override
   Widget build(BuildContext context) {
     final qr = _shop?.ewalletQrUrl;
+    final lines = ref.watch(cartProvider);
+    final total = lines.fold<double>(0, (sum, line) => sum + line.lineTotal);
     return Form(
       key: _formKey,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         children: [
+          Text('Your order', style: AppTypography.title),
+          const SizedBox(height: 10),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: MixBill(data: MixBillData.fromCartLine(line)),
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              const Text('Grand total', style: AppTypography.title),
+              const Spacer(),
+              Text(Formatters.php(total), style: AppTypography.displaySmall),
+            ],
+          ),
+          const SizedBox(height: 18),
           if (widget.method == PaymentMethod.eWallet) ...[
             Text('Scan to pay', style: AppTypography.title),
             const SizedBox(height: 8),

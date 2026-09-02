@@ -83,7 +83,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             contactInfo: contact,
           ),
         );
-    if (mounted) setState(() => _saving = false);
+    if (!mounted) return;
+    ref.invalidate(myProfileProvider);
+    setState(() => _saving = false);
   }
 
   @override
@@ -127,10 +129,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               Text('Logo', style: AppTypography.label),
               const SizedBox(height: 8),
+              if (_logo != null && _logo!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: 88,
+                    height: 88,
+                    child: DecoratedBox(
+                      decoration: stickerFill(radius: 44, stroke: AppStroke.inkThin),
+                      child: ClipOval(
+                        child: ContainedMedia(url: _logo!, padding: 6),
+                      ),
+                    ),
+                  ),
+                ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: WhimsicalButton(
-                  label: 'Upload logo',
+                  label: _logo == null || _logo!.isEmpty ? 'Upload logo' : 'Replace logo',
                   kind: WhimsicalButtonKind.ghost,
                   onPressed: () async {
                     final file = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -138,7 +154,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     final url = await ref
                         .read(ownerRepositoryProvider)
                         .uploadLogo(await file.readAsBytes());
+                    if (!mounted) return;
                     setState(() => _logo = url);
+                    ref.invalidate(myProfileProvider);
                   },
                 ),
               ),

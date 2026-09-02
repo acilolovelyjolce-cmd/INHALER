@@ -110,6 +110,14 @@ class CartLine {
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
 
+  double get addOnTotal =>
+      (paracord?.price ?? 0) + trinkets.fold<double>(0, (sum, item) => sum + item.price);
+
+  double get inhalerPrice {
+    final leftover = price - addOnTotal;
+    return leftover < 0 ? 0 : leftover;
+  }
+
   double get lineTotal => price * quantity;
 
   String get variantKey {

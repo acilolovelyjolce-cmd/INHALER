@@ -9,6 +9,7 @@ import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/doodles/dino_mascot.dart';
 import '../../widgets/ui/atelier_backdrop.dart';
+import '../../widgets/ui/feedback.dart';
 
 class DashboardShell extends ConsumerStatefulWidget {
   const DashboardShell({super.key, required this.child});
@@ -62,8 +63,9 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
       }
     }
     final compact = Breakpoints.isCompact(context);
-    final shopName = ref.watch(myProfileProvider).valueOrNull?.shopName ?? 'Whimsical';
-    final slug = ref.watch(myProfileProvider).valueOrNull?.shopSlug ?? 'whimsical';
+    final mine = ref.watch(myProfileProvider).valueOrNull;
+    final shopName = mine?.shopName ?? 'Whimsical';
+    final slug = mine?.shopSlug ?? 'whimsical';
 
     final navRail = NavigationRail(
       backgroundColor: Colors.transparent,
@@ -111,7 +113,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                     padding: const EdgeInsets.fromLTRB(16, 6, 12, 8),
                     child: Row(
                       children: [
-                        const FluffyCat(pose: CatPose.owner, size: 52),
+                        DashboardShopMark(logoUrl: mine?.logoUrl, size: 52),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -184,4 +186,37 @@ class _Tab {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+}
+
+/// Shop logo in the nest header. Falls back to the suited cat until a logo exists.
+class DashboardShopMark extends StatelessWidget {
+  const DashboardShopMark({super.key, this.logoUrl, this.size = 52});
+
+  final String? logoUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = logoUrl?.trim();
+    if (url == null || url.isEmpty) {
+      return FluffyCat(pose: CatPose.owner, size: size);
+    }
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.cloud,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.ink, width: AppStroke.inkThin),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: ClipOval(
+            child: SmartProductImage(url: url, fit: BoxFit.cover),
+          ),
+        ),
+      ),
+    );
+  }
 }

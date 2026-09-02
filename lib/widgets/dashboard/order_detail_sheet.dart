@@ -10,6 +10,7 @@ import '../ui/whimsical_badge.dart';
 import '../ui/whimsical_button.dart';
 import '../ui/whimsical_sheet.dart';
 import '../ui/whimsical_text_field.dart';
+import '../storefront/mix_bill.dart';
 
 class OrderDetailSheet extends ConsumerStatefulWidget {
   const OrderDetailSheet({super.key, required this.order});
@@ -117,38 +118,13 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
           const SizedBox(height: 10),
           for (final item in _order.items)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.productName, style: AppTypography.body),
-                        if (item.paracord != null)
-                          Text(
-                            'Paracord  ${item.paracord!['name']}',
-                            style: AppTypography.bodySmall,
-                          ),
-                        if (item.trinkets != null && item.trinkets!.isNotEmpty)
-                          Text(
-                            'Trinkets  ${item.trinkets!.map((row) => row['name']).join(', ')}',
-                            style: AppTypography.bodySmall,
-                          ),
-                        if (item.variantSelection != null &&
-                            item.variantSelection!.isNotEmpty &&
-                            item.paracord == null)
-                          Text(
-                            item.variantSelection!.values.join(' · '),
-                            style: AppTypography.bodySmall,
-                          ),
-                      ],
-                    ),
-                  ),
-                  Text('×${item.quantity}', style: AppTypography.bodySmall),
-                  const SizedBox(width: 12),
-                  Text(Formatters.php(item.priceAtOrder * item.quantity), style: AppTypography.price),
-                ],
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: MixBill(data: MixBillData.fromOrderItem(item)),
+                ),
               ),
             ),
           const Divider(height: 32),

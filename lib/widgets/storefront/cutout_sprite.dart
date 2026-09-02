@@ -118,18 +118,17 @@ class _CutoutSpriteState extends State<CutoutSprite> {
     return FutureBuilder<Uint8List>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return Image.memory(
-            snapshot.data!,
-            fit: widget.fit,
-            filterQuality: FilterQuality.medium,
-            gaplessPlayback: true,
-          );
-        }
-        if (snapshot.hasError) {
-          return SmartProductImage(url: widget.url, fit: widget.fit);
-        }
-        return const ColoredBox(color: Colors.transparent);
+        final child = snapshot.hasData
+            ? Image.memory(
+                snapshot.data!,
+                fit: widget.fit,
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+              )
+            : snapshot.hasError
+                ? SmartProductImage(url: widget.url, fit: widget.fit)
+                : const ColoredBox(color: Colors.transparent);
+        return SizedBox.expand(child: child);
       },
     );
   }

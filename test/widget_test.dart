@@ -6,8 +6,11 @@ import 'package:whimsical_hub/data/demo_catalog.dart';
 import 'package:whimsical_hub/main.dart';
 import 'package:whimsical_hub/providers/intro_provider.dart';
 import 'package:whimsical_hub/theme/app_theme.dart';
+import 'package:whimsical_hub/screens/dashboard/dashboard_shell.dart';
+import 'package:whimsical_hub/widgets/doodles/dino_mascot.dart';
 import 'package:whimsical_hub/widgets/storefront/mix_stage.dart';
 import 'package:whimsical_hub/widgets/storefront/product_door_flow.dart';
+import 'package:whimsical_hub/widgets/ui/feedback.dart';
 
 void main() {
   testWidgets('app boots', (tester) async {
@@ -83,6 +86,71 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(tester.takeException(), isNull);
     expect(find.byType(MixStage), findsOneWidget);
+  });
+
+  testWidgets('mix summary lists a price for each part', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: ProductDoorFlow(product: demoProducts().first)),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Mint paracord'));
+    await tester.pump();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Baby Rex'));
+    await tester.pump();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('YOUR MIX'), findsOneWidget);
+    expect(find.text('Inhaler'), findsOneWidget);
+    expect(find.text('Mint paracord'), findsWidgets);
+    expect(find.text('Baby Rex'), findsWidgets);
+    expect(find.textContaining('₱450'), findsOneWidget);
+    expect(find.textContaining('₱40'), findsOneWidget);
+    expect(find.textContaining('₱80'), findsOneWidget);
+    expect(find.textContaining('₱570'), findsOneWidget);
+    expect(find.text('Total'), findsOneWidget);
+  });
+
+  testWidgets('dashboard mark uses the suited cat until a logo is uploaded', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: DashboardShopMark()),
+      ),
+    );
+    expect(find.byType(FluffyCat), findsOneWidget);
+    expect(find.byType(SmartProductImage), findsNothing);
+  });
+
+  testWidgets('dashboard mark shows the uploaded logo instead of the cat', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DashboardShopMark(logoUrl: 'asset:assets/doodles/cats/cat_04.png'),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(FluffyCat), findsNothing);
+    expect(find.byType(SmartProductImage), findsOneWidget);
   });
 }
 

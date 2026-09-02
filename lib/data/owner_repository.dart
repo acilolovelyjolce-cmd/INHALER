@@ -80,13 +80,25 @@ class OwnerRepository {
 
   Future<String> uploadLogo(Uint8List bytes) async {
     final compressed = await compressForUpload(bytes, maxWidth: 800);
-    if (AppConfig.useDemo) return 'asset:assets/doodles/dino_mascot.svg';
+    if (AppConfig.useDemo) {
+      const url = 'asset:assets/doodles/dino_mascot.svg';
+      DemoMemoryStore.instance.owner =
+          DemoMemoryStore.instance.owner.copyWith(logoUrl: url);
+      DemoMemoryStore.instance.emitOwner();
+      return url;
+    }
     return _api.upload('/api/me/logo', compressed);
   }
 
   Future<String> uploadWalletQr(Uint8List bytes) async {
     final compressed = await compressForUpload(bytes, maxWidth: 1200);
-    if (AppConfig.useDemo) return 'asset:assets/doodles/doodle_sparkle.svg';
+    if (AppConfig.useDemo) {
+      const url = 'asset:assets/doodles/doodle_sparkle.svg';
+      DemoMemoryStore.instance.owner =
+          DemoMemoryStore.instance.owner.copyWith(ewalletQrUrl: url);
+      DemoMemoryStore.instance.emitOwner();
+      return url;
+    }
     return _api.upload('/api/me/ewallet-qr', compressed);
   }
 

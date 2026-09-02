@@ -11,6 +11,7 @@ import '../../theme/tokens.dart';
 import '../ui/feedback.dart';
 import '../ui/whimsical_badge.dart';
 import '../ui/whimsical_button.dart';
+import 'mix_bill.dart';
 import 'mix_stage.dart';
 import 'cutout_sprite.dart';
 
@@ -209,7 +210,6 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                         trinkets: _trinkets.toList(),
                         qty: _qty,
                         maxQty: _maxQty,
-                        unit: _unit,
                         onQty: (v) => setState(() => _qty = v),
                       ),
                   },
@@ -442,7 +442,6 @@ class _SummaryDoor extends StatelessWidget {
     required this.trinkets,
     required this.qty,
     required this.maxQty,
-    required this.unit,
     required this.onQty,
   });
 
@@ -451,7 +450,6 @@ class _SummaryDoor extends StatelessWidget {
   final List<ProductOption> trinkets;
   final int qty;
   final int maxQty;
-  final double unit;
   final ValueChanged<int> onQty;
 
   @override
@@ -468,40 +466,18 @@ class _SummaryDoor extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.title.copyWith(fontSize: 18),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Inhaler  ${Formatters.php(product.price)}',
-                  style: AppTypography.body,
-                ),
-                if (paracord != null)
-                  Text(
-                    'Paracord  ${paracord!.name}  ${Formatters.php(paracord!.price)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body,
+                MixBill(
+                  data: MixBillData(
+                    productName: product.name,
+                    inhalerPrice: product.price,
+                    paracord: paracord,
+                    trinkets: trinkets,
+                    quantity: qty,
+                    includeEmpty: true,
                   ),
-                Text(
-                  trinkets.isEmpty
-                      ? 'Trinkets  none'
-                      : 'Trinkets  ${trinkets.map((item) => item.name).join(', ')}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.body,
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    QuantityStepper(value: qty, max: maxQty, onChanged: onQty),
-                    const Spacer(),
-                    Text(Formatters.php(unit * qty), style: AppTypography.displaySmall),
-                  ],
-                ),
+                const SizedBox(height: 16),
+                QuantityStepper(value: qty, max: maxQty, onChanged: onQty),
               ],
             ),
           ),
