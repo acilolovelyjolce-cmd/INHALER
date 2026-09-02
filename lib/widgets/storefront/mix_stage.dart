@@ -56,12 +56,16 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
   }
 
   List<String> get _urls {
-    final cord = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
-    return [
-      ?widget.inhalerUrl,
-      ?cord,
-      for (final item in widget.trinkets) ?optionPreviewUrl(item),
+    final urls = <String>[
+      if (widget.inhalerUrl != null) widget.inhalerUrl!,
     ];
+    final cord = widget.paracord == null ? null : optionPreviewUrl(widget.paracord!);
+    if (cord != null) urls.add(cord);
+    for (final item in widget.trinkets) {
+      final url = optionPreviewUrl(item);
+      if (url != null) urls.add(url);
+    }
+    return urls;
   }
 
   Future<Map<String, Size>> _loadMetrics() async {

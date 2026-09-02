@@ -1,11 +1,11 @@
-FROM ghcr.io/cirruslabs/flutter:stable AS flutter
+FROM ghcr.io/cirruslabs/flutter:3.41.9 AS flutter
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
 COPY . .
-RUN dart run build_runner build --delete-conflicting-outputs
 ARG PUBLIC_BASE_URL=
-RUN flutter build web --release \
+ENV DART_VM_OPTIONS="--old-gen-heap-size=3072"
+RUN flutter --version && flutter build web --release --no-wasm-dry-run \
   --dart-define=API_URL= \
   --dart-define=PUBLIC_BASE_URL=$PUBLIC_BASE_URL
 
