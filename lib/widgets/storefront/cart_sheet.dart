@@ -318,11 +318,13 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
       ];
       await ref.read(ordersRepositoryProvider).submit(
             shopSlug: widget.slug,
-            customerName: _name.text.trim(),
-            customerContact: _contact.text.trim(),
+            customerName: Validators.cleanLine(_name.text),
+            customerContact: Validators.cleanLine(_contact.text),
             items: items,
             totalAmount: ref.read(cartProvider.notifier).total,
-            customerNote: _note.text.trim().isEmpty ? null : _note.text.trim(),
+            customerNote: Validators.cleanMultiline(_note.text).isEmpty
+                ? null
+                : Validators.cleanMultiline(_note.text),
             honeypot: _honeypot.text,
             paymentMethod: widget.method,
           );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
+import '../../config/validators.dart';
 import '../../models/order_request.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
@@ -67,7 +68,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
         label: 'Save notes',
         expand: true,
         busy: _busy,
-        onPressed: () => _save(_order.copyWith(internalNotes: _notes.text.trim())),
+        onPressed: () => _save(_order.copyWith(internalNotes: Validators.cleanMultiline(_notes.text))),
       ),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),

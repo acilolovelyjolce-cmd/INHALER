@@ -116,10 +116,15 @@ class ProductsRepository {
   Future<PartsCatalog> fetchParts() async {
     if (AppConfig.useDemo) return DemoMemoryStore.instance.partsCatalog;
     try {
-      final row = await _api.get('/api/parts') as Map<String, dynamic>;
-      return PartsCatalog.fromJson(Map<String, dynamic>.from(row));
-    } on ApiException {
+      final row = await _api.get('/api/parts');
+      if (row is Map) {
+        return PartsCatalog.fromJson(Map<String, dynamic>.from(row));
+      }
+    } catch (_) {}
+    try {
       return _partsFromProducts(await _fetchMine());
+    } on ApiException {
+      return const PartsCatalog();
     }
   }
 

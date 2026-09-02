@@ -269,7 +269,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       try {
         await ref.read(productsRepositoryProvider).bulkAdjustPrice(
               percent: percent,
-              amount: double.tryParse(amount.text.replaceAll(RegExp(r'[₱,\s]'), '')) ?? 0,
+              amount: Validators.parseMoney(amount.text, allowNegative: true) ?? 0,
             );
         ref.invalidate(ownerProductsProvider);
       } catch (error) {

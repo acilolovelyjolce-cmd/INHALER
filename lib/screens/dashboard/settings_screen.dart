@@ -72,17 +72,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _saving = true);
     final contact = <String, String>{};
     for (var i = 0; i < _keys.length; i++) {
-      final k = _keys[i].text.trim();
-      if (k.isEmpty) continue;
-      contact[k] = _values[i].text.trim();
+      final k = Validators.cleanLine(_keys[i].text);
+      if (k.isEmpty || Validators.contactKey(k) != null) continue;
+      contact[k] = Validators.cleanLine(_values[i].text);
     }
     try {
       await ref.read(ownerRepositoryProvider).upsert(
             current.copyWith(
-              shopName: _name.text.trim(),
-              shopSlug: _slug.text.trim(),
-              headline: _headline.text.trim(),
-              bio: _bio.text.trim(),
+              shopName: Validators.cleanLine(_name.text),
+              shopSlug: Validators.cleanLine(_slug.text),
+              headline: Validators.cleanLine(_headline.text),
+              bio: Validators.cleanMultiline(_bio.text),
               logoUrl: _logo,
               ewalletQrUrl: _qr,
               contactInfo: contact,
@@ -250,7 +250,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     children: [
-                      Expanded(child: WhimsicalTextField(controller: _keys[i], hint: 'gcash')),
+                      Expanded(
+                        child: WhimsicalTextField(
+                          controller: _keys[i],
+                          hint: 'gcash',
+                          validator: Validators.contactKey,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(child: WhimsicalTextField(controller: _values[i], hint: '09XX')),
                     ],

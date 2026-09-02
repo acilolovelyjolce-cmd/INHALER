@@ -84,10 +84,10 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
     try {
       final option = ProductOption(
         id: widget.existing?.id ?? const Uuid().v4(),
-        name: _name.text.trim(),
-        price: double.tryParse(_price.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()) ?? 0,
+        name: Validators.cleanLine(_name.text),
+        price: Validators.parseMoney(_price.text) ?? 0,
         imageUrl: _imageUrl,
-        stock: int.tryParse(_stock.text.trim())?.clamp(0, 999999) ?? 0,
+        stock: Validators.parseStock(_stock.text) ?? 0,
       );
       await ref.read(productsRepositoryProvider).upsertPart(option, trinket: widget.trinket);
       ref.invalidate(ownerPartsProvider);
@@ -167,9 +167,9 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
                   child: WhimsicalTextField(
                     controller: _price,
                     label: 'Price (₱)',
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: Validators.price,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9₱.,\s]'))],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -179,7 +179,7 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
                     label: 'Left',
                     keyboardType: TextInputType.number,
                     validator: Validators.stock,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9\s,]'))],
                   ),
                 ),
               ],

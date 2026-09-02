@@ -28,14 +28,14 @@ String? bearer(Request request) {
 
 Future<Map<String, dynamic>?> ownerFromRequest(Request request) async {
   final claims = ownerFromToken(bearer(request));
-  final id = claims?['sub'] as String?;
-  if (id == null) return null;
+  final id = claims?['sub']?.toString();
+  if (id == null || id.isEmpty) return null;
   return Mongo.instance.owners.findOne(where.eq('_id', id));
 }
 
 String signOwner(Map<String, dynamic> owner) {
   final jwt = JWT({
-    'sub': owner['_id'],
+    'sub': owner['_id'].toString(),
     'slug': owner['shop_slug'],
     'email': owner['email'],
   });

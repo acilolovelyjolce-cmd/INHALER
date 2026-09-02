@@ -6,10 +6,12 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_static/shelf_static.dart';
 
 import 'env.dart';
+import 'fields.dart';
 import 'http_util.dart';
 import 'migrate.dart';
 import 'mongo.dart';
 import 'routes.dart';
+import 'share_preview.dart';
 
 Future<void> serveWhimsical() async {
   await Mongo.instance.connect();
@@ -40,6 +42,26 @@ Future<void> serveWhimsical() async {
       if (request.url.path.startsWith('api/')) {
         return api(request);
       }
+      if (shouldInjectShareMeta(request.url.path)) {
+        final index = File('$webRoot/index.html');
+        if (index.existsSync()) {
+          final template = index.readAsStringSync();
+          ShareMeta meta;
+          try {
+            meta = await shareMetaFor(request);
+          } catch (error, stack) {
+            stderr.writeln('[whimsical] share meta: $error\n$stack');
+            meta = ShareMeta.fallback(originFromRequest(request));
+          }
+          return Response.ok(
+            injectShareMeta(template, meta),
+            headers: {
+              HttpHeaders.contentTypeHeader: 'text/html; charset=utf-8',
+              HttpHeaders.cacheControlHeader: 'public, max-age=60',
+            },
+          );
+        }
+      }
       final result = await staticHandler(request);
       if (result.statusCode != 404) return result;
       final index = File('$webRoot/index.html');
@@ -61,6 +83,8 @@ Middleware _jsonErrors() {
     return (Request request) async {
       try {
         return await inner(request);
+      } on BadRequest catch (error) {
+        return jsonError(400, error.message);
       } catch (error, stack) {
         stderr.writeln('[whimsical] ${request.method} /${request.url}: $error\n$stack');
         return jsonError(500, 'The nest hiccuped. Try again in a moment.');

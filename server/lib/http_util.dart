@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:shelf/shelf.dart';
 
+import 'fields.dart';
+
 const _jsonHeaders = {HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8'};
 
 Response jsonOk(Object body, {int status = 200}) {
@@ -25,12 +27,18 @@ Response jsonError(int status, String message) {
 }
 
 Future<Map<String, dynamic>> readJson(Request request) async {
-  final raw = await request.readAsString();
-  if (raw.trim().isEmpty) return {};
-  final decoded = jsonDecode(raw);
-  if (decoded is Map<String, dynamic>) return decoded;
-  if (decoded is Map) return Map<String, dynamic>.from(decoded);
-  throw const FormatException('Expected a JSON object');
+  try {
+    final raw = await request.readAsString();
+    if (raw.trim().isEmpty) return {};
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    throw BadRequest('That form could not be read.');
+  } on BadRequest {
+    rethrow;
+  } on FormatException {
+    throw BadRequest('That form could not be read.');
+  }
 }
 
 Map<String, dynamic> apiDoc(Map<String, dynamic> doc) {

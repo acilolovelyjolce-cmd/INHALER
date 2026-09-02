@@ -85,25 +85,24 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final price = Validators.parseMoney(_price.text);
+    if (price == null) return;
     setState(() => _saving = true);
     try {
       final now = DateTime.now();
       final existing = widget.existing;
       final auth = ref.read(authProvider).valueOrNull;
-      final parts = await ref.read(productsRepositoryProvider).fetchParts();
       final product = Product(
         id: existing?.id ?? const Uuid().v4(),
         ownerId: existing?.ownerId ?? auth?.userId,
-        name: _name.text.trim(),
-        description: _description.text.trim(),
-        price: double.parse(_price.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()),
-        compareAtPrice: _compare.text.trim().isEmpty
-            ? null
-            : double.tryParse(_compare.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()),
+        name: Validators.cleanLine(_name.text),
+        description: Validators.cleanMultiline(_description.text),
+        price: price,
+        compareAtPrice: Validators.parseMoney(_compare.text),
         imageUrls: _images,
         category: '',
-        paracords: parts.paracords,
-        trinkets: parts.trinkets,
+        paracords: existing?.paracords ?? const [],
+        trinkets: existing?.trinkets ?? const [],
         stockStatus: _stock,
         isPublished: _published,
         sortOrder: existing?.sortOrder ?? 99,
@@ -222,9 +221,9 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
                   child: WhimsicalTextField(
                     controller: _price,
                     label: 'Price (₱)',
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: Validators.price,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9₱.,\s]'))],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -232,9 +231,9 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
                   child: WhimsicalTextField(
                     controller: _compare,
                     label: 'Compare at',
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: Validators.optionalPrice,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9₱.,\s]'))],
                   ),
                 ),
               ],
