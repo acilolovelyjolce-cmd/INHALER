@@ -6,6 +6,7 @@ import 'api_client.dart';
 import 'app_store.dart';
 import 'demo_catalog.dart';
 import 'image_compress.dart';
+import 'poll.dart';
 import 'session_store.dart';
 
 class OwnerRepository {
@@ -45,8 +46,7 @@ class OwnerRepository {
       yield* store.ownerCtrl.stream;
       return;
     }
-    yield await _fetchMe();
-    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => _fetchMe());
+    yield* pollKeepingLast(_fetchMe, period: const Duration(seconds: 8));
   }
 
   Future<OwnerProfile?> fetchBySlug(String slug) async {

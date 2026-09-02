@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$OwnerProfile {
 
- String get id;@JsonKey(name: 'shop_name') String get shopName;@JsonKey(name: 'shop_slug') String get shopSlug; String? get bio;@JsonKey(name: 'logo_url') String? get logoUrl;@JsonKey(name: 'ewallet_qr_url') String? get ewalletQrUrl;@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> get contactInfo;
+ String get id;@JsonKey(name: 'shop_name') String get shopName;@JsonKey(name: 'shop_slug') String get shopSlug; String? get bio;@JsonKey(name: 'headline') String? get headline;@JsonKey(name: 'logo_url') String? get logoUrl;@JsonKey(name: 'ewallet_qr_url') String? get ewalletQrUrl;@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> get contactInfo;
 /// Create a copy of OwnerProfile
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $OwnerProfileCopyWith<OwnerProfile> get copyWith => _$OwnerProfileCopyWithImpl<O
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OwnerProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopSlug, shopSlug) || other.shopSlug == shopSlug)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.logoUrl, logoUrl) || other.logoUrl == logoUrl)&&(identical(other.ewalletQrUrl, ewalletQrUrl) || other.ewalletQrUrl == ewalletQrUrl)&&const DeepCollectionEquality().equals(other.contactInfo, contactInfo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OwnerProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopSlug, shopSlug) || other.shopSlug == shopSlug)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.headline, headline) || other.headline == headline)&&(identical(other.logoUrl, logoUrl) || other.logoUrl == logoUrl)&&(identical(other.ewalletQrUrl, ewalletQrUrl) || other.ewalletQrUrl == ewalletQrUrl)&&const DeepCollectionEquality().equals(other.contactInfo, contactInfo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,shopName,shopSlug,bio,logoUrl,ewalletQrUrl,const DeepCollectionEquality().hash(contactInfo));
+int get hashCode => Object.hash(runtimeType,id,shopName,shopSlug,bio,headline,logoUrl,ewalletQrUrl,const DeepCollectionEquality().hash(contactInfo));
 
 @override
 String toString() {
-  return 'OwnerProfile(id: $id, shopName: $shopName, shopSlug: $shopSlug, bio: $bio, logoUrl: $logoUrl, ewalletQrUrl: $ewalletQrUrl, contactInfo: $contactInfo)';
+  return 'OwnerProfile(id: $id, shopName: $shopName, shopSlug: $shopSlug, bio: $bio, headline: $headline, logoUrl: $logoUrl, ewalletQrUrl: $ewalletQrUrl, contactInfo: $contactInfo)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $OwnerProfileCopyWith<$Res>  {
   factory $OwnerProfileCopyWith(OwnerProfile value, $Res Function(OwnerProfile) _then) = _$OwnerProfileCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'shop_name') String shopName,@JsonKey(name: 'shop_slug') String shopSlug, String? bio,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> contactInfo
+ String id,@JsonKey(name: 'shop_name') String shopName,@JsonKey(name: 'shop_slug') String shopSlug, String? bio,@JsonKey(name: 'headline') String? headline,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> contactInfo
 });
 
 
@@ -65,12 +65,13 @@ class _$OwnerProfileCopyWithImpl<$Res>
 
 /// Create a copy of OwnerProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? shopName = null,Object? shopSlug = null,Object? bio = freezed,Object? logoUrl = freezed,Object? ewalletQrUrl = freezed,Object? contactInfo = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? shopName = null,Object? shopSlug = null,Object? bio = freezed,Object? headline = freezed,Object? logoUrl = freezed,Object? ewalletQrUrl = freezed,Object? contactInfo = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,shopName: null == shopName ? _self.shopName : shopName // ignore: cast_nullable_to_non_nullable
 as String,shopSlug: null == shopSlug ? _self.shopSlug : shopSlug // ignore: cast_nullable_to_non_nullable
 as String,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
+as String?,headline: freezed == headline ? _self.headline : headline // ignore: cast_nullable_to_non_nullable
 as String?,logoUrl: freezed == logoUrl ? _self.logoUrl : logoUrl // ignore: cast_nullable_to_non_nullable
 as String?,ewalletQrUrl: freezed == ewalletQrUrl ? _self.ewalletQrUrl : ewalletQrUrl // ignore: cast_nullable_to_non_nullable
 as String?,contactInfo: null == contactInfo ? _self.contactInfo : contactInfo // ignore: cast_nullable_to_non_nullable
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'headline')  String? headline, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OwnerProfile() when $default != null:
-return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
+return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.headline,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'headline')  String? headline, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)  $default,) {final _that = this;
 switch (_that) {
 case _OwnerProfile():
-return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
+return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.headline,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'shop_name')  String shopName, @JsonKey(name: 'shop_slug')  String shopSlug,  String? bio, @JsonKey(name: 'headline')  String? headline, @JsonKey(name: 'logo_url')  String? logoUrl, @JsonKey(name: 'ewallet_qr_url')  String? ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info')  Map<String, String> contactInfo)?  $default,) {final _that = this;
 switch (_that) {
 case _OwnerProfile() when $default != null:
-return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
+return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.headline,_that.logoUrl,_that.ewalletQrUrl,_that.contactInfo);case _:
   return null;
 
 }
@@ -215,13 +216,14 @@ return $default(_that.id,_that.shopName,_that.shopSlug,_that.bio,_that.logoUrl,_
 
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class _OwnerProfile implements OwnerProfile {
-  const _OwnerProfile({required this.id, @JsonKey(name: 'shop_name') required this.shopName, @JsonKey(name: 'shop_slug') required this.shopSlug, this.bio, @JsonKey(name: 'logo_url') this.logoUrl, @JsonKey(name: 'ewallet_qr_url') this.ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info') required final  Map<String, String> contactInfo}): _contactInfo = contactInfo;
+  const _OwnerProfile({required this.id, @JsonKey(name: 'shop_name') required this.shopName, @JsonKey(name: 'shop_slug') required this.shopSlug, this.bio, @JsonKey(name: 'headline') this.headline, @JsonKey(name: 'logo_url') this.logoUrl, @JsonKey(name: 'ewallet_qr_url') this.ewalletQrUrl, @StringMapConverter()@JsonKey(name: 'contact_info') required final  Map<String, String> contactInfo}): _contactInfo = contactInfo;
   factory _OwnerProfile.fromJson(Map<String, dynamic> json) => _$OwnerProfileFromJson(json);
 
 @override final  String id;
 @override@JsonKey(name: 'shop_name') final  String shopName;
 @override@JsonKey(name: 'shop_slug') final  String shopSlug;
 @override final  String? bio;
+@override@JsonKey(name: 'headline') final  String? headline;
 @override@JsonKey(name: 'logo_url') final  String? logoUrl;
 @override@JsonKey(name: 'ewallet_qr_url') final  String? ewalletQrUrl;
  final  Map<String, String> _contactInfo;
@@ -245,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OwnerProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopSlug, shopSlug) || other.shopSlug == shopSlug)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.logoUrl, logoUrl) || other.logoUrl == logoUrl)&&(identical(other.ewalletQrUrl, ewalletQrUrl) || other.ewalletQrUrl == ewalletQrUrl)&&const DeepCollectionEquality().equals(other._contactInfo, _contactInfo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OwnerProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopSlug, shopSlug) || other.shopSlug == shopSlug)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.headline, headline) || other.headline == headline)&&(identical(other.logoUrl, logoUrl) || other.logoUrl == logoUrl)&&(identical(other.ewalletQrUrl, ewalletQrUrl) || other.ewalletQrUrl == ewalletQrUrl)&&const DeepCollectionEquality().equals(other._contactInfo, _contactInfo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,shopName,shopSlug,bio,logoUrl,ewalletQrUrl,const DeepCollectionEquality().hash(_contactInfo));
+int get hashCode => Object.hash(runtimeType,id,shopName,shopSlug,bio,headline,logoUrl,ewalletQrUrl,const DeepCollectionEquality().hash(_contactInfo));
 
 @override
 String toString() {
-  return 'OwnerProfile(id: $id, shopName: $shopName, shopSlug: $shopSlug, bio: $bio, logoUrl: $logoUrl, ewalletQrUrl: $ewalletQrUrl, contactInfo: $contactInfo)';
+  return 'OwnerProfile(id: $id, shopName: $shopName, shopSlug: $shopSlug, bio: $bio, headline: $headline, logoUrl: $logoUrl, ewalletQrUrl: $ewalletQrUrl, contactInfo: $contactInfo)';
 }
 
 
@@ -265,7 +267,7 @@ abstract mixin class _$OwnerProfileCopyWith<$Res> implements $OwnerProfileCopyWi
   factory _$OwnerProfileCopyWith(_OwnerProfile value, $Res Function(_OwnerProfile) _then) = __$OwnerProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'shop_name') String shopName,@JsonKey(name: 'shop_slug') String shopSlug, String? bio,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> contactInfo
+ String id,@JsonKey(name: 'shop_name') String shopName,@JsonKey(name: 'shop_slug') String shopSlug, String? bio,@JsonKey(name: 'headline') String? headline,@JsonKey(name: 'logo_url') String? logoUrl,@JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,@StringMapConverter()@JsonKey(name: 'contact_info') Map<String, String> contactInfo
 });
 
 
@@ -282,12 +284,13 @@ class __$OwnerProfileCopyWithImpl<$Res>
 
 /// Create a copy of OwnerProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? shopName = null,Object? shopSlug = null,Object? bio = freezed,Object? logoUrl = freezed,Object? ewalletQrUrl = freezed,Object? contactInfo = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? shopName = null,Object? shopSlug = null,Object? bio = freezed,Object? headline = freezed,Object? logoUrl = freezed,Object? ewalletQrUrl = freezed,Object? contactInfo = null,}) {
   return _then(_OwnerProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,shopName: null == shopName ? _self.shopName : shopName // ignore: cast_nullable_to_non_nullable
 as String,shopSlug: null == shopSlug ? _self.shopSlug : shopSlug // ignore: cast_nullable_to_non_nullable
 as String,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
+as String?,headline: freezed == headline ? _self.headline : headline // ignore: cast_nullable_to_non_nullable
 as String?,logoUrl: freezed == logoUrl ? _self.logoUrl : logoUrl // ignore: cast_nullable_to_non_nullable
 as String?,ewalletQrUrl: freezed == ewalletQrUrl ? _self.ewalletQrUrl : ewalletQrUrl // ignore: cast_nullable_to_non_nullable
 as String?,contactInfo: null == contactInfo ? _self._contactInfo : contactInfo // ignore: cast_nullable_to_non_nullable

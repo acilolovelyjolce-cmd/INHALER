@@ -26,6 +26,7 @@ class ShopShell extends ConsumerWidget {
         wordmark: name,
         hasPlayedIntro: introPlayed,
         onIntroComplete: () => ref.read(introFlagProvider.notifier).markPlayed(),
+        logoUrl: profile?.logoUrl,
         headerTrailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

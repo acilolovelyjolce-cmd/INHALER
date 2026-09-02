@@ -15,7 +15,7 @@ void main() {
     });
     expect(product.id, '12');
     expect(product.description, isEmpty);
-    expect(product.category, 'Inhalers');
+    expect(product.category, isEmpty);
     expect(product.isPublished, isFalse);
     expect(product.paracords, hasLength(1));
     expect(product.paracords.first.name, 'Orange');

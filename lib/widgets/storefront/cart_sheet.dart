@@ -413,7 +413,7 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
           WhimsicalTextField(
             controller: _name,
             label: 'Your name',
-            validator: (v) => Validators.requiredField(v, label: 'Name'),
+            validator: Validators.name,
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: 12),

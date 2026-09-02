@@ -67,6 +67,12 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
             ownerId: ref.read(authProvider).valueOrNull?.userId,
           );
       setState(() => _imageUrl = url);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -75,17 +81,27 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final option = ProductOption(
-      id: widget.existing?.id ?? const Uuid().v4(),
-      name: _name.text.trim(),
-      price: double.tryParse(_price.text.replaceAll(',', '').trim()) ?? 0,
-      imageUrl: _imageUrl,
-      stock: int.tryParse(_stock.text.trim())?.clamp(0, 999999) ?? 0,
-    );
-    await ref.read(productsRepositoryProvider).upsertPart(option, trinket: widget.trinket);
-    ref.invalidate(ownerPartsProvider);
-    ref.invalidate(ownerProductsProvider);
-    if (mounted) Navigator.of(context).pop(true);
+    try {
+      final option = ProductOption(
+        id: widget.existing?.id ?? const Uuid().v4(),
+        name: _name.text.trim(),
+        price: double.tryParse(_price.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()) ?? 0,
+        imageUrl: _imageUrl,
+        stock: int.tryParse(_stock.text.trim())?.clamp(0, 999999) ?? 0,
+      );
+      await ref.read(productsRepositoryProvider).upsertPart(option, trinket: widget.trinket);
+      ref.invalidate(ownerPartsProvider);
+      ref.invalidate(ownerProductsProvider);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -142,7 +158,7 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
               controller: _name,
               label: 'Name',
               hint: widget.trinket ? 'Baby Rex' : 'Mint paracord',
-              validator: (v) => Validators.requiredField(v, label: 'Name'),
+              validator: Validators.name,
             ),
             const SizedBox(height: 14),
             Row(
@@ -162,7 +178,7 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
                     controller: _stock,
                     label: 'Left',
                     keyboardType: TextInputType.number,
-                    validator: (v) => Validators.requiredField(v, label: 'Left'),
+                    validator: Validators.stock,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   ),
                 ),

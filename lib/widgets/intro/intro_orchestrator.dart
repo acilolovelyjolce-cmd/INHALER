@@ -5,7 +5,7 @@ import 'package:flutter/physics.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../theme/tokens.dart';
-import '../doodles/dino_mascot.dart';
+import '../ui/shop_mark.dart';
 import '../ui/whimsical_app_bar.dart';
 
 class IntroOrchestrator extends StatefulWidget {
@@ -16,6 +16,7 @@ class IntroOrchestrator extends StatefulWidget {
     required this.hasPlayedIntro,
     required this.onIntroComplete,
     this.headerTrailing,
+    this.logoUrl,
   });
 
   final String wordmark;
@@ -23,6 +24,7 @@ class IntroOrchestrator extends StatefulWidget {
   final bool hasPlayedIntro;
   final VoidCallback onIntroComplete;
   final Widget? headerTrailing;
+  final String? logoUrl;
 
   @override
   State<IntroOrchestrator> createState() => _IntroOrchestratorState();
@@ -151,6 +153,7 @@ class _IntroOrchestratorState extends State<IntroOrchestrator>
             SizedBox(height: padding.top),
             WhimsicalAppBar(
               wordmark: widget.wordmark,
+              logoUrl: widget.logoUrl,
               trailing: widget.headerTrailing,
             ),
             Expanded(child: widget.child),
@@ -223,7 +226,10 @@ class _IntroOrchestratorState extends State<IntroOrchestrator>
                         children: [
                           Transform.translate(
                             offset: Offset(hopX, hopY),
-                            child: const DinoMascot(size: 72),
+                            child: ShopMark(
+                              logoUrl: widget.logoUrl,
+                              size: 72,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Flexible(

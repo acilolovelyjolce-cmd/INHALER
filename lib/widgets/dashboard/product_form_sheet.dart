@@ -29,7 +29,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   late final TextEditingController _description;
   late final TextEditingController _price;
   late final TextEditingController _compare;
-  late final TextEditingController _category;
   late List<String> _images;
   late StockStatus _stock;
   late bool _published;
@@ -46,7 +45,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _compare = TextEditingController(
       text: p?.compareAtPrice == null ? '' : p!.compareAtPrice!.toStringAsFixed(0),
     );
-    _category = TextEditingController(text: p?.category ?? 'Dino Series');
     _images = [...?p?.imageUrls];
     _stock = p?.stockStatus ?? StockStatus.available;
     _published = p?.isPublished ?? true;
@@ -58,7 +56,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     _description.dispose();
     _price.dispose();
     _compare.dispose();
-    _category.dispose();
     super.dispose();
   }
 
@@ -75,6 +72,12 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
         payloads.map((bytes) => repo.uploadImage(bytes, ownerId: auth?.userId)),
       );
       _images.addAll(urls);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -83,33 +86,43 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final now = DateTime.now();
-    final existing = widget.existing;
-    final auth = ref.read(authProvider).valueOrNull;
-    final parts = await ref.read(productsRepositoryProvider).fetchParts();
-    final product = Product(
-      id: existing?.id ?? const Uuid().v4(),
-      ownerId: existing?.ownerId ?? auth?.userId,
-      name: _name.text.trim(),
-      description: _description.text.trim(),
-      price: double.parse(_price.text.replaceAll(',', '').trim()),
-      compareAtPrice: _compare.text.trim().isEmpty
-          ? null
-          : double.tryParse(_compare.text.replaceAll(',', '').trim()),
-      imageUrls: _images,
-      category: _category.text.trim(),
-      paracords: parts.paracords,
-      trinkets: parts.trinkets,
-      stockStatus: _stock,
-      isPublished: _published,
-      sortOrder: existing?.sortOrder ?? 99,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    );
-    await ref.read(productsRepositoryProvider).upsert(product);
-    ref.invalidate(ownerProductsProvider);
-    ref.invalidate(ownerPartsProvider);
-    if (mounted) Navigator.of(context).pop(true);
+    try {
+      final now = DateTime.now();
+      final existing = widget.existing;
+      final auth = ref.read(authProvider).valueOrNull;
+      final parts = await ref.read(productsRepositoryProvider).fetchParts();
+      final product = Product(
+        id: existing?.id ?? const Uuid().v4(),
+        ownerId: existing?.ownerId ?? auth?.userId,
+        name: _name.text.trim(),
+        description: _description.text.trim(),
+        price: double.parse(_price.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()),
+        compareAtPrice: _compare.text.trim().isEmpty
+            ? null
+            : double.tryParse(_compare.text.replaceAll(RegExp(r'[₱,\s]'), '').trim()),
+        imageUrls: _images,
+        category: '',
+        paracords: parts.paracords,
+        trinkets: parts.trinkets,
+        stockStatus: _stock,
+        isPublished: _published,
+        sortOrder: existing?.sortOrder ?? 99,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      );
+      await ref.read(productsRepositoryProvider).upsert(product);
+      ref.invalidate(ownerProductsProvider);
+      ref.invalidate(ownerPartsProvider);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -192,7 +205,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
               controller: _name,
               label: 'Name',
               hint: 'Baby Rex Inhaler Keychain',
-              validator: (v) => Validators.requiredField(v, label: 'Name'),
+              validator: Validators.name,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 14),
@@ -200,7 +213,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
               controller: _description,
               label: 'Description',
               maxLines: 4,
-              validator: (v) => Validators.requiredField(v, label: 'Description'),
+              validator: (v) => Validators.optionalText(v, max: 600, label: 'Description'),
             ),
             const SizedBox(height: 14),
             Row(
@@ -225,13 +238,6 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 14),
-            WhimsicalTextField(
-              controller: _category,
-              label: 'Category',
-              hint: 'Dino Series',
-              validator: (v) => Validators.requiredField(v, label: 'Category'),
             ),
             const SizedBox(height: 18),
             Text(

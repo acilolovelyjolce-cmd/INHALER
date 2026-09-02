@@ -8,6 +8,7 @@ import '../models/product.dart';
 import 'api_client.dart';
 import 'app_store.dart';
 import 'image_compress.dart';
+import 'poll.dart';
 
 class ProductsRepository {
   ProductsRepository();
@@ -25,17 +26,17 @@ class ProductsRepository {
       return;
     }
     var last = <Product>[];
-    Future<List<Product>> once() async {
+    Future<List<Product>> once({required bool staleOk}) async {
       try {
         last = await _fetchPublished(slug);
         return last;
       } catch (_) {
-        if (last.isNotEmpty) return last;
+        if (staleOk && last.isNotEmpty) return last;
         rethrow;
       }
     }
-    yield await once();
-    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => once());
+    yield await once(staleOk: false);
+    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => once(staleOk: true));
   }
 
   Stream<List<Product>> watchAll() async* {
@@ -46,8 +47,7 @@ class ProductsRepository {
       yield* store.productsCtrl.stream.map((_) => sorted());
       return;
     }
-    yield await _fetchMine();
-    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => _fetchMine());
+    yield* pollKeepingLast(_fetchMine);
   }
 
   Future<List<Product>> _fetchPublished(String slug) async {
@@ -110,8 +110,7 @@ class ProductsRepository {
       yield* store.partsCtrl.stream;
       return;
     }
-    yield await fetchParts();
-    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => fetchParts());
+    yield* pollKeepingLast(fetchParts);
   }
 
   Future<PartsCatalog> fetchParts() async {
@@ -207,7 +206,6 @@ class ProductsRepository {
   }
 
   Future<void> bulkAdjustPrice({
-    required String category,
     required bool percent,
     required double amount,
   }) async {
@@ -216,7 +214,6 @@ class ProductsRepository {
       final store = DemoMemoryStore.instance;
       for (var i = 0; i < store.products.length; i++) {
         final p = store.products[i];
-        if (p.category != category) continue;
         final next = percent ? p.price * (1 + amount / 100) : p.price + amount;
         store.products[i] = p.copyWith(price: next < 0 ? 0 : next, updatedAt: now);
       }
@@ -224,19 +221,9 @@ class ProductsRepository {
       return;
     }
     await _api.post('/api/products/bulk-price', {
-      'category': category,
       'percent': percent,
       'amount': amount,
     });
-  }
-
-  Future<void> deleteCategory(String category) async {
-    if (AppConfig.useDemo) {
-      DemoMemoryStore.instance.products.removeWhere((p) => p.category == category);
-      DemoMemoryStore.instance.emitProducts();
-      return;
-    }
-    await _api.post('/api/products/delete-category', {'category': category});
   }
 
   Future<String> uploadImage(Uint8List bytes, {String? ownerId}) async {

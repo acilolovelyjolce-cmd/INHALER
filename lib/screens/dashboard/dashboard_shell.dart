@@ -9,7 +9,7 @@ import '../../theme/breakpoints.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/doodles/dino_mascot.dart';
 import '../../widgets/ui/atelier_backdrop.dart';
-import '../../widgets/ui/feedback.dart';
+import '../../widgets/ui/shop_mark.dart';
 
 class DashboardShell extends ConsumerStatefulWidget {
   const DashboardShell({super.key, required this.child});
@@ -113,7 +113,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                     padding: const EdgeInsets.fromLTRB(16, 6, 12, 8),
                     child: Row(
                       children: [
-                        DashboardShopMark(logoUrl: mine?.logoUrl, size: 52),
+                        ShopMark(logoUrl: mine?.logoUrl, size: 52, fallback: CatPose.owner),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -186,37 +186,4 @@ class _Tab {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
-}
-
-/// Shop logo in the nest header. Falls back to the suited cat until a logo exists.
-class DashboardShopMark extends StatelessWidget {
-  const DashboardShopMark({super.key, this.logoUrl, this.size = 52});
-
-  final String? logoUrl;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = logoUrl?.trim();
-    if (url == null || url.isEmpty) {
-      return FluffyCat(pose: CatPose.owner, size: size);
-    }
-    return SizedBox(
-      width: size,
-      height: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.cloud,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.ink, width: AppStroke.inkThin),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: ClipOval(
-            child: SmartProductImage(url: url, fit: BoxFit.cover),
-          ),
-        ),
-      ),
-    );
-  }
 }

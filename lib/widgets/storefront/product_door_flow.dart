@@ -9,6 +9,7 @@ import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../ui/feedback.dart';
+import '../ui/photo_lightbox.dart';
 import '../ui/whimsical_badge.dart';
 import '../ui/whimsical_button.dart';
 import 'mix_bill.dart';
@@ -368,42 +369,28 @@ class _OptionGrid extends StatelessWidget {
         final option = options[index - 1];
         final selected = selectedIds.contains(option.id);
         final gone = option.stock <= 0;
-        return GestureDetector(
-          onTap: gone ? null : () => onTap(option),
-          child: AnimatedScale(
-            duration: AppMotion.squish,
-            scale: selected ? 1.01 : 1,
-            child: Opacity(
-              opacity: gone ? 0.5 : 1,
-              child: DecoratedBox(
-                decoration: stickerFill(
-                  color: selected ? AppColors.petal : AppColors.cloud,
-                  radius: 24,
-                  pressed: selected,
-                  stroke: AppStroke.inkThin,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: ColoredBox(
-                            color: const Color(0xFFFFF8FC),
-                            child: optionPreviewUrl(option) == null
-                                ? const SizedBox.expand()
-                                : Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: CutoutSprite(url: optionPreviewUrl(option)!),
-                                  ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
+        return AnimatedScale(
+          duration: AppMotion.squish,
+          scale: selected ? 1.01 : 1,
+          child: Opacity(
+            opacity: gone ? 0.5 : 1,
+            child: DecoratedBox(
+              decoration: stickerFill(
+                color: selected ? AppColors.petal : AppColors.cloud,
+                radius: 24,
+                pressed: selected,
+                stroke: AppStroke.inkThin,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
+                child: Row(
+                  children: [
+                    _OptionPhoto(option: option),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: gone ? null : () => onTap(option),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -423,14 +410,74 @@ class _OptionGrid extends StatelessWidget {
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _OptionPhoto extends StatelessWidget {
+  const _OptionPhoto({required this.option});
+
+  final ProductOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = optionPreviewUrl(option);
+    return GestureDetector(
+      key: ValueKey('option-photo-${option.id}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: url == null
+          ? null
+          : () => showPhotoLightbox(
+                context,
+                url: url,
+                title: option.name,
+              ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: ColoredBox(
+                color: const Color(0xFFFFF8FC),
+                child: url == null
+                    ? const SizedBox.expand()
+                    : Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: CutoutSprite(url: url),
+                      ),
+              ),
+            ),
+          ),
+          if (url != null)
+            const Positioned(
+              right: 2,
+              bottom: 2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.yolk,
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(
+                    BorderSide(color: AppColors.ink, width: 1.5),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(3),
+                  child: Icon(Icons.open_in_full, size: 10, color: AppColors.ink),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

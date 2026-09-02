@@ -79,7 +79,7 @@ abstract class Product with _$Product {
       'id': json['id']?.toString() ?? '',
       'name': json['name']?.toString() ?? '',
       'description': json['description']?.toString() ?? '',
-      'category': json['category']?.toString() ?? 'Inhalers',
+      'category': json['category']?.toString() ?? '',
       'stock_status': _stockStatus(json['stock_status']),
       'is_published': published == true || published == 'true' || published == 1,
       'sort_order': json['sort_order'] ?? 99,

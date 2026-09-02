@@ -34,7 +34,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
     return inbox.when(
       loading: () => const DinoLoading(message: 'listening for requests…'),
-      error: (e, _) => WhimsicalError(message: e.toString()),
+      error: (e, _) => WhimsicalError(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(ordersInboxProvider),
+      ),
       data: (orders) {
         final q = _query.text.trim().toLowerCase();
         final filtered = orders.where((o) {

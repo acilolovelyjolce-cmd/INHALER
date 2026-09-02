@@ -9,6 +9,7 @@ import '../../widgets/storefront/product_grid.dart';
 import '../../widgets/ui/atelier_backdrop.dart';
 import '../../widgets/ui/feedback.dart';
 import '../../widgets/ui/page_canvas.dart';
+import '../../widgets/ui/shop_mark.dart';
 import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_sheet.dart';
 
@@ -53,6 +54,7 @@ class StorefrontScreen extends ConsumerWidget {
 
     final catalog = items ?? const [];
     final bio = shop?.bio;
+    final headline = shop?.headline?.trim() ?? '';
     return AtelierBackdrop(
       child: CustomScrollView(
         slivers: [
@@ -63,19 +65,24 @@ class StorefrontScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
-                    children: [
-                      FluffyCat(pose: CatPose.strawberry, size: 72),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'tiny charms, huge heart',
-                          style: AppTypography.displayMedium,
+                  if (headline.isNotEmpty)
+                    Row(
+                      children: [
+                        ShopMark(
+                          logoUrl: shop?.logoUrl,
+                          size: 72,
+                          fallback: CatPose.strawberry,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            headline,
+                            style: AppTypography.displayMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (headline.isNotEmpty) const SizedBox(height: 12),
                   Text(
                     (bio != null && bio.isNotEmpty)
                         ? bio

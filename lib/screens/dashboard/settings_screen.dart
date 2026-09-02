@@ -23,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _slug = TextEditingController();
+  final _headline = TextEditingController();
   final _bio = TextEditingController();
   final _keys = <TextEditingController>[];
   final _values = <TextEditingController>[];
@@ -35,6 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _name.dispose();
     _slug.dispose();
+    _headline.dispose();
     _bio.dispose();
     for (final c in [..._keys, ..._values]) {
       c.dispose();
@@ -47,6 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _inited = true;
     _name.text = profile.shopName;
     _slug.text = profile.shopSlug;
+    _headline.text = profile.headline ?? '';
     _bio.text = profile.bio ?? '';
     _logo = profile.logoUrl;
     _qr = profile.ewalletQrUrl;
@@ -73,19 +76,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (k.isEmpty) continue;
       contact[k] = _values[i].text.trim();
     }
-    await ref.read(ownerRepositoryProvider).upsert(
-          current.copyWith(
-            shopName: _name.text.trim(),
-            shopSlug: _slug.text.trim(),
-            bio: _bio.text.trim(),
-            logoUrl: _logo,
-            ewalletQrUrl: _qr,
-            contactInfo: contact,
-          ),
+    try {
+      await ref.read(ownerRepositoryProvider).upsert(
+            current.copyWith(
+              shopName: _name.text.trim(),
+              shopSlug: _slug.text.trim(),
+              headline: _headline.text.trim(),
+              bio: _bio.text.trim(),
+              logoUrl: _logo,
+              ewalletQrUrl: _qr,
+              contactInfo: contact,
+            ),
+          );
+      if (!mounted) return;
+      ref.invalidate(myProfileProvider);
+      ref.invalidate(shopProfileProvider(_slug.text.trim()));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
         );
-    if (!mounted) return;
-    ref.invalidate(myProfileProvider);
-    setState(() => _saving = false);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -93,7 +107,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profile = ref.watch(myProfileProvider);
     return profile.when(
       loading: () => const DinoLoading(),
-      error: (e, _) => WhimsicalError(message: e.toString()),
+      error: (e, _) => WhimsicalError(
+        message: e.toString(),
+        onRetry: () => ref.invalidate(myProfileProvider),
+      ),
       data: (data) {
         if (data == null) {
           return const WhimsicalEmpty(
@@ -112,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               WhimsicalTextField(
                 controller: _name,
                 label: 'Shop name',
-                validator: (v) => Validators.requiredField(v, label: 'Name'),
+                validator: (v) => Validators.name(v, label: 'Name'),
               ),
               const SizedBox(height: 12),
               WhimsicalTextField(
@@ -122,9 +139,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 12),
               WhimsicalTextField(
+                controller: _headline,
+                label: 'Shop headline',
+                hint: 'Shown on the public shop. Leave blank to hide it.',
+                maxLines: 2,
+                validator: (v) => Validators.optionalText(v, max: 80, label: 'Headline'),
+              ),
+              const SizedBox(height: 12),
+              WhimsicalTextField(
                 controller: _bio,
                 label: 'Bio',
                 maxLines: 4,
+                validator: (v) => Validators.optionalText(v, max: 600, label: 'Bio'),
               ),
               const SizedBox(height: 16),
               Text('Logo', style: AppTypography.label),
@@ -151,12 +177,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: () async {
                     final file = await ImagePicker().pickImage(source: ImageSource.gallery);
                     if (file == null) return;
-                    final url = await ref
-                        .read(ownerRepositoryProvider)
-                        .uploadLogo(await file.readAsBytes());
-                    if (!mounted) return;
-                    setState(() => _logo = url);
-                    ref.invalidate(myProfileProvider);
+                    try {
+                      final url = await ref
+                          .read(ownerRepositoryProvider)
+                          .uploadLogo(await file.readAsBytes());
+                      if (!mounted) return;
+                      setState(() => _logo = url);
+                      ref.invalidate(myProfileProvider);
+                      ref.invalidate(shopProfileProvider(_slug.text.trim()));
+                    } catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                      }
+                    }
                   },
                 ),
               ),
@@ -191,10 +226,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: () async {
                     final file = await ImagePicker().pickImage(source: ImageSource.gallery);
                     if (file == null) return;
-                    final url = await ref
-                        .read(ownerRepositoryProvider)
-                        .uploadWalletQr(await file.readAsBytes());
-                    setState(() => _qr = url);
+                    try {
+                      final url = await ref
+                          .read(ownerRepositoryProvider)
+                          .uploadWalletQr(await file.readAsBytes());
+                      if (!mounted) return;
+                      setState(() => _qr = url);
+                    } catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                      }
+                    }
                   },
                 ),
               ),

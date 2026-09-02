@@ -72,34 +72,40 @@ class ApiClient {
   }
 
   Future<dynamic> put(String path, [Object? body]) async {
-    final response = await _http.put(
-      _uri(path),
-      headers: _headers(),
-      body: body == null ? null : jsonEncode(body),
-    );
-    return _decode(response);
+    return _withRetry(() async {
+      final response = await _http.put(
+        _uri(path),
+        headers: _headers(),
+        body: body == null ? null : jsonEncode(body),
+      );
+      return _decode(response);
+    });
   }
 
   Future<dynamic> delete(String path) async {
-    final response = await _http.delete(_uri(path), headers: _headers(json: false));
-    return _decode(response);
+    return _withRetry(() async {
+      final response = await _http.delete(_uri(path), headers: _headers(json: false));
+      return _decode(response);
+    });
   }
 
   Future<String> upload(String path, Uint8List bytes, {String contentType = 'image/jpeg'}) async {
-    final response = await _http.post(
-      _uri(path),
-      headers: {
-        'Content-Type': contentType,
-        if (SessionStore.instance.token != null)
-          'Authorization': 'Bearer ${SessionStore.instance.token}',
-      },
-      body: bytes,
-    );
-    final decoded = _decode(response);
-    if (decoded is Map && decoded['url'] is String) {
-      return decoded['url'] as String;
-    }
-    throw ApiException('Upload did not return a url');
+    return _withRetry(() async {
+      final response = await _http.post(
+        _uri(path),
+        headers: {
+          'Content-Type': contentType,
+          if (SessionStore.instance.token != null)
+            'Authorization': 'Bearer ${SessionStore.instance.token}',
+        },
+        body: bytes,
+      );
+      final decoded = _decode(response);
+      if (decoded is Map && decoded['url'] is String) {
+        return decoded['url'] as String;
+      }
+      throw ApiException('Upload did not return a url');
+    });
   }
 
   Future<T> _withRetry<T>(Future<T> Function() run) async {

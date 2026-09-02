@@ -4,6 +4,7 @@ import '../config/env.dart';
 import '../models/order_request.dart';
 import 'api_client.dart';
 import 'app_store.dart';
+import 'poll.dart';
 
 class OrdersRepository {
   OrdersRepository();
@@ -20,16 +21,20 @@ class OrdersRepository {
       yield* store.ordersCtrl.stream.map((_) => sorted());
       return;
     }
-    yield await _fetch();
-    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => _fetch());
+    yield* pollKeepingLast(_fetch, period: const Duration(seconds: 8));
   }
 
   Future<List<OrderRequest>> _fetch() async {
     final rows = await _api.get('/api/orders') as List<dynamic>;
-    return rows
-        .map((row) => OrderRequest.fromJson(Map<String, dynamic>.from(row as Map)))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final orders = <OrderRequest>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      try {
+        orders.add(OrderRequest.fromJson(Map<String, dynamic>.from(row)));
+      } catch (_) {}
+    }
+    orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return orders;
   }
 
   Future<OrderRequest> submit({

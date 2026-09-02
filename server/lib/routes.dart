@@ -76,6 +76,7 @@ Future<Response> _shop(Request request) async {
     'shop_name': doc['shop_name'] ?? 'Whimsical',
     'shop_slug': doc['shop_slug'] ?? slug,
     'bio': doc['bio'],
+    'headline': doc['headline'],
     'logo_url': doc['logo_url'],
     'ewallet_qr_url': doc['ewallet_qr_url'],
     'contact_info': doc['contact_info'] is Map ? doc['contact_info'] : <String, String>{},
@@ -162,6 +163,7 @@ Future<Response> _updateMe(Request request) async {
     'shop_name': body['shop_name'] ?? owner['shop_name'],
     'shop_slug': body['shop_slug'] ?? owner['shop_slug'],
     'bio': body['bio'] ?? owner['bio'],
+    'headline': body['headline'] ?? owner['headline'],
     'logo_url': body['logo_url'] ?? owner['logo_url'],
     'ewallet_qr_url': body['ewallet_qr_url'] ?? owner['ewallet_qr_url'],
     'contact_info': body['contact_info'] ?? owner['contact_info'],
@@ -224,7 +226,7 @@ Future<Response> _upsertProduct(Request request) async {
     'price': body['price'] ?? existing?['price'] ?? 0,
     'compare_at_price': body['compare_at_price'] ?? existing?['compare_at_price'],
     'image_urls': body['image_urls'] ?? existing?['image_urls'] ?? [],
-    'category': body['category'] ?? existing?['category'] ?? 'Dino Series',
+    'category': body['category'] ?? existing?['category'] ?? '',
     'paracords': <Map<String, dynamic>>[],
     'trinkets': <Map<String, dynamic>>[],
     'stock_status': body['stock_status'] ?? existing?['stock_status'] ?? 'available',
@@ -279,13 +281,15 @@ Future<Response> _bulkPrice(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
   final body = await readJson(request);
-  final category = body['category'] as String? ?? '';
   final percent = body['percent'] as bool? ?? true;
   final amount = (body['amount'] as num?)?.toDouble() ?? 0;
   final now = DateTime.now().toUtc();
-  final rows = await Mongo.instance.products
-      .find(where.eq('owner_id', owner['_id']).eq('category', category))
-      .toList();
+  var query = where.eq('owner_id', owner['_id']);
+  final category = (body['category'] as String? ?? '').trim();
+  if (category.isNotEmpty) {
+    query = query.eq('category', category);
+  }
+  final rows = await Mongo.instance.products.find(query).toList();
   for (final row in rows) {
     final price = (row['price'] as num?)?.toDouble() ?? 0;
     final next = percent ? price * (1 + amount / 100) : price + amount;

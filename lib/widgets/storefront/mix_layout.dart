@@ -4,6 +4,8 @@ import 'dart:ui';
 const kMixAccessoryMinScale = 0.75;
 const kMixSnap = 12.0;
 const kMixAlignAngle = 0.12;
+const kMixMinScale = 0.4;
+const kMixMaxScale = 2.5;
 
 enum MixKind { inhaler, cord, trinket }
 
@@ -20,21 +22,24 @@ class MixSprite {
 }
 
 class MixTransform {
-  const MixTransform({this.dx = 0, this.dy = 0, this.dAngle = 0});
+  const MixTransform({this.dx = 0, this.dy = 0, this.dAngle = 0, this.scale = 1});
 
   static const zero = MixTransform();
 
   final double dx;
   final double dy;
   final double dAngle;
+  final double scale;
 
-  bool get isIdentity => dx == 0 && dy == 0 && dAngle == 0;
+  bool get isIdentity =>
+      dx == 0 && dy == 0 && dAngle == 0 && (scale - 1).abs() < 0.0001;
 
-  MixTransform copyWith({double? dx, double? dy, double? dAngle}) {
+  MixTransform copyWith({double? dx, double? dy, double? dAngle, double? scale}) {
     return MixTransform(
       dx: dx ?? this.dx,
       dy: dy ?? this.dy,
       dAngle: dAngle ?? this.dAngle,
+      scale: scale ?? this.scale,
     );
   }
 }
@@ -64,14 +69,19 @@ class MixPiecePose {
   double get longSide => math.max(width, height);
 
   MixPiecePose applying(MixTransform transform) {
+    final scale = transform.scale <= 0 ? 1.0 : transform.scale;
+    final w = width * scale;
+    final h = height * scale;
+    final cx = left + width / 2 + transform.dx;
+    final cy = top + height / 2 + transform.dy;
     return MixPiecePose(
       id: id,
       url: url,
       kind: kind,
-      left: left + transform.dx,
-      top: top + transform.dy,
-      width: width,
-      height: height,
+      left: cx - w / 2,
+      top: cy - h / 2,
+      width: w,
+      height: h,
       angle: angle + transform.dAngle,
     );
   }
@@ -214,6 +224,19 @@ abstract final class MixArrangement {
     return current.copyWith(dAngle: current.dAngle + delta);
   }
 
+  static MixTransform scaleByPointer({
+    required Offset pieceCenter,
+    required Offset lastPointer,
+    required Offset pointer,
+    required MixTransform current,
+  }) {
+    final lastDist = (lastPointer - pieceCenter).distance;
+    final dist = (pointer - pieceCenter).distance;
+    if (lastDist < 4) return current;
+    final next = (current.scale * (dist / lastDist)).clamp(kMixMinScale, kMixMaxScale);
+    return current.copyWith(scale: next);
+  }
+
   static MixTransform snap({
     required MixPiecePose displayed,
     required MixPiecePose base,
@@ -238,7 +261,12 @@ abstract final class MixArrangement {
 
     return clamp(
       base: base,
-      current: MixTransform(dx: dx, dy: dy, dAngle: dAngle),
+      current: MixTransform(
+        dx: dx,
+        dy: dy,
+        dAngle: dAngle,
+        scale: current.scale,
+      ),
       stage: stage,
     );
   }

@@ -167,6 +167,43 @@ void main() {
     expect(rotated.dAngle.abs(), lessThan(0.5));
   });
 
+  test('pulling the corner away from the piece makes it larger', () {
+    const center = Offset(100, 100);
+    final grown = MixArrangement.scaleByPointer(
+      pieceCenter: center,
+      lastPointer: const Offset(130, 100),
+      pointer: const Offset(160, 100),
+      current: MixTransform.zero,
+    );
+    expect(grown.scale, closeTo(2.0, 0.001));
+  });
+
+  test('scale stays within the min and max', () {
+    const center = Offset(0, 0);
+    final tiny = MixArrangement.scaleByPointer(
+      pieceCenter: center,
+      lastPointer: const Offset(100, 0),
+      pointer: const Offset(1, 0),
+      current: MixTransform.zero,
+    );
+    expect(tiny.scale, kMixMinScale);
+    final huge = MixArrangement.scaleByPointer(
+      pieceCenter: center,
+      lastPointer: const Offset(10, 0),
+      pointer: const Offset(80, 0),
+      current: MixTransform.zero,
+    );
+    expect(huge.scale, kMixMaxScale);
+  });
+
+  test('applying a scale keeps the piece center', () {
+    final base = MixArrangement.defaults(stage: stage, inhaler: inhaler()).single;
+    final scaled = base.applying(const MixTransform(scale: 1.5));
+    expect(scaled.center.dx, closeTo(base.center.dx, 0.01));
+    expect(scaled.center.dy, closeTo(base.center.dy, 0.01));
+    expect(scaled.width, closeTo(base.width * 1.5, 0.01));
+  });
+
   test('prune drops poses for parts that left the mix', () {
     final next = MixArrangement.prune(
       {

@@ -6,11 +6,12 @@ import 'package:whimsical_hub/data/demo_catalog.dart';
 import 'package:whimsical_hub/main.dart';
 import 'package:whimsical_hub/providers/intro_provider.dart';
 import 'package:whimsical_hub/theme/app_theme.dart';
-import 'package:whimsical_hub/screens/dashboard/dashboard_shell.dart';
 import 'package:whimsical_hub/widgets/doodles/dino_mascot.dart';
 import 'package:whimsical_hub/widgets/storefront/mix_stage.dart';
 import 'package:whimsical_hub/widgets/storefront/product_door_flow.dart';
 import 'package:whimsical_hub/widgets/ui/feedback.dart';
+import 'package:whimsical_hub/widgets/ui/photo_lightbox.dart';
+import 'package:whimsical_hub/widgets/ui/shop_mark.dart';
 
 void main() {
   testWidgets('app boots', (tester) async {
@@ -53,7 +54,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.textContaining('already been listened'), findsNothing);
-    expect(find.textContaining('tiny charms'), findsWidgets);
+    expect(find.textContaining('Hand-finished inhaler charms'), findsOneWidget);
   });
 
   testWidgets('mix preview stays compact while picking a paracord', (tester) async {
@@ -133,7 +134,7 @@ void main() {
   testWidgets('dashboard mark uses the suited cat until a logo is uploaded', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(body: DashboardShopMark()),
+        home: Scaffold(body: ShopMark(fallback: CatPose.owner)),
       ),
     );
     expect(find.byType(FluffyCat), findsOneWidget);
@@ -144,13 +145,58 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: DashboardShopMark(logoUrl: 'asset:assets/doodles/cats/cat_04.png'),
+          body: ShopMark(logoUrl: 'asset:assets/doodles/cats/cat_04.png'),
         ),
       ),
     );
     await tester.pump();
     expect(find.byType(FluffyCat), findsNothing);
     expect(find.byType(SmartProductImage), findsOneWidget);
+  });
+
+  testWidgets('paracord and trinket photos open full screen', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: ProductDoorFlow(product: demoProducts().first)),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.byKey(const ValueKey('option-photo-cord-mint')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(PhotoLightbox), findsOneWidget);
+    expect(find.text('Mint paracord'), findsWidgets);
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(PhotoLightbox), findsNothing);
+
+    await tester.tap(find.text('Mint paracord'));
+    await tester.pump();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.byKey(const ValueKey('option-photo-t-rex')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(PhotoLightbox), findsOneWidget);
+    expect(find.text('Baby Rex'), findsWidgets);
   });
 }
 

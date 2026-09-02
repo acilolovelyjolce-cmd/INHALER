@@ -72,7 +72,7 @@ void main() {
     expect(piece(MixArrangement.inhalerId), findsOneWidget);
     expect(piece(MixArrangement.cordId(demoCords.first.id)), findsOneWidget);
     expect(piece(MixArrangement.trinketId(demoTrinkets.first.id)), findsOneWidget);
-    expect(find.textContaining('drag to place'), findsOneWidget);
+    expect(find.textContaining('pull the corner to size'), findsOneWidget);
     expect(tester.getSize(find.byType(MixStage)).height, lessThan(210));
   });
 
@@ -102,6 +102,22 @@ void main() {
     await tester.drag(find.byKey(MixStage.rotateKey(cordId)), const Offset(0, 48), touchSlopX: 0, touchSlopY: 0);
     await tester.pump();
     expect(state.debugTransforms[cordId]!.dAngle.abs(), greaterThan(0.02));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pulling the size handle enlarges the piece', (tester) async {
+    final state = await pumpMix(tester, paracord: demoCords.first);
+    final cordId = MixArrangement.cordId(demoCords.first.id);
+    final cordBox = tester.getRect(piece(cordId));
+    await tester.tapAt(cordBox.topLeft + const Offset(12, 12));
+    await tester.pump();
+    expect(find.byKey(MixStage.scaleKey(cordId)), findsOneWidget);
+    final startWidth = tester.getSize(piece(cordId)).width;
+
+    await tester.drag(find.byKey(MixStage.scaleKey(cordId)), const Offset(40, 40), touchSlopX: 0, touchSlopY: 0);
+    await tester.pump();
+    expect(state.debugTransforms[cordId]!.scale, greaterThan(1.02));
+    expect(tester.getSize(piece(cordId)).width, greaterThan(startWidth));
     expect(tester.takeException(), isNull);
   });
 

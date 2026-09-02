@@ -24,6 +24,7 @@ class MixStage extends StatefulWidget {
 
   static Key pieceKey(String id) => ValueKey('mix-piece-$id');
   static Key rotateKey(String id) => ValueKey('mix-rotate-$id');
+  static Key scaleKey(String id) => ValueKey('mix-scale-$id');
   static Key resetKey(String id) => ValueKey('mix-reset-$id');
 
   @override
@@ -185,6 +186,23 @@ class MixStageState extends State<MixStage> {
     return box.globalToLocal(global);
   }
 
+  void _scale(String id, Offset globalPointer, List<MixPiecePose> bases) {
+    final base = _baseById(id, bases);
+    if (base == null) return;
+    final displayed = base.applying(_transforms[id] ?? MixTransform.zero);
+    final pointer = _toStage(globalPointer);
+    final last = _rotateLast ?? pointer;
+    setState(() {
+      _transforms[id] = MixArrangement.scaleByPointer(
+        pieceCenter: displayed.center,
+        lastPointer: last,
+        pointer: pointer,
+        current: _transforms[id] ?? MixTransform.zero,
+      );
+      _rotateLast = pointer;
+    });
+  }
+
   void _rotate(String id, Offset globalPointer, List<MixPiecePose> bases) {
     final base = _baseById(id, bases);
     if (base == null) return;
@@ -322,6 +340,30 @@ class MixStageState extends State<MixStage> {
                     ),
                   ),
                   Positioned(
+                    left: selectedPose.left + selectedPose.width - 24,
+                    top: selectedPose.top + selectedPose.height - 24,
+                    child: Listener(
+                      key: MixStage.scaleKey(selectedPose.id),
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (event) {
+                        _pointer = event.pointer;
+                        _dragging = selectedPose!.id;
+                        _rotateLast = _toStage(event.position);
+                      },
+                      onPointerMove: (event) {
+                        if (event.pointer != _pointer) return;
+                        _scale(selectedPose!.id, event.position, bases);
+                      },
+                      onPointerUp: (event) {
+                        if (event.pointer != _pointer) return;
+                        _finish(selectedPose!.id, bases);
+                        _pointer = null;
+                        _dragging = null;
+                      },
+                      child: const _RoundTool(icon: Icons.open_in_full),
+                    ),
+                  ),
+                  Positioned(
                     left: selectedPose.left - 4,
                     top: selectedPose.top - 4,
                     child: GestureDetector(
@@ -339,7 +381,7 @@ class MixStageState extends State<MixStage> {
                     bottom: 0,
                     child: IgnorePointer(
                       child: Text(
-                        'drag to place · twist the ring to turn · tap rewind to reset',
+                        'drag · twist to turn · pull the corner to size · rewind',
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

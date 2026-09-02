@@ -20,11 +20,6 @@ class ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final grouped = <String, List<Product>>{};
-    for (final product in products) {
-      grouped.putIfAbsent(product.category, () => []).add(product);
-    }
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -33,36 +28,24 @@ class ProductGrid extends StatelessWidget {
             : width >= 520
                 ? 2
                 : 2;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in grouped.entries) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 4, 14),
-                child: Text(entry.key, style: AppTypography.displaySmall),
-              ),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                clipBehavior: Clip.none,
-                itemCount: entry.value.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: cols >= 3 ? 0.76 : 0.7,
-                ),
-                itemBuilder: (context, index) {
-                  final product = entry.value[index];
-                  return _ProductTile(
-                    product: product,
-                    onTap: () => context.go('/shop/$slug/product/${product.id}'),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-          ],
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          clipBehavior: Clip.none,
+          itemCount: products.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: 20,
+            crossAxisSpacing: 16,
+            childAspectRatio: cols >= 3 ? 0.76 : 0.7,
+          ),
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return _ProductTile(
+              product: product,
+              onTap: () => context.go('/shop/$slug/product/${product.id}'),
+            );
+          },
         );
       },
     );

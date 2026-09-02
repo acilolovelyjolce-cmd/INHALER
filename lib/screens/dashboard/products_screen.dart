@@ -67,13 +67,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == 'bulk') _bulk(context, ref, products);
-                          if (value == 'deleteCategory') {
-                            _deleteCategory(context, ref, products);
-                          }
                         },
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
-                          PopupMenuItem(value: 'deleteCategory', child: Text('Delete category')),
                         ],
                       ),
                     ],
@@ -139,7 +135,16 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           final next = [...products];
           final item = next.removeAt(oldIndex);
           next.insert(nextIndex, item);
-          await ref.read(productsRepositoryProvider).reorder(next);
+          try {
+            await ref.read(productsRepositoryProvider).reorder(next);
+          } catch (error) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(error.toString())),
+              );
+            }
+            ref.invalidate(ownerProductsProvider);
+          }
         },
         itemBuilder: (context, index) {
           final product = products[index];
@@ -210,11 +215,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 
   Future<void> _bulk(BuildContext context, WidgetRef ref, List<Product> products) async {
-    final categories = products.map((p) => p.category).toSet().toList();
-    if (categories.isEmpty) return;
-    var category = categories.first;
+    if (products.isEmpty) return;
     var percent = true;
     final amount = TextEditingController(text: '10');
+    final formKey = GlobalKey<FormState>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -222,32 +226,39 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('Adjust prices'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButton<String>(
-                    value: category,
-                    isExpanded: true,
-                    items: [
-                      for (final c in categories) DropdownMenuItem(value: c, child: Text(c)),
-                    ],
-                    onChanged: (v) => setState(() => category = v ?? category),
-                  ),
-                  SwitchListTile(
-                    title: Text(percent ? 'Percent' : 'Flat ₱'),
-                    value: percent,
-                    onChanged: (v) => setState(() => percent = v),
-                  ),
-                  WhimsicalTextField(
-                    controller: amount,
-                    label: percent ? 'Percent' : 'Amount',
-                    validator: Validators.price,
-                  ),
-                ],
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'This updates every inhaler in the catalog.',
+                      style: AppTypography.bodySmall,
+                    ),
+                    SwitchListTile(
+                      title: Text(percent ? 'Percent' : 'Flat ₱'),
+                      value: percent,
+                      onChanged: (v) => setState(() => percent = v),
+                    ),
+                    WhimsicalTextField(
+                      controller: amount,
+                      label: percent ? 'Percent' : 'Amount',
+                      hint: percent ? '10 or -10' : '40 or -40',
+                      validator: Validators.signedAmount,
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Apply')),
+                TextButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  child: const Text('Apply'),
+                ),
               ],
             );
           },
@@ -255,11 +266,17 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       },
     );
     if (ok == true) {
-      await ref.read(productsRepositoryProvider).bulkAdjustPrice(
-            category: category,
-            percent: percent,
-            amount: double.tryParse(amount.text) ?? 0,
-          );
+      try {
+        await ref.read(productsRepositoryProvider).bulkAdjustPrice(
+              percent: percent,
+              amount: double.tryParse(amount.text.replaceAll(RegExp(r'[₱,\s]'), '')) ?? 0,
+            );
+        ref.invalidate(ownerProductsProvider);
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        }
+      }
     }
     amount.dispose();
   }
@@ -305,60 +322,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
     if (ok == true && context.mounted) {
       await ref.read(productsRepositoryProvider).deletePart(option.id);
-    }
-  }
-
-  Future<void> _deleteCategory(
-    BuildContext context,
-    WidgetRef ref,
-    List<Product> products,
-  ) async {
-    final categories = products.map((p) => p.category).toSet().toList();
-    if (categories.isEmpty) return;
-    var category = categories.first;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final count = products.where((p) => p.category == category).length;
-            return AlertDialog(
-              title: const Text('Delete a category?'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'This removes the group from the shop and deletes every inhaler in it.',
-                    style: AppTypography.body,
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButton<String>(
-                    value: category,
-                    isExpanded: true,
-                    items: [
-                      for (final c in categories) DropdownMenuItem(value: c, child: Text(c)),
-                    ],
-                    onChanged: (v) => setState(() => category = v ?? category),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    count == 1 ? '1 inhaler will be deleted.' : '$count inhalers will be deleted.',
-                    style: AppTypography.bodySmall,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (ok == true && context.mounted) {
-      await ref.read(productsRepositoryProvider).deleteCategory(category);
     }
   }
 }
@@ -498,7 +461,7 @@ class _ProductRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${product.category}  ·  ${Formatters.php(product.price)}',
+                        Formatters.php(product.price),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySmall,
