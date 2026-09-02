@@ -24,8 +24,18 @@ class OwnerRepository {
       }
       return;
     }
-    yield await fetchBySlug(slug);
-    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => fetchBySlug(slug));
+    OwnerProfile? last;
+    Future<OwnerProfile?> once() async {
+      try {
+        last = await fetchBySlug(slug);
+        return last;
+      } catch (_) {
+        if (last != null) return last;
+        rethrow;
+      }
+    }
+    yield await once();
+    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => once());
   }
 
   Stream<OwnerProfile?> watchMine() async* {
@@ -45,8 +55,8 @@ class OwnerRepository {
       return owner.shopSlug == slug ? owner : null;
     }
     try {
-      final row = await _api.get('/api/shops/$slug') as Map<String, dynamic>;
-      return OwnerProfile.fromJson(row);
+      final row = await _api.get('/api/shops/$slug', auth: false) as Map<String, dynamic>;
+      return OwnerProfile.fromJson(Map<String, dynamic>.from(row));
     } on ApiException catch (error) {
       if (error.status == 404) return null;
       rethrow;

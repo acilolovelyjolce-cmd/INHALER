@@ -52,9 +52,14 @@ class ApiClient {
     };
   }
 
-  Future<dynamic> get(String path) async {
-    final response = await _http.get(_uri(path), headers: _headers(json: false));
-    return _decode(response);
+  Future<dynamic> get(String path, {bool auth = true}) async {
+    return _withRetry(() async {
+      final response = await _http.get(
+        _uri(path),
+        headers: _headers(json: false, auth: auth),
+      );
+      return _decode(response);
+    });
   }
 
   Future<dynamic> post(String path, [Object? body]) async {
@@ -95,6 +100,24 @@ class ApiClient {
       return decoded['url'] as String;
     }
     throw ApiException('Upload did not return a url');
+  }
+
+  Future<T> _withRetry<T>(Future<T> Function() run) async {
+    Object? last;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await run();
+      } on ApiException catch (error) {
+        last = error;
+        final status = error.status ?? 0;
+        if (status < 500 || attempt == 2) rethrow;
+      } catch (error) {
+        last = error;
+        if (attempt == 2) rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 350 * (attempt + 1)));
+    }
+    throw last!;
   }
 
   dynamic _decode(http.Response response) {

@@ -24,8 +24,18 @@ class ProductsRepository {
       yield* store.productsCtrl.stream.map((_) => published());
       return;
     }
-    yield await _fetchPublished(slug);
-    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => _fetchPublished(slug));
+    var last = <Product>[];
+    Future<List<Product>> once() async {
+      try {
+        last = await _fetchPublished(slug);
+        return last;
+      } catch (_) {
+        if (last.isNotEmpty) return last;
+        rethrow;
+      }
+    }
+    yield await once();
+    yield* Stream.periodic(const Duration(seconds: 12)).asyncMap((_) => once());
   }
 
   Stream<List<Product>> watchAll() async* {
@@ -41,7 +51,7 @@ class ProductsRepository {
   }
 
   Future<List<Product>> _fetchPublished(String slug) async {
-    final rows = await _api.get('/api/shops/$slug/products') as List<dynamic>;
+    final rows = await _api.get('/api/shops/$slug/products', auth: false) as List<dynamic>;
     return _mapRows(rows);
   }
 
@@ -238,9 +248,16 @@ class ProductsRepository {
   }
 
   List<Product> _mapRows(List<dynamic> rows) {
-    return rows
-        .map((row) => Product.fromJson(Map<String, dynamic>.from(row as Map)))
-        .toList()
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final products = <Product>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      try {
+        final product = Product.fromJson(Map<String, dynamic>.from(row));
+        if (product.id.isEmpty || product.name.isEmpty) continue;
+        products.add(product);
+      } catch (_) {}
+    }
+    products.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return products;
   }
 }

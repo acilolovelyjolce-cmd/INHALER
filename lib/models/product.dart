@@ -26,7 +26,11 @@ abstract class ProductOption with _$ProductOption {
   }) = _ProductOption;
 
   factory ProductOption.fromJson(Map<String, dynamic> json) =>
-      _$ProductOptionFromJson(json);
+      _$ProductOptionFromJson({
+        ...json,
+        'id': json['id']?.toString() ?? '',
+        'name': json['name']?.toString() ?? '',
+      });
 }
 
 class ProductOptionListConverter implements JsonConverter<List<ProductOption>, dynamic> {
@@ -39,7 +43,7 @@ class ProductOptionListConverter implements JsonConverter<List<ProductOption>, d
       for (final row in json)
         if (row is Map)
           ProductOption.fromJson(Map<String, dynamic>.from(row)),
-    ];
+    ].where((option) => option.id.isNotEmpty && option.name.isNotEmpty).toList();
   }
 
   @override
@@ -68,7 +72,37 @@ abstract class Product with _$Product {
     @JsonKey(name: 'updated_at') required DateTime updatedAt,
   }) = _Product;
 
-  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  factory Product.fromJson(Map<String, dynamic> json) {
+    final published = json['is_published'];
+    return _$ProductFromJson({
+      ...json,
+      'id': json['id']?.toString() ?? '',
+      'name': json['name']?.toString() ?? '',
+      'description': json['description']?.toString() ?? '',
+      'category': json['category']?.toString() ?? 'Inhalers',
+      'stock_status': _stockStatus(json['stock_status']),
+      'is_published': published == true || published == 'true' || published == 1,
+      'sort_order': json['sort_order'] ?? 99,
+      'created_at': _jsonDate(json['created_at']),
+      'updated_at': _jsonDate(json['updated_at']),
+    });
+  }
+}
+
+String _stockStatus(Object? value) {
+  return switch (value) {
+    'made_to_order' || 'sold_out' || 'available' => value as String,
+    _ => 'available',
+  };
+}
+
+String _jsonDate(Object? value) {
+  if (value is DateTime) return value.toUtc().toIso8601String();
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value)?.toUtc().toIso8601String() ??
+        DateTime.now().toUtc().toIso8601String();
+  }
+  return DateTime.now().toUtc().toIso8601String();
 }
 
 extension StockStatusX on StockStatus {

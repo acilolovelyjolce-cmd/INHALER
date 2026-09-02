@@ -9,7 +9,7 @@ abstract final class AppConfig {
 
   static const publicBaseUrl = String.fromEnvironment(
     'PUBLIC_BASE_URL',
-    defaultValue: 'https://whimsical-hub.onrender.com',
+    defaultValue: 'https://inhaler.onrender.com',
   );
 
   static bool get useDemo {

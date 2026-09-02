@@ -22,88 +22,91 @@ class StorefrontScreen extends ConsumerWidget {
     final profile = ref.watch(shopProfileProvider(slug));
     final products = ref.watch(publishedProductsProvider(slug));
 
-    return AtelierBackdrop(
-      child: profile.when(
-        loading: () => const DinoLoading(),
-        error: (e, _) => WhimsicalError(
-          message: e.toString(),
-          onRetry: () {
-            ref.invalidate(shopProfileProvider(slug));
-            ref.invalidate(publishedProductsProvider(slug));
-          },
-        ),
-        data: (shop) {
-          if (shop == null) {
-            return const WhimsicalEmpty(
-              title: 'This shop is still packing',
-              body: 'The link might be a little off — try another slug, or check back after the owner publishes.',
-            );
-          }
+    final shop = profile.valueOrNull;
+    final items = products.valueOrNull;
+    void retry() {
+      ref.invalidate(shopProfileProvider(slug));
+      ref.invalidate(publishedProductsProvider(slug));
+    }
 
-          return products.when(
-            loading: () => const DinoLoading(),
-            error: (e, _) => WhimsicalError(
-              message: e.toString(),
-              onRetry: () => ref.invalidate(publishedProductsProvider(slug)),
-            ),
-            data: (items) {
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: PageCanvas(
-                      maxWidth: AppLayout.storefrontMax,
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const FluffyCat(pose: CatPose.strawberry, size: 72),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'tiny charms, huge heart',
-                                  style: AppTypography.displayMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            (shop.bio != null && shop.bio!.isNotEmpty)
-                                ? shop.bio!
-                                : 'Squishy pastel keychains, made-to-order dinos, and little shells you can tap to request.',
-                            style: AppTypography.body.copyWith(height: 1.5),
-                          ),
-                          const SizedBox(height: 22),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-                    sliver: SliverToBoxAdapter(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: AppLayout.storefrontMax),
-                          child: CreamPanel(
-                            padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
-                            child: items.isEmpty
-                                ? const WhimsicalEmpty(
-                                    title: 'Restocking the nest',
-                                    body: 'Nothing is published just yet — check back after the next tiny launch.',
-                                  )
-                                : ProductGrid(slug: slug, products: items),
-                          ),
+    if (products.hasError && items == null) {
+      return AtelierBackdrop(
+        child: WhimsicalError(message: products.error.toString(), onRetry: retry),
+      );
+    }
+    if (profile.hasError && shop == null && items == null && !products.isLoading) {
+      return AtelierBackdrop(
+        child: WhimsicalError(message: profile.error.toString(), onRetry: retry),
+      );
+    }
+    if (items == null && (profile.isLoading || products.isLoading)) {
+      return const AtelierBackdrop(child: DinoLoading());
+    }
+    if (shop == null && !profile.hasError && !profile.isLoading) {
+      return const AtelierBackdrop(
+        child: WhimsicalEmpty(
+          title: 'This shop is still packing',
+          body: 'The link might be a little off — try another slug, or check back after the owner publishes.',
+        ),
+      );
+    }
+
+    final catalog = items ?? const [];
+    final bio = shop?.bio;
+    return AtelierBackdrop(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: PageCanvas(
+              maxWidth: AppLayout.storefrontMax,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      FluffyCat(pose: CatPose.strawberry, size: 72),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'tiny charms, huge heart',
+                          style: AppTypography.displayMedium,
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    (bio != null && bio.isNotEmpty)
+                        ? bio
+                        : 'Squishy pastel keychains, made-to-order dinos, and little shells you can tap to request.',
+                    style: AppTypography.body.copyWith(height: 1.5),
+                  ),
+                  const SizedBox(height: 22),
                 ],
-              );
-            },
-          );
-        },
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+            sliver: SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: AppLayout.storefrontMax),
+                  child: CreamPanel(
+                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
+                    child: catalog.isEmpty
+                        ? const WhimsicalEmpty(
+                            title: 'Restocking the nest',
+                            body: 'Nothing is published just yet — check back after the next tiny launch.',
+                          )
+                        : ProductGrid(slug: slug, products: catalog),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

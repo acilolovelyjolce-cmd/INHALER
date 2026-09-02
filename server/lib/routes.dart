@@ -70,7 +70,16 @@ Future<Response> _shop(Request request) async {
   final slug = request.params['slug']!;
   final owner = await Mongo.instance.owners.findOne(where.eq('shop_slug', slug));
   if (owner == null) return jsonError(404, 'Shop not found');
-  return jsonOk(apiDoc(owner));
+  final doc = apiDoc(owner);
+  return jsonOk({
+    'id': doc['id']?.toString() ?? '',
+    'shop_name': doc['shop_name'] ?? 'Whimsical',
+    'shop_slug': doc['shop_slug'] ?? slug,
+    'bio': doc['bio'],
+    'logo_url': doc['logo_url'],
+    'ewallet_qr_url': doc['ewallet_qr_url'],
+    'contact_info': doc['contact_info'] is Map ? doc['contact_info'] : <String, String>{},
+  });
 }
 
 Future<Response> _publishedProducts(Request request) async {
@@ -83,9 +92,15 @@ Future<Response> _publishedProducts(Request request) async {
     final bOrder = (b['sort_order'] as num?)?.toInt() ?? 0;
     return aOrder.compareTo(bOrder);
   });
-  return jsonOk([
-    for (final row in rows) apiDoc(Map<String, dynamic>.from(row)),
-  ]);
+  final encoded = <Map<String, dynamic>>[];
+  for (final row in rows) {
+    try {
+      encoded.add(apiDoc(Map<String, dynamic>.from(row)));
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] skip product ${row['_id']}: $error\n$stack');
+    }
+  }
+  return jsonOk(encoded);
 }
 
 Future<Response> _submitOrder(Request request) async {

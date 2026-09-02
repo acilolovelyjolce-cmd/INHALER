@@ -100,7 +100,7 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
         return Padding(
           padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
           child: SizedBox(
-            height: 168,
+            height: 184,
             width: double.infinity,
             child: Transform.translate(offset: Offset(0, bob), child: child),
           ),
@@ -132,10 +132,10 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
     final cordAspect = _aspect(metrics, cordUrl, 2.5);
     final hasTopBits = cordUrl != null || picked.isNotEmpty;
 
-    final headroom = hasTopBits ? h * 0.34 : h * 0.06;
-    var inhalerH = (h - headroom) * 0.94;
+    final headroom = hasTopBits ? h * 0.18 : h * 0.06;
+    var inhalerH = (h - headroom) * 0.92;
     var inhalerW = inhalerH * inhalerAspect;
-    final maxInhalerW = w * 0.32;
+    final maxInhalerW = w * 0.30;
     if (inhalerW > maxInhalerW) {
       inhalerW = maxInhalerW;
       inhalerH = inhalerW / inhalerAspect;
@@ -144,29 +144,24 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
     final cx = w / 2;
     final inhalerLeft = cx - inhalerW / 2;
     final inhalerTop = headroom + ((h - headroom) - inhalerH) / 2;
+    final inhalerLong = math.max(inhalerW, inhalerH);
+    final minAccessory = inhalerLong * 0.75;
+    final clip = Offset(cx, inhalerTop + inhalerH * 0.03);
 
     var cordW = 0.0;
     var cordH = 0.0;
     var cordLeft = 0.0;
     var cordTop = 0.0;
     if (cordUrl != null) {
-      cordW = math.min(w * 0.58, inhalerW * 2.1);
-      cordH = cordW / cordAspect;
-      if (cordH > headroom * 0.95) {
-        cordH = headroom * 0.95;
-        cordW = cordH * cordAspect;
-      }
-      if (cordH < inhalerW * 0.42) {
-        cordH = inhalerW * 0.48;
-        cordW = cordH * cordAspect;
-      }
+      final sized = _sizeAtLeast(cordAspect, minAccessory);
+      cordW = sized.width;
+      cordH = sized.height;
       cordLeft = cx - cordW / 2;
-      cordTop = inhalerTop - cordH * 0.72;
+      cordTop = clip.dy - cordH * 0.62;
     }
 
-    final clip = Offset(cx, inhalerTop + inhalerH * 0.03);
-    final leftSlot = Offset(cx - inhalerW * 0.72, clip.dy - 4);
-    final rightSlot = Offset(cx + inhalerW * 0.72, clip.dy - 4);
+    final leftSlot = Offset(cx - inhalerW * 0.88, clip.dy - 2);
+    final rightSlot = Offset(cx + inhalerW * 0.88, clip.dy - 2);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -199,7 +194,6 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
             aspect: _aspect(metrics, picked[i].$2, 0.9),
             inhalerW: inhalerW,
             inhalerH: inhalerH,
-            stageH: h,
             clip: clip,
             leftSlot: leftSlot,
             rightSlot: rightSlot,
@@ -216,19 +210,14 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
     required double aspect,
     required double inhalerW,
     required double inhalerH,
-    required double stageH,
     required Offset clip,
     required Offset leftSlot,
     required Offset rightSlot,
   }) {
-    final longSide = math.max(inhalerW * 0.92, math.min(76.0, stageH * 0.4));
-    var tw = aspect >= 1 ? longSide : longSide * aspect;
-    var th = aspect >= 1 ? longSide / aspect : longSide;
-    if (th > inhalerH * 0.48) {
-      final scale = inhalerH * 0.48 / th;
-      tw *= scale;
-      th *= scale;
-    }
+    final minAccessory = math.max(inhalerW, inhalerH) * 0.75;
+    final sized = _sizeAtLeast(aspect, minAccessory);
+    final tw = sized.width;
+    final th = sized.height;
 
     final attach = switch (count) {
       1 => rightSlot,
@@ -248,6 +237,13 @@ class _MixStageState extends State<MixStage> with SingleTickerProviderStateMixin
       url: url,
       angle: (index - (count - 1) / 2) * 0.14,
     );
+  }
+
+  Size _sizeAtLeast(double aspect, double minLongSide) {
+    final safeAspect = aspect <= 0 ? 1.0 : aspect;
+    final width = safeAspect >= 1 ? minLongSide : minLongSide * safeAspect;
+    final height = safeAspect >= 1 ? minLongSide / safeAspect : minLongSide;
+    return Size(width, height);
   }
 
   Offset _along(List<Offset> points, double t) {

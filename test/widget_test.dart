@@ -71,7 +71,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(tester.takeException(), isNull);
     expect(find.byType(MixStage), findsOneWidget);
-    expect(tester.getSize(find.byType(MixStage)).height, lessThan(190));
+    expect(tester.getSize(find.byType(MixStage)).height, lessThan(210));
 
     await tester.tap(find.text('Next'));
     await tester.pump();

@@ -19,5 +19,11 @@ abstract class OwnerProfile with _$OwnerProfile {
   }) = _OwnerProfile;
 
   factory OwnerProfile.fromJson(Map<String, dynamic> json) =>
-      _$OwnerProfileFromJson(json);
+      _$OwnerProfileFromJson({
+        ...json,
+        'id': json['id']?.toString() ?? '',
+        'shop_name': json['shop_name']?.toString() ?? 'Whimsical',
+        'shop_slug': json['shop_slug']?.toString() ?? 'whimsical',
+        'contact_info': json['contact_info'] ?? const <String, String>{},
+      });
 }
