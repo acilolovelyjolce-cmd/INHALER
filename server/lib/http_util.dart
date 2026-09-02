@@ -36,7 +36,7 @@ Future<Map<String, dynamic>> readJson(Request request) async {
     throw BadRequest('That form could not be read.');
   } on BadRequest {
     rethrow;
-  } on FormatException {
+  } catch (_) {
     throw BadRequest('That form could not be read.');
   }
 }

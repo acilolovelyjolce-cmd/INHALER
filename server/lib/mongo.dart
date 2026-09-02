@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:mongo_dart/mongo_dart.dart';
 
 import 'env.dart';
+import 'fields.dart';
 
 class Mongo {
   Mongo._();
@@ -49,13 +50,79 @@ class Mongo {
     throw StateError('Could not connect to MongoDB Atlas: $lastError');
   }
 
-  Future<void> close() async {
-    await _db?.close();
+  bool get isReady {
+    final database = _db;
+    return database != null && database.isConnected;
+  }
+
+  Future<void> reconnect() async {
+    try {
+      await _db?.close();
+    } catch (_) {}
     _db = null;
+    await connect(attempts: 4);
+  }
+
+  Future<void> ensureOpen() async {
+    if (isReady) return;
+    await reconnect();
   }
 }
 
 void stdoutLog(String message) {
   // ignore: avoid_print
   print('[whimsical] $message');
+}
+
+bool isMongoDisconnect(Object error) {
+  final text = error.toString().toLowerCase();
+  return text.contains('socket') ||
+      text.contains('not connected') ||
+      text.contains('connection') ||
+      text.contains('closed') ||
+      text.contains('timed out') ||
+      text.contains('timeout') ||
+      text.contains('network') ||
+      text.contains('mongodb is not connected') ||
+      text.contains('stateerror');
+}
+
+Future<void> mongoUpsert(
+  DbCollection collection,
+  Object id,
+  Map<String, dynamic> doc,
+) async {
+  final safe = bsonMap(doc);
+  Future<void> write() async {
+    await Mongo.instance.ensureOpen();
+    await collection.replaceOne(where.eq('_id', id), safe, upsert: true);
+  }
+
+  try {
+    await write();
+  } catch (error) {
+    if (!isMongoDisconnect(error)) rethrow;
+    await Mongo.instance.reconnect();
+    await write();
+  }
+}
+
+Future<void> mongoSet(
+  DbCollection collection,
+  Object id,
+  Map<String, dynamic> fields,
+) async {
+  final safe = bsonMap(fields);
+  Future<void> write() async {
+    await Mongo.instance.ensureOpen();
+    await collection.updateOne(where.eq('_id', id), {r'$set': safe});
+  }
+
+  try {
+    await write();
+  } catch (error) {
+    if (!isMongoDisconnect(error)) rethrow;
+    await Mongo.instance.reconnect();
+    await write();
+  }
 }

@@ -26,6 +26,7 @@ class PartFormSheet extends ConsumerStatefulWidget {
 
 class _PartFormSheetState extends ConsumerState<PartFormSheet> {
   final _formKey = GlobalKey<FormState>();
+  late final String _id;
   late final TextEditingController _name;
   late final TextEditingController _price;
   late final TextEditingController _stock;
@@ -37,6 +38,7 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
   void initState() {
     super.initState();
     final existing = widget.existing;
+    _id = existing?.id ?? const Uuid().v4();
     _name = TextEditingController(text: existing?.name ?? '');
     _price = TextEditingController(
       text: existing == null ? '' : existing.price.toStringAsFixed(0),
@@ -79,11 +81,12 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
       final option = ProductOption(
-        id: widget.existing?.id ?? const Uuid().v4(),
+        id: _id,
         name: Validators.cleanLine(_name.text),
         price: Validators.parseMoney(_price.text) ?? 0,
         imageUrl: _imageUrl,

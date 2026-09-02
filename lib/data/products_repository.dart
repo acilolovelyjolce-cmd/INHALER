@@ -144,10 +144,15 @@ class ProductsRepository {
     }
     try {
       await _api.put('/api/parts/${option.id}', {
-        ...option.toJson(),
+        'id': option.id,
+        'name': option.name,
+        'price': option.price,
+        'stock': option.stock,
         'kind': trinket ? 'trinket' : 'paracord',
+        if (option.imageUrl != null && option.imageUrl!.trim().isNotEmpty) 'image_url': option.imageUrl,
       });
-    } on ApiException {
+    } on ApiException catch (error) {
+      if (error.status != 404) rethrow;
       await _fanOutPart(option, trinket: trinket);
     }
   }
@@ -159,7 +164,8 @@ class ProductsRepository {
     }
     try {
       await _api.delete('/api/parts/$id');
-    } on ApiException {
+    } on ApiException catch (error) {
+      if (error.status != 404) rethrow;
       final products = await _fetchMine();
       for (final product in products) {
         await upsert(

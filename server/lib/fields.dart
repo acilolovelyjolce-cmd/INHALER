@@ -1,3 +1,5 @@
+import 'package:mongo_dart/mongo_dart.dart';
+
 class BadRequest implements Exception {
   BadRequest(this.message);
   final String message;
@@ -16,7 +18,40 @@ String asString(Object? value) {
   if (value == null) return '';
   if (value is String) return value;
   if (value is num || value is bool) return value.toString();
-  return '';
+  if (value is ObjectId) return value.oid;
+  return value.toString();
+}
+
+bool sameId(Object? a, Object? b) {
+  final left = asString(a);
+  return left.isNotEmpty && left == asString(b);
+}
+
+Map<String, dynamic> bsonMap(Map<Object?, Object?> raw) {
+  final out = <String, dynamic>{};
+  raw.forEach((key, value) {
+    final name = asString(key);
+    if (name.isEmpty || name.startsWith(r'$') || name.contains('.')) return;
+    out[name] = bsonValue(value);
+  });
+  return out;
+}
+
+Object? bsonValue(Object? value) {
+  if (value == null || value is String || value is bool || value is int) {
+    return value;
+  }
+  if (value is DateTime) return value.toUtc();
+  if (value is ObjectId) return value;
+  if (value is num) {
+    final parsed = value.toDouble();
+    return parsed.isFinite ? parsed : 0;
+  }
+  if (value is Map) return bsonMap(Map<Object?, Object?>.from(value));
+  if (value is Iterable && value is! String) {
+    return [for (final item in value) bsonValue(item)];
+  }
+  return value;
 }
 
 String cleanLine(Object? value, {int max = 200}) {

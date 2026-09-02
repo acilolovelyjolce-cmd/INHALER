@@ -25,6 +25,7 @@ class ProductFormSheet extends ConsumerStatefulWidget {
 
 class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   final _formKey = GlobalKey<FormState>();
+  late final String _id;
   late final TextEditingController _name;
   late final TextEditingController _description;
   late final TextEditingController _price;
@@ -40,6 +41,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   void initState() {
     super.initState();
     final p = widget.existing;
+    _id = p?.id ?? const Uuid().v4();
     _name = TextEditingController(text: p?.name ?? '');
     _description = TextEditingController(text: p?.description ?? '');
     _price = TextEditingController(text: p == null ? '' : p.price.toStringAsFixed(0));
@@ -87,6 +89,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     final price = Validators.parseMoney(_price.text);
     if (price == null) return;
@@ -106,7 +109,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
       final existing = widget.existing;
       final auth = ref.read(authProvider).valueOrNull;
       final product = Product(
-        id: existing?.id ?? const Uuid().v4(),
+        id: _id,
         ownerId: existing?.ownerId ?? auth?.userId,
         name: Validators.cleanLine(_name.text),
         description: Validators.cleanMultiline(_description.text),

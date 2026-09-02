@@ -44,6 +44,14 @@ class ApiClient {
 
   Uri _uri(String path) => Uri.parse('$origin$path');
 
+  String _encode(Object body) {
+    try {
+      return jsonEncode(body);
+    } catch (_) {
+      throw ApiException('That form could not be sent. Check the fields and try again.');
+    }
+  }
+
   Map<String, String> _headers({bool json = true, bool auth = true}) {
     return {
       if (json) 'Content-Type': 'application/json',
@@ -66,7 +74,7 @@ class ApiClient {
     final response = await _http.post(
       _uri(path),
       headers: _headers(),
-      body: body == null ? null : jsonEncode(body),
+      body: body == null ? null : _encode(body),
     );
     return _decode(response);
   }
@@ -76,7 +84,7 @@ class ApiClient {
       final response = await _http.put(
         _uri(path),
         headers: _headers(),
-        body: body == null ? null : jsonEncode(body),
+        body: body == null ? null : _encode(body),
       );
       return _decode(response);
     });

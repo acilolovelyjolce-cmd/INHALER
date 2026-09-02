@@ -120,8 +120,8 @@ bool _publishedFlag(Object? value) {
 Future<List<Map<String, dynamic>>> _productsForOwner(Object ownerId) async {
   var rows = await Mongo.instance.products.find(where.eq('owner_id', ownerId)).toList();
   if (rows.isEmpty) {
-    final asText = ownerId.toString();
-    if (asText != ownerId) {
+    final asText = asString(ownerId);
+    if (asText.isNotEmpty && asText != ownerId) {
       rows = await Mongo.instance.products.find(where.eq('owner_id', asText)).toList();
     }
   }
@@ -307,7 +307,7 @@ Future<Response> _upsertProduct(Request request) async {
   final now = DateTime.now().toUtc();
   final id = parseId(request.params['id'] ?? body['id'], orElse: _uuid.v4);
   final existing = await Mongo.instance.products.findOne(where.eq('_id', id));
-  if (existing != null && existing['owner_id'] != owner['_id']) {
+  if (existing != null && !sameId(existing['owner_id'], owner['_id'])) {
     return jsonError(403, 'Not your product');
   }
   final name = cleanLine(body['name'] ?? existing?['name'], max: 80);
@@ -352,10 +352,11 @@ Future<Response> _upsertProduct(Request request) async {
   }
   doc['stock'] = stock;
   doc['stock_status'] = status;
-  if (existing == null) {
-    await Mongo.instance.products.insertOne(doc);
-  } else {
-    await Mongo.instance.products.replaceOne(where.eq('_id', id), doc);
+  try {
+    await mongoUpsert(Mongo.instance.products, id, doc);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] upsert product $id: $error\n$stack');
+    throw BadRequest('Could not save that inhaler. Check the fields and try again.');
   }
   return jsonOk(apiDoc(doc));
 }
@@ -366,7 +367,7 @@ Future<Response> _deleteProduct(Request request) async {
   final id = request.params['id']!;
   final existing = await Mongo.instance.products.findOne(where.eq('_id', id));
   if (existing == null) return jsonError(404, 'Not found');
-  if (existing['owner_id'] != owner['_id']) return jsonError(403, 'Not your product');
+  if (!sameId(existing['owner_id'], owner['_id'])) return jsonError(403, 'Not your product');
   await Mongo.instance.products.deleteOne(where.eq('_id', id));
   return jsonOk({'ok': true});
 }
@@ -493,7 +494,7 @@ Future<Response> _upsertPart(Request request) async {
   final id = parseId(request.params['id'] ?? body['id'], orElse: _uuid.v4);
   final kind = cleanLine(body['kind']).toLowerCase() == 'trinket' ? 'trinket' : 'paracord';
   final existing = await Mongo.instance.parts.findOne(where.eq('_id', id));
-  if (existing != null && existing['owner_id'] != owner['_id']) {
+  if (existing != null && !sameId(existing['owner_id'], owner['_id'])) {
     return jsonError(403, 'Not your part');
   }
   final name = cleanLine(body['name'] ?? existing?['name'], max: 80);
@@ -509,10 +510,11 @@ Future<Response> _upsertPart(Request request) async {
     'created_at': parseDate(existing?['created_at'], fallback: now),
     'updated_at': now,
   };
-  if (existing == null) {
-    await Mongo.instance.parts.insertOne(doc);
-  } else {
-    await Mongo.instance.parts.replaceOne(where.eq('_id', id), doc);
+  try {
+    await mongoUpsert(Mongo.instance.parts, id, doc);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] upsert part $id: $error\n$stack');
+    throw BadRequest('Could not save that $kind. Check the name, price, and photo, then try again.');
   }
   await _attachParts(owner['_id']);
   return jsonOk(apiDoc(doc));
@@ -524,7 +526,7 @@ Future<Response> _deletePart(Request request) async {
   final id = request.params['id']!;
   final existing = await Mongo.instance.parts.findOne(where.eq('_id', id));
   if (existing == null) return jsonError(404, 'Not found');
-  if (existing['owner_id'] != owner['_id']) return jsonError(403, 'Not your part');
+  if (!sameId(existing['owner_id'], owner['_id'])) return jsonError(403, 'Not your part');
   await Mongo.instance.parts.deleteOne(where.eq('_id', id));
   await _attachParts(owner['_id']);
   return jsonOk({'ok': true});
@@ -533,8 +535,8 @@ Future<Response> _deletePart(Request request) async {
 Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(Object ownerId) async {
   var rows = await Mongo.instance.parts.find(where.eq('owner_id', ownerId)).toList();
   if (rows.isEmpty) {
-    final asText = ownerId.toString();
-    if (asText != ownerId) {
+    final asText = asString(ownerId);
+    if (asText.isNotEmpty && asText != ownerId) {
       rows = await Mongo.instance.parts.find(where.eq('owner_id', asText)).toList();
     }
   }
@@ -559,21 +561,27 @@ Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(Ob
 }
 
 Future<void> _attachParts(Object ownerId) async {
-  final options = await _partOptions(ownerId);
-  if (options.$1.isEmpty && options.$2.isEmpty) return;
-  var products = await Mongo.instance.products.find(where.eq('owner_id', ownerId)).toList();
-  if (products.isEmpty) {
-    final asText = ownerId.toString();
-    if (asText != ownerId) {
-      products = await Mongo.instance.products.find(where.eq('owner_id', asText)).toList();
+  try {
+    final options = await _partOptions(ownerId);
+    if (options.$1.isEmpty && options.$2.isEmpty) return;
+    var products = await _productsForOwner(ownerId);
+    if (products.isEmpty) return;
+    final fields = {
+      'paracords': options.$1,
+      'trinkets': options.$2,
+      'updated_at': DateTime.now().toUtc(),
+    };
+    for (final product in products) {
+      final id = product['_id'];
+      if (id == null) continue;
+      try {
+        await mongoSet(Mongo.instance.products, id, fields);
+      } catch (error, stack) {
+        stderr.writeln('[whimsical] attach parts to $id: $error\n$stack');
+      }
     }
-  }
-  final now = DateTime.now().toUtc();
-  for (final product in products) {
-    product['paracords'] = options.$1;
-    product['trinkets'] = options.$2;
-    product['updated_at'] = now;
-    await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] attach parts: $error\n$stack');
   }
 }
 
@@ -600,19 +608,37 @@ Future<void> _writePartStocks(Object ownerId, List<Map<String, dynamic>> product
     }
   }
   for (final part in parts) {
-    final id = part['_id']?.toString() ?? '';
-    if (!stocks.containsKey(id)) continue;
-    part['stock'] = stocks[id];
-    part['updated_at'] = now;
-    await Mongo.instance.parts.replaceOne(where.eq('_id', part['_id']), part);
+    final id = part['_id'];
+    if (id == null) continue;
+    final key = asString(id);
+    if (!stocks.containsKey(key)) continue;
+    try {
+      await mongoSet(Mongo.instance.parts, id, {
+        'stock': stocks[key],
+        'updated_at': now,
+      });
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] write part stock $key: $error\n$stack');
+    }
   }
 }
 
 Future<void> _persistProducts(List<Map<String, dynamic>> products) async {
   final now = DateTime.now().toUtc();
   for (final product in products) {
-    product['updated_at'] = now;
-    await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+    final id = product['_id'];
+    if (id == null) continue;
+    try {
+      await mongoSet(Mongo.instance.products, id, {
+        'paracords': product['paracords'],
+        'trinkets': product['trinkets'],
+        'stock': product['stock'],
+        'stock_status': product['stock_status'],
+        'updated_at': now,
+      });
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] persist product $id: $error\n$stack');
+    }
   }
 }
 
