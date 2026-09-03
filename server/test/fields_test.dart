@@ -46,4 +46,15 @@ void main() {
     expect(parseInt(null), 0);
     expect(parseInt(8.9), 8);
   });
+
+  test('parsePartKind accepts lettering and special trinket names', () {
+    expect(parsePartKind('trinket'), 'trinket');
+    expect(parsePartKind('lettering'), 'lettering');
+    expect(parsePartKind('letter'), 'lettering');
+    expect(parsePartKind('special_trinket'), 'special_trinket');
+    expect(parsePartKind('special trinket'), 'special_trinket');
+    expect(parsePartKind('rope'), 'rope');
+    expect(parsePartKind('ropes'), 'rope');
+    expect(parsePartKind(null), 'paracord');
+  });
 }

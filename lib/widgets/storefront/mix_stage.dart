@@ -15,11 +15,17 @@ class MixStage extends StatefulWidget {
     required this.inhalerUrl,
     this.paracord,
     this.trinkets = const [],
+    this.letterings = const [],
+    this.rope,
+    this.specialTrinkets = const [],
   });
 
   final String? inhalerUrl;
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
+  final List<ProductOption> letterings;
+  final ProductOption? rope;
+  final List<ProductOption> specialTrinkets;
 
   static Key pieceKey(String id) => ValueKey('mix-piece-$id');
   static Key rotateKey(String id) => ValueKey('mix-rotate-$id');
@@ -74,22 +80,29 @@ class MixStageState extends State<MixStage> {
     return MixSprite(id: MixArrangement.cordId(option.id), url: url, kind: MixKind.cord);
   }
 
-  List<MixSprite> get _trinketSprites {
+  List<MixSprite> get _accessorySprites {
+    MixSprite? sprite(ProductOption item, MixKind kind, String Function(String) idOf) {
+      final url = optionPreviewUrl(item);
+      if (url == null) return null;
+      return MixSprite(id: idOf(item.id), url: url, kind: kind);
+    }
+
     return [
       for (final item in widget.trinkets)
-        if (optionPreviewUrl(item) != null)
-          MixSprite(
-            id: MixArrangement.trinketId(item.id),
-            url: optionPreviewUrl(item)!,
-            kind: MixKind.trinket,
-          ),
+        ?sprite(item, MixKind.trinket, MixArrangement.trinketId),
+      for (final item in widget.letterings)
+        ?sprite(item, MixKind.lettering, MixArrangement.letteringId),
+      if (widget.rope case final rope?)
+        ?sprite(rope, MixKind.rope, MixArrangement.ropeId),
+      for (final item in widget.specialTrinkets)
+        ?sprite(item, MixKind.specialTrinket, MixArrangement.specialId),
     ];
   }
 
   List<String> get _liveIds => [
         if (_inhaler != null) _inhaler!.id,
         if (_cord != null) _cord!.id,
-        for (final item in _trinketSprites) item.id,
+        for (final item in _accessorySprites) item.id,
       ];
 
   @override
@@ -115,12 +128,15 @@ class MixStageState extends State<MixStage> {
     if (_selected != null && !live.contains(_selected)) _selected = null;
     if (oldWidget.inhalerUrl != widget.inhalerUrl ||
         oldWidget.paracord?.id != widget.paracord?.id ||
-        !_sameTrinkets(oldWidget.trinkets, widget.trinkets)) {
+        !_sameOptions(oldWidget.trinkets, widget.trinkets) ||
+        !_sameOptions(oldWidget.letterings, widget.letterings) ||
+        oldWidget.rope?.id != widget.rope?.id ||
+        !_sameOptions(oldWidget.specialTrinkets, widget.specialTrinkets)) {
       _loadMetrics();
     }
   }
 
-  bool _sameTrinkets(List<ProductOption> a, List<ProductOption> b) {
+  bool _sameOptions(List<ProductOption> a, List<ProductOption> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i].id != b[i].id) return false;
@@ -132,7 +148,7 @@ class MixStageState extends State<MixStage> {
     final urls = [
       if (_inhaler != null) _inhaler!.url,
       if (_cord != null) _cord!.url,
-      for (final item in _trinketSprites) item.url,
+      for (final item in _accessorySprites) item.url,
     ];
     if (urls.isEmpty) return;
     final entries = await Future.wait([
@@ -261,7 +277,7 @@ class MixStageState extends State<MixStage> {
               stage: _stage,
               inhaler: _inhaler,
               cord: _cord,
-              trinkets: _trinketSprites,
+              trinkets: _accessorySprites,
               metrics: _metrics,
             );
             final byId = {for (final pose in bases) pose.id: pose};

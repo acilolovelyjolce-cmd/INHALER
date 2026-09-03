@@ -16,6 +16,9 @@ void main() {
     WidgetTester tester, {
     ProductOption? paracord,
     List<ProductOption> trinkets = const [],
+    List<ProductOption> letterings = const [],
+    ProductOption? rope,
+    List<ProductOption> specialTrinkets = const [],
     ValueNotifier<ProductOption?>? cordListenable,
   }) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -28,6 +31,9 @@ void main() {
         inhalerUrl: mixInhalerUrl(demoProducts().first),
         paracord: paracord ?? cordListenable?.value,
         trinkets: trinkets,
+        letterings: letterings,
+        rope: rope,
+        specialTrinkets: specialTrinkets,
       );
     }
 
@@ -62,6 +68,18 @@ void main() {
     await tester.dragFrom(tester.getRect(finder).center, delta, touchSlopX: 0, touchSlopY: 0);
     await tester.pump();
   }
+
+  testWidgets('renders lettering and special trinket pieces', (tester) async {
+    await pumpMix(
+      tester,
+      letterings: [demoLetterings.first],
+      rope: demoRopes.first,
+      specialTrinkets: [demoSpecialTrinkets.first],
+    );
+    expect(piece(MixArrangement.letteringId(demoLetterings.first.id)), findsOneWidget);
+    expect(piece(MixArrangement.ropeId(demoRopes.first.id)), findsOneWidget);
+    expect(piece(MixArrangement.specialId(demoSpecialTrinkets.first.id)), findsOneWidget);
+  });
 
   testWidgets('renders inhaler, paracord, and trinket pieces', (tester) async {
     await pumpMix(

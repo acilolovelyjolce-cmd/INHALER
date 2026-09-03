@@ -1,9 +1,13 @@
+import 'part_kind.dart';
 import 'product.dart';
 
 class PartsCatalog {
   const PartsCatalog({
     this.paracords = const [],
     this.trinkets = const [],
+    this.letterings = const [],
+    this.ropes = const [],
+    this.specialTrinkets = const [],
   });
 
   factory PartsCatalog.fromJson(Map<String, dynamic> json) {
@@ -11,11 +15,30 @@ class PartsCatalog {
     return PartsCatalog(
       paracords: options.fromJson(json['paracords']),
       trinkets: options.fromJson(json['trinkets']),
+      letterings: options.fromJson(json['letterings']),
+      ropes: options.fromJson(json['ropes']),
+      specialTrinkets: options.fromJson(json['special_trinkets']),
     );
   }
 
   final List<ProductOption> paracords;
   final List<ProductOption> trinkets;
+  final List<ProductOption> letterings;
+  final List<ProductOption> ropes;
+  final List<ProductOption> specialTrinkets;
 
-  List<ProductOption> of(String kind) => kind == 'trinket' ? trinkets : paracords;
+  List<ProductOption> of(PartKind kind) => switch (kind) {
+        PartKind.paracord => paracords,
+        PartKind.trinket => trinkets,
+        PartKind.lettering => letterings,
+        PartKind.rope => ropes,
+        PartKind.specialTrinket => specialTrinkets,
+      };
+
+  int get totalCount =>
+      paracords.length +
+      trinkets.length +
+      letterings.length +
+      ropes.length +
+      specialTrinkets.length;
 }

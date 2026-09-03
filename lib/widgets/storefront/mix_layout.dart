@@ -7,7 +7,7 @@ const kMixAlignAngle = 0.12;
 const kMixMinScale = 0.4;
 const kMixMaxScale = 2.5;
 
-enum MixKind { inhaler, cord, trinket }
+enum MixKind { inhaler, cord, trinket, lettering, rope, specialTrinket }
 
 class MixSprite {
   const MixSprite({
@@ -92,6 +92,9 @@ abstract final class MixArrangement {
 
   static String cordId(String optionId) => 'cord-$optionId';
   static String trinketId(String optionId) => 'trinket-$optionId';
+  static String letteringId(String optionId) => 'letter-$optionId';
+  static String ropeId(String optionId) => 'rope-$optionId';
+  static String specialId(String optionId) => 'special-$optionId';
 
   static double aspectOf(Map<String, Size> metrics, String? url, double fallback) {
     if (url == null) return fallback;
@@ -169,7 +172,13 @@ abstract final class MixArrangement {
     final rightSlot = Offset(cx + inhalerW * 0.88, clip.dy - 2);
     for (var i = 0; i < trinkets.length; i++) {
       final item = trinkets[i];
-      final sized = sizeAtLeast(aspectOf(metrics, item.url, 0.9), minAccessory);
+      final fallback = switch (item.kind) {
+        MixKind.lettering => 0.7,
+        MixKind.rope => 2.2,
+        MixKind.specialTrinket => 0.9,
+        _ => 0.9,
+      };
+      final sized = sizeAtLeast(aspectOf(metrics, item.url, fallback), minAccessory);
       final attach = switch (trinkets.length) {
         1 => rightSlot,
         2 => i == 0 ? leftSlot : rightSlot,
@@ -182,7 +191,7 @@ abstract final class MixArrangement {
         MixPiecePose(
           id: item.id,
           url: item.url,
-          kind: MixKind.trinket,
+          kind: item.kind,
           left: attach.dx - sized.width / 2,
           top: attach.dy - sized.height * 0.78,
           width: sized.width,

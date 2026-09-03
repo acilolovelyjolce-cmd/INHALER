@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$OrderItem {
 
-@JsonKey(name: 'product_id') String get productId;@JsonKey(name: 'product_name') String get productName;@JsonKey(name: 'variant_selection') Map<String, dynamic>? get variantSelection; int get quantity;@NumDoubleConverter()@JsonKey(name: 'price_at_order') double get priceAtOrder; Map<String, dynamic>? get paracord; List<Map<String, dynamic>>? get trinkets;
+@JsonKey(name: 'product_id') String get productId;@JsonKey(name: 'product_name') String get productName;@JsonKey(name: 'variant_selection') Map<String, dynamic>? get variantSelection; int get quantity;@NumDoubleConverter()@JsonKey(name: 'price_at_order') double get priceAtOrder; Map<String, dynamic>? get paracord; List<Map<String, dynamic>>? get trinkets; List<Map<String, dynamic>>? get letterings; Map<String, dynamic>? get rope;@JsonKey(name: 'special_trinkets') List<Map<String, dynamic>>? get specialTrinkets;
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $OrderItemCopyWith<OrderItem> get copyWith => _$OrderItemCopyWithImpl<OrderItem>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&const DeepCollectionEquality().equals(other.variantSelection, variantSelection)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.priceAtOrder, priceAtOrder) || other.priceAtOrder == priceAtOrder)&&const DeepCollectionEquality().equals(other.paracord, paracord)&&const DeepCollectionEquality().equals(other.trinkets, trinkets));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&const DeepCollectionEquality().equals(other.variantSelection, variantSelection)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.priceAtOrder, priceAtOrder) || other.priceAtOrder == priceAtOrder)&&const DeepCollectionEquality().equals(other.paracord, paracord)&&const DeepCollectionEquality().equals(other.trinkets, trinkets)&&const DeepCollectionEquality().equals(other.letterings, letterings)&&const DeepCollectionEquality().equals(other.rope, rope)&&const DeepCollectionEquality().equals(other.specialTrinkets, specialTrinkets));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productId,productName,const DeepCollectionEquality().hash(variantSelection),quantity,priceAtOrder,const DeepCollectionEquality().hash(paracord),const DeepCollectionEquality().hash(trinkets));
+int get hashCode => Object.hash(runtimeType,productId,productName,const DeepCollectionEquality().hash(variantSelection),quantity,priceAtOrder,const DeepCollectionEquality().hash(paracord),const DeepCollectionEquality().hash(trinkets),const DeepCollectionEquality().hash(letterings),const DeepCollectionEquality().hash(rope),const DeepCollectionEquality().hash(specialTrinkets));
 
 @override
 String toString() {
-  return 'OrderItem(productId: $productId, productName: $productName, variantSelection: $variantSelection, quantity: $quantity, priceAtOrder: $priceAtOrder, paracord: $paracord, trinkets: $trinkets)';
+  return 'OrderItem(productId: $productId, productName: $productName, variantSelection: $variantSelection, quantity: $quantity, priceAtOrder: $priceAtOrder, paracord: $paracord, trinkets: $trinkets, letterings: $letterings, rope: $rope, specialTrinkets: $specialTrinkets)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $OrderItemCopyWith<$Res>  {
   factory $OrderItemCopyWith(OrderItem value, $Res Function(OrderItem) _then) = _$OrderItemCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'product_name') String productName,@JsonKey(name: 'variant_selection') Map<String, dynamic>? variantSelection, int quantity,@NumDoubleConverter()@JsonKey(name: 'price_at_order') double priceAtOrder, Map<String, dynamic>? paracord, List<Map<String, dynamic>>? trinkets
+@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'product_name') String productName,@JsonKey(name: 'variant_selection') Map<String, dynamic>? variantSelection, int quantity,@NumDoubleConverter()@JsonKey(name: 'price_at_order') double priceAtOrder, Map<String, dynamic>? paracord, List<Map<String, dynamic>>? trinkets, List<Map<String, dynamic>>? letterings, Map<String, dynamic>? rope,@JsonKey(name: 'special_trinkets') List<Map<String, dynamic>>? specialTrinkets
 });
 
 
@@ -65,7 +65,7 @@ class _$OrderItemCopyWithImpl<$Res>
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? productId = null,Object? productName = null,Object? variantSelection = freezed,Object? quantity = null,Object? priceAtOrder = null,Object? paracord = freezed,Object? trinkets = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? productId = null,Object? productName = null,Object? variantSelection = freezed,Object? quantity = null,Object? priceAtOrder = null,Object? paracord = freezed,Object? trinkets = freezed,Object? letterings = freezed,Object? rope = freezed,Object? specialTrinkets = freezed,}) {
   return _then(_self.copyWith(
 productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
 as String,productName: null == productName ? _self.productName : productName // ignore: cast_nullable_to_non_nullable
@@ -74,6 +74,9 @@ as Map<String, dynamic>?,quantity: null == quantity ? _self.quantity : quantity 
 as int,priceAtOrder: null == priceAtOrder ? _self.priceAtOrder : priceAtOrder // ignore: cast_nullable_to_non_nullable
 as double,paracord: freezed == paracord ? _self.paracord : paracord // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,trinkets: freezed == trinkets ? _self.trinkets : trinkets // ignore: cast_nullable_to_non_nullable
+as List<Map<String, dynamic>>?,letterings: freezed == letterings ? _self.letterings : letterings // ignore: cast_nullable_to_non_nullable
+as List<Map<String, dynamic>>?,rope: freezed == rope ? _self.rope : rope // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,specialTrinkets: freezed == specialTrinkets ? _self.specialTrinkets : specialTrinkets // ignore: cast_nullable_to_non_nullable
 as List<Map<String, dynamic>>?,
   ));
 }
@@ -159,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets,  List<Map<String, dynamic>>? letterings,  Map<String, dynamic>? rope, @JsonKey(name: 'special_trinkets')  List<Map<String, dynamic>>? specialTrinkets)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderItem() when $default != null:
-return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets);case _:
+return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets,_that.letterings,_that.rope,_that.specialTrinkets);case _:
   return orElse();
 
 }
@@ -180,10 +183,10 @@ return $default(_that.productId,_that.productName,_that.variantSelection,_that.q
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets,  List<Map<String, dynamic>>? letterings,  Map<String, dynamic>? rope, @JsonKey(name: 'special_trinkets')  List<Map<String, dynamic>>? specialTrinkets)  $default,) {final _that = this;
 switch (_that) {
 case _OrderItem():
-return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets);case _:
+return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets,_that.letterings,_that.rope,_that.specialTrinkets);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +203,10 @@ return $default(_that.productId,_that.productName,_that.variantSelection,_that.q
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'product_name')  String productName, @JsonKey(name: 'variant_selection')  Map<String, dynamic>? variantSelection,  int quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order')  double priceAtOrder,  Map<String, dynamic>? paracord,  List<Map<String, dynamic>>? trinkets,  List<Map<String, dynamic>>? letterings,  Map<String, dynamic>? rope, @JsonKey(name: 'special_trinkets')  List<Map<String, dynamic>>? specialTrinkets)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderItem() when $default != null:
-return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets);case _:
+return $default(_that.productId,_that.productName,_that.variantSelection,_that.quantity,_that.priceAtOrder,_that.paracord,_that.trinkets,_that.letterings,_that.rope,_that.specialTrinkets);case _:
   return null;
 
 }
@@ -215,7 +218,7 @@ return $default(_that.productId,_that.productName,_that.variantSelection,_that.q
 
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class _OrderItem implements OrderItem {
-  const _OrderItem({@JsonKey(name: 'product_id') required this.productId, @JsonKey(name: 'product_name') required this.productName, @JsonKey(name: 'variant_selection') final  Map<String, dynamic>? variantSelection, required this.quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order') required this.priceAtOrder, final  Map<String, dynamic>? paracord, final  List<Map<String, dynamic>>? trinkets}): _variantSelection = variantSelection,_paracord = paracord,_trinkets = trinkets;
+  const _OrderItem({@JsonKey(name: 'product_id') required this.productId, @JsonKey(name: 'product_name') required this.productName, @JsonKey(name: 'variant_selection') final  Map<String, dynamic>? variantSelection, required this.quantity, @NumDoubleConverter()@JsonKey(name: 'price_at_order') required this.priceAtOrder, final  Map<String, dynamic>? paracord, final  List<Map<String, dynamic>>? trinkets, final  List<Map<String, dynamic>>? letterings, final  Map<String, dynamic>? rope, @JsonKey(name: 'special_trinkets') final  List<Map<String, dynamic>>? specialTrinkets}): _variantSelection = variantSelection,_paracord = paracord,_trinkets = trinkets,_letterings = letterings,_rope = rope,_specialTrinkets = specialTrinkets;
   factory _OrderItem.fromJson(Map<String, dynamic> json) => _$OrderItemFromJson(json);
 
 @override@JsonKey(name: 'product_id') final  String productId;
@@ -249,6 +252,33 @@ class _OrderItem implements OrderItem {
   return EqualUnmodifiableListView(value);
 }
 
+ final  List<Map<String, dynamic>>? _letterings;
+@override List<Map<String, dynamic>>? get letterings {
+  final value = _letterings;
+  if (value == null) return null;
+  if (_letterings is EqualUnmodifiableListView) return _letterings;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+ final  Map<String, dynamic>? _rope;
+@override Map<String, dynamic>? get rope {
+  final value = _rope;
+  if (value == null) return null;
+  if (_rope is EqualUnmodifiableMapView) return _rope;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
+ final  List<Map<String, dynamic>>? _specialTrinkets;
+@override@JsonKey(name: 'special_trinkets') List<Map<String, dynamic>>? get specialTrinkets {
+  final value = _specialTrinkets;
+  if (value == null) return null;
+  if (_specialTrinkets is EqualUnmodifiableListView) return _specialTrinkets;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
@@ -263,16 +293,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&const DeepCollectionEquality().equals(other._variantSelection, _variantSelection)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.priceAtOrder, priceAtOrder) || other.priceAtOrder == priceAtOrder)&&const DeepCollectionEquality().equals(other._paracord, _paracord)&&const DeepCollectionEquality().equals(other._trinkets, _trinkets));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&const DeepCollectionEquality().equals(other._variantSelection, _variantSelection)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.priceAtOrder, priceAtOrder) || other.priceAtOrder == priceAtOrder)&&const DeepCollectionEquality().equals(other._paracord, _paracord)&&const DeepCollectionEquality().equals(other._trinkets, _trinkets)&&const DeepCollectionEquality().equals(other._letterings, _letterings)&&const DeepCollectionEquality().equals(other._rope, _rope)&&const DeepCollectionEquality().equals(other._specialTrinkets, _specialTrinkets));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productId,productName,const DeepCollectionEquality().hash(_variantSelection),quantity,priceAtOrder,const DeepCollectionEquality().hash(_paracord),const DeepCollectionEquality().hash(_trinkets));
+int get hashCode => Object.hash(runtimeType,productId,productName,const DeepCollectionEquality().hash(_variantSelection),quantity,priceAtOrder,const DeepCollectionEquality().hash(_paracord),const DeepCollectionEquality().hash(_trinkets),const DeepCollectionEquality().hash(_letterings),const DeepCollectionEquality().hash(_rope),const DeepCollectionEquality().hash(_specialTrinkets));
 
 @override
 String toString() {
-  return 'OrderItem(productId: $productId, productName: $productName, variantSelection: $variantSelection, quantity: $quantity, priceAtOrder: $priceAtOrder, paracord: $paracord, trinkets: $trinkets)';
+  return 'OrderItem(productId: $productId, productName: $productName, variantSelection: $variantSelection, quantity: $quantity, priceAtOrder: $priceAtOrder, paracord: $paracord, trinkets: $trinkets, letterings: $letterings, rope: $rope, specialTrinkets: $specialTrinkets)';
 }
 
 
@@ -283,7 +313,7 @@ abstract mixin class _$OrderItemCopyWith<$Res> implements $OrderItemCopyWith<$Re
   factory _$OrderItemCopyWith(_OrderItem value, $Res Function(_OrderItem) _then) = __$OrderItemCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'product_name') String productName,@JsonKey(name: 'variant_selection') Map<String, dynamic>? variantSelection, int quantity,@NumDoubleConverter()@JsonKey(name: 'price_at_order') double priceAtOrder, Map<String, dynamic>? paracord, List<Map<String, dynamic>>? trinkets
+@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'product_name') String productName,@JsonKey(name: 'variant_selection') Map<String, dynamic>? variantSelection, int quantity,@NumDoubleConverter()@JsonKey(name: 'price_at_order') double priceAtOrder, Map<String, dynamic>? paracord, List<Map<String, dynamic>>? trinkets, List<Map<String, dynamic>>? letterings, Map<String, dynamic>? rope,@JsonKey(name: 'special_trinkets') List<Map<String, dynamic>>? specialTrinkets
 });
 
 
@@ -300,7 +330,7 @@ class __$OrderItemCopyWithImpl<$Res>
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? productId = null,Object? productName = null,Object? variantSelection = freezed,Object? quantity = null,Object? priceAtOrder = null,Object? paracord = freezed,Object? trinkets = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? productId = null,Object? productName = null,Object? variantSelection = freezed,Object? quantity = null,Object? priceAtOrder = null,Object? paracord = freezed,Object? trinkets = freezed,Object? letterings = freezed,Object? rope = freezed,Object? specialTrinkets = freezed,}) {
   return _then(_OrderItem(
 productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
 as String,productName: null == productName ? _self.productName : productName // ignore: cast_nullable_to_non_nullable
@@ -309,6 +339,9 @@ as Map<String, dynamic>?,quantity: null == quantity ? _self.quantity : quantity 
 as int,priceAtOrder: null == priceAtOrder ? _self.priceAtOrder : priceAtOrder // ignore: cast_nullable_to_non_nullable
 as double,paracord: freezed == paracord ? _self._paracord : paracord // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,trinkets: freezed == trinkets ? _self._trinkets : trinkets // ignore: cast_nullable_to_non_nullable
+as List<Map<String, dynamic>>?,letterings: freezed == letterings ? _self._letterings : letterings // ignore: cast_nullable_to_non_nullable
+as List<Map<String, dynamic>>?,rope: freezed == rope ? _self._rope : rope // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,specialTrinkets: freezed == specialTrinkets ? _self._specialTrinkets : specialTrinkets // ignore: cast_nullable_to_non_nullable
 as List<Map<String, dynamic>>?,
   ));
 }

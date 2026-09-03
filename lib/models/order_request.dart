@@ -47,6 +47,9 @@ abstract class OrderItem with _$OrderItem {
     @NumDoubleConverter() @JsonKey(name: 'price_at_order') required double priceAtOrder,
     Map<String, dynamic>? paracord,
     List<Map<String, dynamic>>? trinkets,
+    List<Map<String, dynamic>>? letterings,
+    Map<String, dynamic>? rope,
+    @JsonKey(name: 'special_trinkets') List<Map<String, dynamic>>? specialTrinkets,
   }) = _OrderItem;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => _$OrderItemFromJson(json);

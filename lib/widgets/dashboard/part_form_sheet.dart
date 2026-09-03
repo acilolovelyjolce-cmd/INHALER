@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/validators.dart';
+import '../../models/part_kind.dart';
 import '../../models/product.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_providers.dart';
@@ -15,9 +16,9 @@ import '../ui/whimsical_sheet.dart';
 import '../ui/whimsical_text_field.dart';
 
 class PartFormSheet extends ConsumerStatefulWidget {
-  const PartFormSheet({super.key, required this.trinket, this.existing});
+  const PartFormSheet({super.key, required this.kind, this.existing});
 
-  final bool trinket;
+  final PartKind kind;
   final ProductOption? existing;
 
   @override
@@ -92,7 +93,7 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
         imageUrl: _imageUrl,
         stock: Validators.parseStock(_stock.text) ?? 0,
       );
-      await ref.read(productsRepositoryProvider).upsertPart(option, trinket: widget.trinket);
+      await ref.read(productsRepositoryProvider).upsertPart(option, kind: widget.kind);
       ref.invalidate(ownerPartsProvider);
       ref.invalidate(ownerProductsProvider);
       if (mounted) Navigator.of(context).pop(true);
@@ -109,11 +110,11 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final label = widget.trinket ? 'trinket' : 'paracord';
+    final label = widget.kind.noun;
     return SheetScaffold(
       title: widget.existing == null ? 'New $label' : 'Edit $label',
       actions: WhimsicalButton(
-        label: widget.existing == null ? 'Add $label' : 'Save changes',
+        label: widget.existing == null ? widget.kind.addLabel : 'Save changes',
         expand: true,
         busy: _saving,
         onPressed: _save,
@@ -151,16 +152,14 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
             ),
             const SizedBox(height: 18),
             Text(
-              widget.trinket
-                  ? 'This charm is offered on every inhaler. Customers can pick as many as they like.'
-                  : 'This cord is offered on every inhaler. Customers pick one color.',
+              widget.kind.formHelp,
               style: AppTypography.bodySmall.copyWith(height: 1.45),
             ),
             const SizedBox(height: 18),
             WhimsicalTextField(
               controller: _name,
               label: 'Name',
-              hint: widget.trinket ? 'Baby Rex' : 'Mint paracord',
+              hint: widget.kind.hint,
               validator: Validators.name,
             ),
             const SizedBox(height: 14),

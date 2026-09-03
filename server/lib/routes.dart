@@ -324,6 +324,9 @@ Future<Response> _upsertProduct(Request request) async {
     'category': '',
     'paracords': <Map<String, dynamic>>[],
     'trinkets': <Map<String, dynamic>>[],
+    'letterings': <Map<String, dynamic>>[],
+    'ropes': <Map<String, dynamic>>[],
+    'special_trinkets': <Map<String, dynamic>>[],
     'stock': parseInt(body['stock'] ?? existing?['stock']),
     'stock_status': parseStockStatus(
       body['stock_status'] ?? existing?['stock_status'],
@@ -334,12 +337,15 @@ Future<Response> _upsertProduct(Request request) async {
     'updated_at': now,
   };
   final options = await _partOptions(owner['_id']);
-  if (options.$1.isNotEmpty || options.$2.isNotEmpty) {
-    doc['paracords'] = options.$1;
-    doc['trinkets'] = options.$2;
+  if (options.hasAny) {
+    doc.addAll(options.productFields);
   } else {
     doc['paracords'] = parseOptions(body['paracords'] ?? existing?['paracords']);
     doc['trinkets'] = parseOptions(body['trinkets'] ?? existing?['trinkets']);
+    doc['letterings'] = parseOptions(body['letterings'] ?? existing?['letterings']);
+    doc['ropes'] = parseOptions(body['ropes'] ?? existing?['ropes']);
+    doc['special_trinkets'] =
+        parseOptions(body['special_trinkets'] ?? existing?['special_trinkets']);
   }
   final stock = parseInt(doc['stock']);
   var status = doc['stock_status']?.toString() ?? 'available';
@@ -483,7 +489,7 @@ Future<Response> _myParts(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
   final options = await _partOptions(owner['_id']);
-  return jsonOk({'paracords': options.$1, 'trinkets': options.$2});
+  return jsonOk(options.json);
 }
 
 Future<Response> _upsertPart(Request request) async {
@@ -492,7 +498,7 @@ Future<Response> _upsertPart(Request request) async {
   final body = await readJson(request);
   final now = DateTime.now().toUtc();
   final id = parseId(request.params['id'] ?? body['id'], orElse: _uuid.v4);
-  final kind = cleanLine(body['kind']).toLowerCase() == 'trinket' ? 'trinket' : 'paracord';
+  final kind = parsePartKind(body['kind']);
   final existing = await Mongo.instance.parts.findOne(where.eq('_id', id));
   if (existing != null && !sameId(existing['owner_id'], owner['_id'])) {
     return jsonError(403, 'Not your part');
@@ -532,7 +538,40 @@ Future<Response> _deletePart(Request request) async {
   return jsonOk({'ok': true});
 }
 
-Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(Object ownerId) async {
+class _ShopParts {
+  const _ShopParts({
+    required this.paracords,
+    required this.trinkets,
+    required this.letterings,
+    required this.ropes,
+    required this.specialTrinkets,
+  });
+
+  final List<Map<String, dynamic>> paracords;
+  final List<Map<String, dynamic>> trinkets;
+  final List<Map<String, dynamic>> letterings;
+  final List<Map<String, dynamic>> ropes;
+  final List<Map<String, dynamic>> specialTrinkets;
+
+  bool get hasAny =>
+      paracords.isNotEmpty ||
+      trinkets.isNotEmpty ||
+      letterings.isNotEmpty ||
+      ropes.isNotEmpty ||
+      specialTrinkets.isNotEmpty;
+
+  Map<String, List<Map<String, dynamic>>> get productFields => {
+        'paracords': paracords,
+        'trinkets': trinkets,
+        'letterings': letterings,
+        'ropes': ropes,
+        'special_trinkets': specialTrinkets,
+      };
+
+  Map<String, List<Map<String, dynamic>>> get json => productFields;
+}
+
+Future<_ShopParts> _partOptions(Object ownerId) async {
   var rows = await Mongo.instance.parts.find(where.eq('owner_id', ownerId)).toList();
   if (rows.isEmpty) {
     final asText = asString(ownerId);
@@ -542,6 +581,9 @@ Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(Ob
   }
   final cords = <Map<String, dynamic>>[];
   final charms = <Map<String, dynamic>>[];
+  final letters = <Map<String, dynamic>>[];
+  final ropeBag = <Map<String, dynamic>>[];
+  final specials = <Map<String, dynamic>>[];
   for (final row in rows) {
     final option = {
       'id': asString(row['_id']),
@@ -551,24 +593,35 @@ Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)> _partOptions(Ob
       'stock': parseInt(row['stock']),
     };
     if (asString(option['id']).isEmpty || asString(option['name']).isEmpty) continue;
-    if (row['kind'] == 'trinket') {
-      charms.add(option);
-    } else {
-      cords.add(option);
+    switch (asString(row['kind'])) {
+      case 'trinket':
+        charms.add(option);
+      case 'lettering':
+        letters.add(option);
+      case 'rope':
+        ropeBag.add(option);
+      case 'special_trinket':
+        specials.add(option);
+      default:
+        cords.add(option);
     }
   }
-  return (cords, charms);
+  return _ShopParts(
+    paracords: cords,
+    trinkets: charms,
+    letterings: letters,
+    ropes: ropeBag,
+    specialTrinkets: specials,
+  );
 }
 
 Future<void> _attachParts(Object ownerId) async {
   try {
     final options = await _partOptions(ownerId);
-    if (options.$1.isEmpty && options.$2.isEmpty) return;
     var products = await _productsForOwner(ownerId);
     if (products.isEmpty) return;
     final fields = {
-      'paracords': options.$1,
-      'trinkets': options.$2,
+      ...options.productFields,
       'updated_at': DateTime.now().toUtc(),
     };
     for (final product in products) {
@@ -588,7 +641,7 @@ Future<void> _attachParts(Object ownerId) async {
 Future<void> _writePartStocks(Object ownerId, List<Map<String, dynamic>> products) async {
   final stocks = <String, int>{};
   for (final product in products) {
-    for (final key in const ['paracords', 'trinkets']) {
+    for (final key in optionListKeys) {
       final list = product[key];
       if (list is! List) continue;
       for (final raw in list) {
@@ -632,6 +685,9 @@ Future<void> _persistProducts(List<Map<String, dynamic>> products) async {
       await mongoSet(Mongo.instance.products, id, {
         'paracords': product['paracords'],
         'trinkets': product['trinkets'],
+        'letterings': product['letterings'],
+        'ropes': product['ropes'],
+        'special_trinkets': product['special_trinkets'],
         'stock': product['stock'],
         'stock_status': product['stock_status'],
         'updated_at': now,

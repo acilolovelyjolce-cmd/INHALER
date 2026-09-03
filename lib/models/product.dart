@@ -65,6 +65,12 @@ abstract class Product with _$Product {
     required String category,
     @ProductOptionListConverter() @Default([]) List<ProductOption> paracords,
     @ProductOptionListConverter() @Default([]) List<ProductOption> trinkets,
+    @ProductOptionListConverter() @Default([]) List<ProductOption> letterings,
+    @ProductOptionListConverter() @Default([]) List<ProductOption> ropes,
+    @ProductOptionListConverter()
+    @JsonKey(name: 'special_trinkets')
+    @Default([])
+    List<ProductOption> specialTrinkets,
     @IntConverter() @Default(0) int stock,
     @JsonKey(name: 'stock_status') required StockStatus stockStatus,
     @JsonKey(name: 'is_published') required bool isPublished,
@@ -129,10 +135,24 @@ extension StockStatusX on StockStatus {
 }
 
 extension ProductPricingX on Product {
-  double linePrice({ProductOption? paracord, List<ProductOption> pickedTrinkets = const []}) {
+  Iterable<ProductOption> get allPartOptions =>
+      [...paracords, ...trinkets, ...letterings, ...ropes, ...specialTrinkets];
+
+  double linePrice({
+    ProductOption? paracord,
+    List<ProductOption> pickedTrinkets = const [],
+    List<ProductOption> pickedLetterings = const [],
+    ProductOption? rope,
+    List<ProductOption> pickedSpecials = const [],
+  }) {
+    double extras(List<ProductOption> items) =>
+        items.fold<double>(0, (sum, item) => sum + item.price);
     return price +
         (paracord?.price ?? 0) +
-        pickedTrinkets.fold<double>(0, (sum, item) => sum + item.price);
+        extras(pickedTrinkets) +
+        extras(pickedLetterings) +
+        (rope?.price ?? 0) +
+        extras(pickedSpecials);
   }
 
   bool get tracksInhalerStock => stockStatus != StockStatus.madeToOrder;
@@ -143,7 +163,7 @@ extension ProductPricingX on Product {
   String get optionStockSummary {
     final bits = [
       if (tracksInhalerStock) '$stock left',
-      for (final option in [...paracords, ...trinkets]) '${option.name} ${option.stock}',
+      for (final option in allPartOptions) '${option.name} ${option.stock}',
     ];
     if (bits.isEmpty) return '';
     return bits.take(4).join(' · ');

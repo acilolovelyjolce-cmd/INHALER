@@ -2,6 +2,16 @@ import '../models/order_request.dart';
 import '../models/product.dart';
 
 class OptionStock {
+  static List<ProductOption> _withStocks(
+    List<ProductOption> options,
+    Map<String, int> stocks,
+  ) {
+    return [
+      for (final option in options)
+        stocks.containsKey(option.id) ? option.copyWith(stock: stocks[option.id]!) : option,
+    ];
+  }
+
   static Map<String, int> needed(Iterable<OrderItem> items) {
     final need = <String, int>{};
     void add(Object? id, int qty) {
@@ -10,11 +20,18 @@ class OptionStock {
       need[key] = (need[key] ?? 0) + qty;
     }
 
+    void addAll(Iterable<Map<String, dynamic>>? rows, int qty) {
+      for (final row in rows ?? const <Map<String, dynamic>>[]) {
+        add(row['id'] ?? row['_id'], qty);
+      }
+    }
+
     for (final item in items) {
       add(item.paracord?['id'] ?? item.paracord?['_id'], item.quantity);
-      for (final trinket in item.trinkets ?? const <Map<String, dynamic>>[]) {
-        add(trinket['id'] ?? trinket['_id'], item.quantity);
-      }
+      add(item.rope?['id'] ?? item.rope?['_id'], item.quantity);
+      addAll(item.trinkets, item.quantity);
+      addAll(item.letterings, item.quantity);
+      addAll(item.specialTrinkets, item.quantity);
     }
     return need;
   }
@@ -30,7 +47,7 @@ class OptionStock {
 
   static int? of(Iterable<Product> products, String optionId) {
     for (final product in products) {
-      for (final option in [...product.paracords, ...product.trinkets]) {
+      for (final option in product.allPartOptions) {
         if (option.id == optionId) return option.stock;
       }
     }
@@ -39,7 +56,7 @@ class OptionStock {
 
   static String? nameOf(Iterable<Product> products, String optionId) {
     for (final product in products) {
-      for (final option in [...product.paracords, ...product.trinkets]) {
+      for (final option in product.allPartOptions) {
         if (option.id == optionId) return option.name;
       }
     }
@@ -88,18 +105,11 @@ class OptionStock {
     return [
       for (final product in products)
         product.copyWith(
-          paracords: [
-            for (final option in product.paracords)
-              nextStocks.containsKey(option.id)
-                  ? option.copyWith(stock: nextStocks[option.id]!)
-                  : option,
-          ],
-          trinkets: [
-            for (final option in product.trinkets)
-              nextStocks.containsKey(option.id)
-                  ? option.copyWith(stock: nextStocks[option.id]!)
-                  : option,
-          ],
+          paracords: _withStocks(product.paracords, nextStocks),
+          trinkets: _withStocks(product.trinkets, nextStocks),
+          letterings: _withStocks(product.letterings, nextStocks),
+          ropes: _withStocks(product.ropes, nextStocks),
+          specialTrinkets: _withStocks(product.specialTrinkets, nextStocks),
           stock: _nextInhalerStock(product, productNeed, sign),
           stockStatus: _nextStatus(product, productNeed, sign),
           updatedAt: now,
@@ -123,20 +133,17 @@ class OptionStock {
 
   static List<Product> syncFrom(Iterable<Product> products, Product source) {
     final stocks = <String, int>{
-      for (final option in [...source.paracords, ...source.trinkets]) option.id: option.stock,
+      for (final option in source.allPartOptions) option.id: option.stock,
     };
     if (stocks.isEmpty) return products.toList();
     return [
       for (final product in products)
         product.copyWith(
-          paracords: [
-            for (final option in product.paracords)
-              stocks.containsKey(option.id) ? option.copyWith(stock: stocks[option.id]!) : option,
-          ],
-          trinkets: [
-            for (final option in product.trinkets)
-              stocks.containsKey(option.id) ? option.copyWith(stock: stocks[option.id]!) : option,
-          ],
+          paracords: _withStocks(product.paracords, stocks),
+          trinkets: _withStocks(product.trinkets, stocks),
+          letterings: _withStocks(product.letterings, stocks),
+          ropes: _withStocks(product.ropes, stocks),
+          specialTrinkets: _withStocks(product.specialTrinkets, stocks),
         ),
     ];
   }

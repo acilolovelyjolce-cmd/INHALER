@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
 import '../../config/validators.dart';
+import '../../models/part_kind.dart';
 import '../../models/parts_catalog.dart';
 import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
@@ -15,7 +16,16 @@ import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_sheet.dart';
 import '../../widgets/ui/whimsical_text_field.dart';
 
-enum _CatalogSection { inhalers, paracords, trinkets }
+enum _CatalogSection { inhalers, paracords, trinkets, letterings, ropes, specialTrinkets }
+
+PartKind? _partKindFor(_CatalogSection section) => switch (section) {
+      _CatalogSection.paracords => PartKind.paracord,
+      _CatalogSection.trinkets => PartKind.trinket,
+      _CatalogSection.letterings => PartKind.lettering,
+      _CatalogSection.ropes => PartKind.rope,
+      _CatalogSection.specialTrinkets => PartKind.specialTrinket,
+      _CatalogSection.inhalers => null,
+    };
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -46,6 +56,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             PartsCatalog(
               paracords: _unique(products, (p) => p.paracords),
               trinkets: _unique(products, (p) => p.trinkets),
+              letterings: _unique(products, (p) => p.letterings),
+              ropes: _unique(products, (p) => p.ropes),
+              specialTrinkets: _unique(products, (p) => p.specialTrinkets),
             );
         return Column(
           children: [
@@ -88,6 +101,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                     _CatalogSection.inhalers => 'Inhalers',
                                     _CatalogSection.paracords => 'Paracords',
                                     _CatalogSection.trinkets => 'Trinkets',
+                                    _CatalogSection.letterings => 'Letterings',
+                                    _CatalogSection.ropes => 'Ropes',
+                                    _CatalogSection.specialTrinkets => 'Special trinkets',
                                   }),
                                   selected: _section == section,
                                   onSelected: (_) => setState(() => _section = section),
@@ -100,7 +116,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       ),
                       const SizedBox(width: 8),
                       WhimsicalButton(
-                        label: 'Add',
+                        label: _partKindFor(_section)?.addLabel ?? 'Add inhaler',
                         icon: Icons.add,
                         compact: true,
                         onPressed: () => _openAdd(context),
@@ -122,7 +138,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       if (products.isEmpty) {
         return const WhimsicalEmpty(
           title: 'No inhalers yet',
-          body: 'Add an inhaler and every paracord and trinket in the catalog will be offered with it.',
+          body: 'Add an inhaler and every paracord, trinket, lettering, rope, and special trinket in the catalog will be offered with it.',
         );
       }
       return ReorderableListView.builder(
@@ -166,14 +182,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       );
     }
 
-    final trinket = _section == _CatalogSection.trinkets;
-    final options = trinket ? bag.trinkets : bag.paracords;
+    final kind = _partKindFor(_section);
+    if (kind == null) return const SizedBox.shrink();
+    final options = bag.of(kind);
     if (options.isEmpty) {
       return WhimsicalEmpty(
-        title: trinket ? 'No trinkets yet' : 'No paracords yet',
-        body: trinket
-            ? 'Add a charm once. It will show up as an option on every inhaler.'
-            : 'Add a cord color once. It will show up as an option on every inhaler.',
+        title: kind.emptyTitle,
+        body: kind.emptyBody,
       );
     }
     return ListView.builder(
@@ -185,7 +200,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           option: option,
           onEdit: () => showWhimsicalSheet(
             context: context,
-            builder: (_) => PartFormSheet(trinket: trinket, existing: option),
+            builder: (_) => PartFormSheet(kind: kind, existing: option),
           ),
           onDelete: () => _deletePart(context, option),
         );
@@ -198,8 +213,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       context: context,
       builder: (_) => switch (_section) {
         _CatalogSection.inhalers => const ProductFormSheet(),
-        _CatalogSection.paracords => const PartFormSheet(trinket: false),
-        _CatalogSection.trinkets => const PartFormSheet(trinket: true),
+        _CatalogSection.paracords => const PartFormSheet(kind: PartKind.paracord),
+        _CatalogSection.trinkets => const PartFormSheet(kind: PartKind.trinket),
+        _CatalogSection.letterings => const PartFormSheet(kind: PartKind.lettering),
+        _CatalogSection.ropes => const PartFormSheet(kind: PartKind.rope),
+        _CatalogSection.specialTrinkets => const PartFormSheet(kind: PartKind.specialTrinket),
       },
     );
   }
@@ -288,7 +306,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         return AlertDialog(
           title: const Text('Delete this inhaler?'),
           content: Text(
-            '${product.name} will leave the catalog and the public shop. Cords and trinkets stay.',
+            '${product.name} will leave the catalog and the public shop. Cords, trinkets, letterings, ropes, and special trinkets stay.',
             style: AppTypography.body,
           ),
           actions: [

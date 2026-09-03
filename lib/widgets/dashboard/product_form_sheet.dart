@@ -119,6 +119,9 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
         category: '',
         paracords: existing?.paracords ?? const [],
         trinkets: existing?.trinkets ?? const [],
+        letterings: existing?.letterings ?? const [],
+        ropes: existing?.ropes ?? const [],
+        specialTrinkets: existing?.specialTrinkets ?? const [],
         stock: qty,
         stockStatus: status,
         isPublished: _published,
@@ -146,6 +149,9 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
     final parts = ref.watch(ownerPartsProvider).valueOrNull;
     final cordCount = parts?.paracords.length ?? 0;
     final charmCount = parts?.trinkets.length ?? 0;
+    final letteringCount = parts?.letterings.length ?? 0;
+    final ropeCount = parts?.ropes.length ?? 0;
+    final specialCount = parts?.specialTrinkets.length ?? 0;
 
     return SheetScaffold(
       title: widget.existing == null ? 'New inhaler' : 'Edit inhaler',
@@ -266,7 +272,7 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
             ),
             const SizedBox(height: 18),
             Text(
-              '$cordCount paracords and $charmCount trinkets will be offered with this inhaler automatically. Add those in Catalog.',
+              '$cordCount paracords, $charmCount trinkets, $letteringCount letterings, $ropeCount ropes, and $specialCount special trinkets will be offered with this inhaler automatically. Add those in Catalog.',
               style: AppTypography.bodySmall.copyWith(height: 1.45),
             ),
             const SizedBox(height: 18),

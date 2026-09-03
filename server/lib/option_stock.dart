@@ -4,6 +4,9 @@ int _asInt(Object? value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
+const optionListKeys = ['paracords', 'trinkets', 'letterings', 'ropes', 'special_trinkets'];
+const orderOptionListKeys = ['trinkets', 'letterings', 'special_trinkets'];
+
 String? _mapId(Object? raw) {
   if (raw is! Map) return null;
   final id = raw['id'] ?? raw['_id'];
@@ -31,10 +34,12 @@ Map<String, int> neededFromItems(Object? items) {
     final item = Map<Object?, Object?>.from(raw);
     final qty = _asInt(item['quantity'] ?? 1);
     add(_mapId(item['paracord']), qty);
-    final trinkets = item['trinkets'];
-    if (trinkets is List) {
-      for (final trinket in trinkets) {
-        add(_mapId(trinket), qty);
+    add(_mapId(item['rope']), qty);
+    for (final key in orderOptionListKeys) {
+      final list = item[key];
+      if (list is! List) continue;
+      for (final option in list) {
+        add(_mapId(option), qty);
       }
     }
   }
@@ -56,7 +61,7 @@ Map<String, int> neededProductsFromItems(Object? items) {
 
 int? stockOf(Iterable<Map<String, dynamic>> products, String optionId) {
   for (final product in products) {
-    for (final key in const ['paracords', 'trinkets']) {
+    for (final key in optionListKeys) {
       final list = product[key];
       if (list is! List) continue;
       for (final raw in list) {
@@ -71,7 +76,7 @@ int? stockOf(Iterable<Map<String, dynamic>> products, String optionId) {
 
 String? optionNameOf(Iterable<Map<String, dynamic>> products, String optionId) {
   for (final product in products) {
-    for (final key in const ['paracords', 'trinkets']) {
+    for (final key in optionListKeys) {
       final list = product[key];
       if (list is! List) continue;
       for (final raw in list) {
@@ -129,7 +134,7 @@ String? shortageMessage(Iterable<Map<String, dynamic>> products, Object? items) 
 void _writeStocks(List<Map<String, dynamic>> products, Map<String, int> stocks) {
   if (stocks.isEmpty) return;
   for (final product in products) {
-    for (final key in const ['paracords', 'trinkets']) {
+    for (final key in optionListKeys) {
       final list = product[key];
       if (list is! List) continue;
       product[key] = [
@@ -192,7 +197,7 @@ void applyOrderStock(
 
 void syncOptionStockFrom(List<Map<String, dynamic>> products, Map<String, dynamic> source) {
   final stocks = <String, int>{};
-  for (final key in const ['paracords', 'trinkets']) {
+  for (final key in optionListKeys) {
     final list = source[key];
     if (list is! List) continue;
     for (final raw in list) {

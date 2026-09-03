@@ -176,3 +176,14 @@ String parseStockStatus(Object? value, {String fallback = 'available'}) {
     _ => fallback,
   };
 }
+
+String parsePartKind(Object? value) {
+  final key = asString(value).trim().toLowerCase().replaceAll(' ', '_');
+  return switch (key) {
+    'trinket' => 'trinket',
+    'lettering' || 'letter' || 'letters' => 'lettering',
+    'rope' || 'ropes' => 'rope',
+    'special_trinket' || 'special' || 'specialtrinket' => 'special_trinket',
+    _ => 'paracord',
+  };
+}

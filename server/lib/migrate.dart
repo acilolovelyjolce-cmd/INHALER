@@ -18,6 +18,8 @@ Future<void> runMigrations() async {
     '003_option_stock': _optionStock,
     '004_parts_catalog': _partsCatalog,
     '005_product_stock': _productStock,
+    '006_letterings_and_special_trinkets': _letteringsAndSpecial,
+    '007_ropes': _ropes,
   };
 
   for (final entry in steps.entries) {
@@ -91,6 +93,18 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
     {'id': 't-star', 'name': 'Tiny Star', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_sparkle.svg', 'stock': 12},
     {'id': 't-heart', 'name': 'Heart charm', 'price': 35, 'image_url': 'asset:assets/doodles/doodle_heart.svg', 'stock': 12},
   ];
+  const letterings = [
+    {'id': 'l-a', 'name': 'Letter A', 'price': 25, 'image_url': 'asset:assets/doodles/doodle_sparkle.svg', 'stock': 20},
+    {'id': 'l-m', 'name': 'Letter M', 'price': 25, 'image_url': 'asset:assets/doodles/doodle_cloud.svg', 'stock': 20},
+  ];
+  const specialTrinkets = [
+    {'id': 's-pearl', 'name': 'Pearl Rex', 'price': 120, 'image_url': 'asset:assets/parts/charm_rex.svg', 'stock': 3},
+    {'id': 's-gold', 'name': 'Gold Stego', 'price': 120, 'image_url': 'asset:assets/parts/charm_stego.svg', 'stock': 3},
+  ];
+  const ropes = [
+    {'id': 'rope-gold', 'name': 'Gold rope', 'price': 30, 'image_url': 'asset:assets/parts/cord_blush.svg', 'stock': 10},
+    {'id': 'rope-silver', 'name': 'Silver rope', 'price': 30, 'image_url': 'asset:assets/parts/cord_sky.svg', 'stock': 10},
+  ];
 
   Map<String, dynamic> product({
     required String id,
@@ -115,6 +129,9 @@ List<Map<String, dynamic>> _catalog(String ownerId, String slug, DateTime now) {
       'category': category,
       'paracords': paracords,
       'trinkets': trinkets,
+      'letterings': letterings,
+      'ropes': ropes,
+      'special_trinkets': specialTrinkets,
       'stock': stockStatus == 'sold_out' ? 0 : 10,
       'stock_status': stockStatus,
       'is_published': true,
@@ -179,7 +196,7 @@ Future<void> _optionStock() async {
   final now = DateTime.now().toUtc();
   for (final row in rows) {
     row.remove('variants');
-    for (final key in const ['paracords', 'trinkets']) {
+    for (final key in const ['paracords', 'trinkets', 'letterings', 'ropes', 'special_trinkets']) {
       final list = row[key];
       if (list is! List) continue;
       row[key] = [
@@ -240,6 +257,24 @@ Future<void> _partsCatalog() async {
         take(ownerId, 'trinket', item);
       }
     }
+    final letters = row['letterings'];
+    if (letters is List) {
+      for (final item in letters) {
+        take(ownerId, 'lettering', item);
+      }
+    }
+    final ropeRows = row['ropes'];
+    if (ropeRows is List) {
+      for (final item in ropeRows) {
+        take(ownerId, 'rope', item);
+      }
+    }
+    final specials = row['special_trinkets'];
+    if (specials is List) {
+      for (final item in specials) {
+        take(ownerId, 'special_trinket', item);
+      }
+    }
   }
 
   for (final doc in docs) {
@@ -259,5 +294,134 @@ Future<void> _productStock() async {
     row['stock'] = sold ? 0 : 10;
     row['updated_at'] = now;
     await Mongo.instance.products.replaceOne(where.eq('_id', row['_id']), row);
+  }
+}
+
+Future<void> _letteringsAndSpecial() async {
+  final mongo = Mongo.instance;
+  final products = await mongo.products.find().toList();
+  final now = DateTime.now().toUtc();
+  final seen = <String>{};
+  for (final part in await mongo.parts.find().toList()) {
+    final ownerId = part['owner_id']?.toString() ?? '';
+    final id = part['_id']?.toString() ?? '';
+    if (ownerId.isNotEmpty && id.isNotEmpty) seen.add('$ownerId:$id');
+  }
+
+  final docs = <Map<String, dynamic>>[];
+  void take(String ownerId, String kind, Object? raw) {
+    if (raw is! Map) return;
+    final id = raw['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    if (!seen.add('$ownerId:$id')) return;
+    docs.add({
+      '_id': id,
+      'owner_id': ownerId,
+      'kind': kind,
+      'name': raw['name'] ?? '',
+      'price': raw['price'] ?? 0,
+      'image_url': raw['image_url'],
+      'stock': (raw['stock'] as num?)?.toInt() ?? 0,
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
+  for (final row in products) {
+    var changed = false;
+    if (row['letterings'] is! List) {
+      row['letterings'] = <Map<String, dynamic>>[];
+      changed = true;
+    }
+    if (row['special_trinkets'] is! List) {
+      row['special_trinkets'] = <Map<String, dynamic>>[];
+      changed = true;
+    }
+    if (changed) {
+      row['updated_at'] = now;
+      await mongo.products.replaceOne(where.eq('_id', row['_id']), row);
+    }
+
+    final ownerId = row['owner_id']?.toString() ?? '';
+    if (ownerId.isEmpty) continue;
+    final letters = row['letterings'];
+    if (letters is List) {
+      for (final item in letters) {
+        take(ownerId, 'lettering', item);
+      }
+    }
+    final ropeRows = row['ropes'];
+    if (ropeRows is List) {
+      for (final item in ropeRows) {
+        take(ownerId, 'rope', item);
+      }
+    }
+    final specials = row['special_trinkets'];
+    if (specials is List) {
+      for (final item in specials) {
+        take(ownerId, 'special_trinket', item);
+      }
+    }
+  }
+
+  for (final doc in docs) {
+    final existing = await mongo.parts.findOne(where.eq('_id', doc['_id']));
+    if (existing == null) {
+      await mongo.parts.insertOne(doc);
+    }
+  }
+}
+
+Future<void> _ropes() async {
+  final mongo = Mongo.instance;
+  final products = await mongo.products.find().toList();
+  final now = DateTime.now().toUtc();
+  final seen = <String>{};
+  for (final part in await mongo.parts.find().toList()) {
+    final ownerId = part['owner_id']?.toString() ?? '';
+    final id = part['_id']?.toString() ?? '';
+    if (ownerId.isNotEmpty && id.isNotEmpty) seen.add('$ownerId:$id');
+  }
+
+  final docs = <Map<String, dynamic>>[];
+  void take(String ownerId, Object? raw) {
+    if (raw is! Map) return;
+    final id = raw['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    if (!seen.add('$ownerId:$id')) return;
+    docs.add({
+      '_id': id,
+      'owner_id': ownerId,
+      'kind': 'rope',
+      'name': raw['name'] ?? '',
+      'price': raw['price'] ?? 0,
+      'image_url': raw['image_url'],
+      'stock': (raw['stock'] as num?)?.toInt() ?? 0,
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
+  for (final row in products) {
+    if (row['ropes'] is! List) {
+      row['ropes'] = <Map<String, dynamic>>[];
+      row['updated_at'] = now;
+      await mongo.products.replaceOne(where.eq('_id', row['_id']), row);
+    }
+    final ownerId = row['owner_id']?.toString() ?? '';
+    if (ownerId.isEmpty) continue;
+    final ropes = row['ropes'];
+    if (ropes is List) {
+      for (final item in ropes) {
+        take(ownerId, item);
+      }
+    }
+  }
+
+  for (final doc in docs) {
+    final existing = await mongo.parts.findOne(where.eq('_id', doc['_id']));
+    if (existing == null) {
+      await mongo.parts.insertOne(doc);
+    }
   }
 }

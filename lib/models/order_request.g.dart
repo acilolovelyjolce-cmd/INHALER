@@ -16,6 +16,13 @@ _OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => _OrderItem(
   trinkets: (json['trinkets'] as List<dynamic>?)
       ?.map((e) => e as Map<String, dynamic>)
       .toList(),
+  letterings: (json['letterings'] as List<dynamic>?)
+      ?.map((e) => e as Map<String, dynamic>)
+      .toList(),
+  rope: json['rope'] as Map<String, dynamic>?,
+  specialTrinkets: (json['special_trinkets'] as List<dynamic>?)
+      ?.map((e) => e as Map<String, dynamic>)
+      .toList(),
 );
 
 Map<String, dynamic> _$OrderItemToJson(
@@ -28,6 +35,9 @@ Map<String, dynamic> _$OrderItemToJson(
   'price_at_order': const NumDoubleConverter().toJson(instance.priceAtOrder),
   'paracord': instance.paracord,
   'trinkets': instance.trinkets,
+  'letterings': instance.letterings,
+  'rope': instance.rope,
+  'special_trinkets': instance.specialTrinkets,
 };
 
 _OrderRequest _$OrderRequestFromJson(Map<String, dynamic> json) =>

@@ -119,6 +119,14 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Letterings of your initial?'), findsOneWidget);
+    await tester.tap(find.text('No'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Pearl Rex'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('YOUR MIX'), findsOneWidget);
     expect(find.text('Inhaler'), findsOneWidget);
@@ -197,6 +205,77 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(PhotoLightbox), findsOneWidget);
     expect(find.text('Baby Rex'), findsWidgets);
+  });
+
+  testWidgets('lettering prompt yes shows letters and ropes, no skips to specials', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(body: ProductDoorFlow(product: demoProducts().first)),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Mint paracord'));
+    await tester.pump();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Letterings of your initial?'), findsOneWidget);
+    await tester.tap(find.text('Yes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('LETTERINGS'), findsOneWidget);
+    expect(find.text('ROPES'), findsOneWidget);
+    expect(find.text('Letter A'), findsOneWidget);
+    expect(find.text('Gold rope'), findsOneWidget);
+    expect(find.text('Pick a letter and a rope'), findsOneWidget);
+
+    await tester.tap(find.text('Letter A'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Gold rope'));
+    await tester.pump();
+    await tester.tap(find.text('Gold rope'));
+    await tester.pump();
+    expect(find.text('Next'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Pearl Rex'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('LETTERINGS'), findsOneWidget);
+    expect(find.text('Gold rope'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Baby Rex'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Letterings of your initial?'), findsOneWidget);
+    await tester.tap(find.text('No'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Pearl Rex'), findsOneWidget);
   });
 }
 

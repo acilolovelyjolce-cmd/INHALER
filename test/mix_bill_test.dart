@@ -45,6 +45,26 @@ void main() {
     expect(bill.lineTotal, 570);
   });
 
+  test('letterings and special trinkets appear on the mix bill', () {
+    final letter = demoLetterings.first;
+    final rope = demoRopes.first;
+    final special = demoSpecialTrinkets.first;
+    final bill = MixBillData(
+      productName: inhaler.name,
+      inhalerPrice: inhaler.price,
+      letterings: [letter],
+      rope: rope,
+      specialTrinkets: [special],
+    );
+    expect(bill.parts.map((part) => part.label).toList(), [
+      'Inhaler',
+      'Letter A',
+      'Gold rope',
+      'Pearl Rex',
+    ]);
+    expect(bill.unitTotal, 625);
+  });
+
   test('order items keep add-on prices from the saved maps', () {
     const item = OrderItem(
       productId: 'p-baby-rex',

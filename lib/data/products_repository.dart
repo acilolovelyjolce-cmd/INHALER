@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../config/env.dart';
+import '../models/part_kind.dart';
 import '../models/parts_catalog.dart';
 import '../models/product.dart';
 import 'api_client.dart';
@@ -137,9 +138,9 @@ class ProductsRepository {
     }
   }
 
-  Future<void> upsertPart(ProductOption option, {required bool trinket}) async {
+  Future<void> upsertPart(ProductOption option, {required PartKind kind}) async {
     if (AppConfig.useDemo) {
-      DemoMemoryStore.instance.upsertPart(option, trinket: trinket);
+      DemoMemoryStore.instance.upsertPart(option, kind: kind);
       return;
     }
     try {
@@ -148,12 +149,12 @@ class ProductsRepository {
         'name': option.name,
         'price': option.price,
         'stock': option.stock,
-        'kind': trinket ? 'trinket' : 'paracord',
+        'kind': kind.apiValue,
         if (option.imageUrl != null && option.imageUrl!.trim().isNotEmpty) 'image_url': option.imageUrl,
       });
     } on ApiException catch (error) {
       if (error.status != 404) rethrow;
-      await _fanOutPart(option, trinket: trinket);
+      await _fanOutPart(option, kind: kind);
     }
   }
 
@@ -172,6 +173,12 @@ class ProductsRepository {
           product.copyWith(
             paracords: [for (final option in product.paracords) if (option.id != id) option],
             trinkets: [for (final option in product.trinkets) if (option.id != id) option],
+            letterings: [for (final option in product.letterings) if (option.id != id) option],
+            ropes: [for (final option in product.ropes) if (option.id != id) option],
+            specialTrinkets: [
+              for (final option in product.specialTrinkets)
+                if (option.id != id) option,
+            ],
             updatedAt: DateTime.now(),
           ),
         );
@@ -179,20 +186,28 @@ class ProductsRepository {
     }
   }
 
-  Future<void> _fanOutPart(ProductOption option, {required bool trinket}) async {
+  Future<void> _fanOutPart(ProductOption option, {required PartKind kind}) async {
     final products = await _fetchMine();
     for (final product in products) {
-      final list = [...(trinket ? product.trinkets : product.paracords)];
-      final idx = list.indexWhere((item) => item.id == option.id);
-      if (idx >= 0) {
-        list[idx] = option;
-      } else {
-        list.add(option);
+      List<ProductOption> next(List<ProductOption> current) {
+        final list = [...current];
+        final idx = list.indexWhere((item) => item.id == option.id);
+        if (idx >= 0) {
+          list[idx] = option;
+        } else {
+          list.add(option);
+        }
+        return list;
       }
+
       await upsert(
         product.copyWith(
-          paracords: trinket ? product.paracords : list,
-          trinkets: trinket ? list : product.trinkets,
+          paracords: kind == PartKind.paracord ? next(product.paracords) : product.paracords,
+          trinkets: kind == PartKind.trinket ? next(product.trinkets) : product.trinkets,
+          letterings: kind == PartKind.lettering ? next(product.letterings) : product.letterings,
+          ropes: kind == PartKind.rope ? next(product.ropes) : product.ropes,
+          specialTrinkets:
+              kind == PartKind.specialTrinket ? next(product.specialTrinkets) : product.specialTrinkets,
           updatedAt: DateTime.now(),
         ),
       );
@@ -202,6 +217,9 @@ class ProductsRepository {
   PartsCatalog _partsFromProducts(List<Product> products) {
     final cords = <String, ProductOption>{};
     final charms = <String, ProductOption>{};
+    final letters = <String, ProductOption>{};
+    final ropeBag = <String, ProductOption>{};
+    final specials = <String, ProductOption>{};
     for (final product in products) {
       for (final option in product.paracords) {
         cords[option.id] = option;
@@ -209,8 +227,23 @@ class ProductsRepository {
       for (final option in product.trinkets) {
         charms[option.id] = option;
       }
+      for (final option in product.letterings) {
+        letters[option.id] = option;
+      }
+      for (final option in product.ropes) {
+        ropeBag[option.id] = option;
+      }
+      for (final option in product.specialTrinkets) {
+        specials[option.id] = option;
+      }
     }
-    return PartsCatalog(paracords: cords.values.toList(), trinkets: charms.values.toList());
+    return PartsCatalog(
+      paracords: cords.values.toList(),
+      trinkets: charms.values.toList(),
+      letterings: letters.values.toList(),
+      ropes: ropeBag.values.toList(),
+      specialTrinkets: specials.values.toList(),
+    );
   }
 
   Future<Product> duplicate(Product product) async {

@@ -20,6 +20,9 @@ class MixBillData {
     required this.inhalerPrice,
     this.paracord,
     this.trinkets = const [],
+    this.letterings = const [],
+    this.rope,
+    this.specialTrinkets = const [],
     this.quantity = 1,
     this.includeEmpty = false,
   });
@@ -30,6 +33,9 @@ class MixBillData {
       inhalerPrice: line.inhalerPrice,
       paracord: line.paracord,
       trinkets: line.trinkets,
+      letterings: line.letterings,
+      rope: line.rope,
+      specialTrinkets: line.specialTrinkets,
       quantity: line.quantity,
       includeEmpty: includeEmpty,
     );
@@ -37,17 +43,23 @@ class MixBillData {
 
   factory MixBillData.fromOrderItem(OrderItem item, {bool includeEmpty = false}) {
     final paracord = _optionFromMap(item.paracord);
-    final trinkets = [
-      for (final row in item.trinkets ?? const <Map<String, dynamic>>[])
-        if (_optionFromMap(row) case final option?) option,
-    ];
+    final trinkets = _optionsFromMaps(item.trinkets);
+    final letterings = _optionsFromMaps(item.letterings);
+    final rope = _optionFromMap(item.rope);
+    final specialTrinkets = _optionsFromMaps(item.specialTrinkets);
     final extras = (paracord?.price ?? 0) +
-        trinkets.fold<double>(0, (sum, option) => sum + option.price);
+        _sum(trinkets) +
+        _sum(letterings) +
+        (rope?.price ?? 0) +
+        _sum(specialTrinkets);
     return MixBillData(
       productName: item.productName,
       inhalerPrice: (item.priceAtOrder - extras).clamp(0, item.priceAtOrder),
       paracord: paracord,
       trinkets: trinkets,
+      letterings: letterings,
+      rope: rope,
+      specialTrinkets: specialTrinkets,
       quantity: item.quantity,
       includeEmpty: includeEmpty,
     );
@@ -57,6 +69,9 @@ class MixBillData {
   final double inhalerPrice;
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
+  final List<ProductOption> letterings;
+  final ProductOption? rope;
+  final List<ProductOption> specialTrinkets;
   final int quantity;
   final bool includeEmpty;
 
@@ -71,12 +86,33 @@ class MixBillData {
         const MixBillEntry(label: 'Trinkets  none', price: 0),
       for (final item in trinkets)
         MixBillEntry(label: item.name, price: item.price),
+      if (letterings.isEmpty && includeEmpty)
+        const MixBillEntry(label: 'Letterings  none', price: 0),
+      for (final item in letterings)
+        MixBillEntry(label: item.name, price: item.price),
+      if (rope != null)
+        MixBillEntry(label: rope!.name, price: rope!.price)
+      else if (includeEmpty)
+        const MixBillEntry(label: 'Rope  none', price: 0),
+      if (specialTrinkets.isEmpty && includeEmpty)
+        const MixBillEntry(label: 'Special trinket  none', price: 0),
+      for (final item in specialTrinkets)
+        MixBillEntry(label: item.name, price: item.price),
     ];
   }
 
   double get unitTotal => parts.fold(0, (sum, part) => sum + part.price);
 
   double get lineTotal => unitTotal * quantity;
+}
+
+double _sum(List<ProductOption> items) =>
+    items.fold<double>(0, (sum, option) => sum + option.price);
+
+List<ProductOption> _optionsFromMaps(List<Map<String, dynamic>>? rows) {
+  return [
+    for (final row in rows ?? const <Map<String, dynamic>>[]) ?_optionFromMap(row),
+  ];
 }
 
 ProductOption? _optionFromMap(Map<String, dynamic>? row) {

@@ -99,6 +99,9 @@ class CartLine {
     this.variantSelection = const {},
     this.paracord,
     this.trinkets = const [],
+    this.letterings = const [],
+    this.rope,
+    this.specialTrinkets = const [],
   });
 
   final String productId;
@@ -109,9 +112,16 @@ class CartLine {
   final Map<String, String> variantSelection;
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
+  final List<ProductOption> letterings;
+  final ProductOption? rope;
+  final List<ProductOption> specialTrinkets;
 
   double get addOnTotal =>
-      (paracord?.price ?? 0) + trinkets.fold<double>(0, (sum, item) => sum + item.price);
+      (paracord?.price ?? 0) +
+      trinkets.fold<double>(0, (sum, item) => sum + item.price) +
+      letterings.fold<double>(0, (sum, item) => sum + item.price) +
+      (rope?.price ?? 0) +
+      specialTrinkets.fold<double>(0, (sum, item) => sum + item.price);
 
   double get inhalerPrice {
     final leftover = price - addOnTotal;
@@ -122,13 +132,18 @@ class CartLine {
 
   String get variantKey {
     final trinketIds = trinkets.map((item) => item.id).toList()..sort();
-    return '${paracord?.id ?? ''}|${trinketIds.join(',')}';
+    final letteringIds = letterings.map((item) => item.id).toList()..sort();
+    final specialIds = specialTrinkets.map((item) => item.id).toList()..sort();
+    return '${paracord?.id ?? ''}|${trinketIds.join(',')}|${letteringIds.join(',')}|${rope?.id ?? ''}|${specialIds.join(',')}';
   }
 
   String get optionsLabel {
     final parts = <String>[
       if (paracord != null) paracord!.name,
       ...trinkets.map((item) => item.name),
+      ...letterings.map((item) => item.name),
+      if (rope != null) rope!.name,
+      ...specialTrinkets.map((item) => item.name),
     ];
     return parts.join(' · ');
   }
@@ -142,6 +157,9 @@ class CartLine {
         variantSelection: variantSelection,
         paracord: paracord,
         trinkets: trinkets,
+        letterings: letterings,
+        rope: rope,
+        specialTrinkets: specialTrinkets,
       );
 }
 

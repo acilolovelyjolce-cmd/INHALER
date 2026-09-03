@@ -43,6 +43,15 @@ _Product _$ProductFromJson(Map<String, dynamic> json) => _Product(
   trinkets: json['trinkets'] == null
       ? const []
       : const ProductOptionListConverter().fromJson(json['trinkets']),
+  letterings: json['letterings'] == null
+      ? const []
+      : const ProductOptionListConverter().fromJson(json['letterings']),
+  ropes: json['ropes'] == null
+      ? const []
+      : const ProductOptionListConverter().fromJson(json['ropes']),
+  specialTrinkets: json['special_trinkets'] == null
+      ? const []
+      : const ProductOptionListConverter().fromJson(json['special_trinkets']),
   stock: json['stock'] == null ? 0 : const IntConverter().fromJson(json['stock']),
   stockStatus: $enumDecode(_$StockStatusEnumMap, json['stock_status']),
   isPublished: json['is_published'] as bool,
@@ -64,6 +73,11 @@ Map<String, dynamic> _$ProductToJson(_Product instance) => <String, dynamic>{
   'category': instance.category,
   'paracords': const ProductOptionListConverter().toJson(instance.paracords),
   'trinkets': const ProductOptionListConverter().toJson(instance.trinkets),
+  'letterings': const ProductOptionListConverter().toJson(instance.letterings),
+  'ropes': const ProductOptionListConverter().toJson(instance.ropes),
+  'special_trinkets': const ProductOptionListConverter().toJson(
+    instance.specialTrinkets,
+  ),
   'stock': const IntConverter().toJson(instance.stock),
   'stock_status': _$StockStatusEnumMap[instance.stockStatus]!,
   'is_published': instance.isPublished,

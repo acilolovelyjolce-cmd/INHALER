@@ -320,6 +320,9 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
             priceAtOrder: line.price,
             paracord: line.paracord?.toJson(),
             trinkets: [for (final item in line.trinkets) item.toJson()],
+            letterings: [for (final item in line.letterings) item.toJson()],
+            rope: line.rope?.toJson(),
+            specialTrinkets: [for (final item in line.specialTrinkets) item.toJson()],
           ),
       ];
       await ref.read(ordersRepositoryProvider).submit(

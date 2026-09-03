@@ -37,6 +37,12 @@ String? optionPreviewUrl(ProductOption option) {
     'cord-sky': 'asset:assets/parts/cord_sky.svg',
     't-rex': 'asset:assets/parts/charm_rex.svg',
     't-stego': 'asset:assets/parts/charm_stego.svg',
+    'l-a': 'asset:assets/doodles/doodle_sparkle.svg',
+    'l-m': 'asset:assets/doodles/doodle_cloud.svg',
+    'rope-gold': 'asset:assets/parts/cord_blush.svg',
+    'rope-silver': 'asset:assets/parts/cord_sky.svg',
+    's-pearl': 'asset:assets/parts/charm_rex.svg',
+    's-gold': 'asset:assets/parts/charm_stego.svg',
   };
   return parts[option.id] ?? option.imageUrl;
 }
@@ -96,6 +102,57 @@ List<ProductOption> get demoTrinkets => const [
       ),
     ];
 
+List<ProductOption> get demoLetterings => const [
+      ProductOption(
+        id: 'l-a',
+        name: 'Letter A',
+        price: 25,
+        imageUrl: 'asset:assets/doodles/doodle_sparkle.svg',
+        stock: 20,
+      ),
+      ProductOption(
+        id: 'l-m',
+        name: 'Letter M',
+        price: 25,
+        imageUrl: 'asset:assets/doodles/doodle_cloud.svg',
+        stock: 20,
+      ),
+    ];
+
+List<ProductOption> get demoRopes => const [
+      ProductOption(
+        id: 'rope-gold',
+        name: 'Gold rope',
+        price: 30,
+        imageUrl: 'asset:assets/parts/cord_blush.svg',
+        stock: 10,
+      ),
+      ProductOption(
+        id: 'rope-silver',
+        name: 'Silver rope',
+        price: 30,
+        imageUrl: 'asset:assets/parts/cord_sky.svg',
+        stock: 10,
+      ),
+    ];
+
+List<ProductOption> get demoSpecialTrinkets => const [
+      ProductOption(
+        id: 's-pearl',
+        name: 'Pearl Rex',
+        price: 120,
+        imageUrl: 'asset:assets/parts/charm_rex.svg',
+        stock: 3,
+      ),
+      ProductOption(
+        id: 's-gold',
+        name: 'Gold Stego',
+        price: 120,
+        imageUrl: 'asset:assets/parts/charm_stego.svg',
+        stock: 3,
+      ),
+    ];
+
 List<Product> demoProducts() {
   final now = DateTime.now();
   return [
@@ -111,6 +168,9 @@ List<Product> demoProducts() {
       category: 'Dino Series',
       paracords: demoCords,
       trinkets: demoTrinkets,
+      letterings: demoLetterings,
+      ropes: demoRopes,
+      specialTrinkets: demoSpecialTrinkets,
       stock: 10,
       stockStatus: StockStatus.available,
       isPublished: true,
@@ -129,6 +189,9 @@ List<Product> demoProducts() {
       category: 'Dino Series',
       paracords: demoCords,
       trinkets: demoTrinkets,
+      letterings: demoLetterings,
+      ropes: demoRopes,
+      specialTrinkets: demoSpecialTrinkets,
       stock: 10,
       stockStatus: StockStatus.madeToOrder,
       isPublished: true,
@@ -148,6 +211,9 @@ List<Product> demoProducts() {
       category: 'Pastel Series',
       paracords: demoCords,
       trinkets: demoTrinkets,
+      letterings: demoLetterings,
+      ropes: demoRopes,
+      specialTrinkets: demoSpecialTrinkets,
       stock: 8,
       stockStatus: StockStatus.available,
       isPublished: true,
@@ -166,6 +232,9 @@ List<Product> demoProducts() {
       category: 'Pastel Series',
       paracords: demoCords,
       trinkets: demoTrinkets,
+      letterings: demoLetterings,
+      ropes: demoRopes,
+      specialTrinkets: demoSpecialTrinkets,
       stock: 0,
       stockStatus: StockStatus.soldOut,
       isPublished: true,

@@ -9,6 +9,9 @@ OrderItem _line({
   required int quantity,
   ProductOption? paracord,
   List<ProductOption> trinkets = const [],
+  List<ProductOption> letterings = const [],
+  ProductOption? rope,
+  List<ProductOption> specialTrinkets = const [],
 }) {
   return OrderItem(
     productId: product.id,
@@ -17,6 +20,9 @@ OrderItem _line({
     priceAtOrder: product.price,
     paracord: paracord?.toJson(),
     trinkets: [for (final item in trinkets) item.toJson()],
+    letterings: [for (final item in letterings) item.toJson()],
+    rope: rope?.toJson(),
+    specialTrinkets: [for (final item in specialTrinkets) item.toJson()],
   );
 }
 
@@ -75,5 +81,33 @@ void main() {
     final next = OptionStock.apply([product], items, sign: -1).first;
     expect(next.stock, product.stock);
     expect(next.stockStatus, StockStatus.madeToOrder);
+  });
+
+  test('placing an order decrements lettering and special trinket stock', () {
+    final product = demoProducts().first;
+    final items = [
+      _line(
+        product: product,
+        quantity: 1,
+        letterings: [product.letterings.first],
+        specialTrinkets: [product.specialTrinkets.first],
+      ),
+    ];
+    final next = OptionStock.apply([product], items, sign: -1).first;
+    expect(next.letterings.first.stock, product.letterings.first.stock - 1);
+    expect(next.specialTrinkets.first.stock, product.specialTrinkets.first.stock - 1);
+  });
+
+  test('placing an order decrements rope stock', () {
+    final product = demoProducts().first;
+    final items = [
+      _line(
+        product: product,
+        quantity: 1,
+        rope: product.ropes.first,
+      ),
+    ];
+    final next = OptionStock.apply([product], items, sign: -1).first;
+    expect(next.ropes.first.stock, product.ropes.first.stock - 1);
   });
 }

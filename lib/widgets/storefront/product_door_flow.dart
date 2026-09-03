@@ -16,7 +16,7 @@ import 'mix_bill.dart';
 import 'mix_stage.dart';
 import 'cutout_sprite.dart';
 
-enum _Door { meet, paracord, trinkets, summary }
+enum _Door { meet, paracord, trinkets, letterings, specialTrinkets, summary }
 
 class ProductDoorFlow extends ConsumerStatefulWidget {
   const ProductDoorFlow({super.key, required this.product});
@@ -32,25 +32,43 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   var _qty = 1;
   ProductOption? _paracord;
   final _trinkets = <ProductOption>{};
+  final _letterings = <ProductOption>{};
+  ProductOption? _rope;
+  final _specialTrinkets = <ProductOption>{};
+  bool? _wantsLetterings;
 
   Product get product => widget.product;
+
+  bool get _offersLettering {
+    return product.letterings.any((item) => item.stock > 0) &&
+        product.ropes.any((item) => item.stock > 0);
+  }
+
+  _Door get _askFromDoor {
+    if (product.trinkets.isNotEmpty) return _Door.trinkets;
+    if (product.paracords.isNotEmpty) return _Door.paracord;
+    return _Door.meet;
+  }
 
   List<_Door> get _doors {
     return [
       _Door.meet,
       if (product.paracords.isNotEmpty) _Door.paracord,
       if (product.trinkets.isNotEmpty) _Door.trinkets,
+      if (_wantsLetterings == true && _offersLettering) _Door.letterings,
+      if (product.specialTrinkets.isNotEmpty) _Door.specialTrinkets,
       _Door.summary,
     ];
   }
 
-  _Door get _door => _doors[_index];
+  _Door get _door => _doors[_index.clamp(0, _doors.length - 1)];
 
   int get _maxQty {
     var max = 99;
     if (product.tracksInhalerStock) max = math.min(max, product.stock);
     if (_paracord != null) max = math.min(max, _paracord!.stock);
-    for (final item in _trinkets) {
+    if (_rope != null) max = math.min(max, _rope!.stock);
+    for (final item in [..._trinkets, ..._letterings, ..._specialTrinkets]) {
       max = math.min(max, item.stock);
     }
     return math.max(1, max);
@@ -59,7 +77,8 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   bool get _stockOk {
     if (product.tracksInhalerStock && product.stock < _qty) return false;
     if (_paracord != null && _paracord!.stock < _qty) return false;
-    for (final item in _trinkets) {
+    if (_rope != null && _rope!.stock < _qty) return false;
+    for (final item in [..._trinkets, ..._letterings, ..._specialTrinkets]) {
       if (item.stock < _qty) return false;
     }
     return true;
@@ -68,29 +87,64 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   double get _unit => product.linePrice(
         paracord: _paracord,
         pickedTrinkets: _trinkets.toList(),
+        pickedLetterings: _letterings.toList(),
+        rope: _rope,
+        pickedSpecials: _specialTrinkets.toList(),
       );
+
+  bool get _letteringReady =>
+      _letterings.any((item) => item.stock > 0) && _rope != null && _rope!.stock > 0;
 
   bool get _canNext => switch (_door) {
         _Door.meet => true,
         _Door.paracord => _paracord != null && _paracord!.stock > 0,
         _Door.trinkets => true,
+        _Door.letterings => _letteringReady,
+        _Door.specialTrinkets => true,
         _Door.summary => _stockOk,
       };
 
   void _syncSelection() {
-    if (_paracord != null) {
-      final next = product.paracords.where((item) => item.id == _paracord!.id).firstOrNull;
-      _paracord = (next == null || next.stock <= 0) ? null : next;
-    }
+    _paracord = _keptOne(_paracord, product.paracords);
+    _rope = _keptOne(_rope, product.ropes);
+    _refreshSet(_trinkets, product.trinkets);
+    _refreshSet(_letterings, product.letterings);
+    _refreshSet(_specialTrinkets, product.specialTrinkets);
+    if (_qty > _maxQty) _qty = _maxQty;
+  }
+
+  ProductOption? _keptOne(ProductOption? current, List<ProductOption> catalog) {
+    if (current == null) return null;
+    final next = catalog.where((item) => item.id == current.id).firstOrNull;
+    return (next == null || next.stock <= 0) ? null : next;
+  }
+
+  void _refreshSet(Set<ProductOption> selected, List<ProductOption> catalog) {
     final kept = <ProductOption>{};
-    for (final item in _trinkets) {
-      final next = product.trinkets.where((option) => option.id == item.id).firstOrNull;
+    for (final item in selected) {
+      final next = catalog.where((option) => option.id == item.id).firstOrNull;
       if (next != null && next.stock > 0) kept.add(next);
     }
-    _trinkets
+    selected
       ..clear()
       ..addAll(kept);
-    if (_qty > _maxQty) _qty = _maxQty;
+  }
+
+  void _toggle(Set<ProductOption> selected, ProductOption option) {
+    if (option.stock <= 0) return;
+    setState(() {
+      final existing = selected.where((item) => item.id == option.id).firstOrNull;
+      if (existing != null) {
+        selected.remove(existing);
+      } else {
+        selected.add(option);
+      }
+    });
+  }
+
+  void _clearLetteringMix() {
+    _letterings.clear();
+    _rope = null;
   }
 
   @override
@@ -101,14 +155,60 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
     }
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_index >= _doors.length - 1) return;
+    if (_door == _askFromDoor && _offersLettering && _wantsLetterings != true) {
+      final yes = await _askForLetterings();
+      if (!mounted || yes == null) return;
+      setState(() {
+        _wantsLetterings = yes;
+        if (!yes) _clearLetteringMix();
+        _index++;
+      });
+      return;
+    }
     setState(() => _index++);
+  }
+
+  Future<bool?> _askForLetterings() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Letterings of your initial?'),
+          content: Text(
+            'Want letterings of your initial on this mix? If yes, you will pick letters and a rope. The rope is required.',
+            style: AppTypography.body,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _back() {
     if (_index == 0) return;
-    setState(() => _index--);
+    setState(() {
+      final leaving = _door;
+      if (leaving == _Door.letterings) {
+        _wantsLetterings = null;
+        _clearLetteringMix();
+      }
+      _index--;
+      if (_wantsLetterings == false && _door == _askFromDoor) {
+        _wantsLetterings = null;
+      }
+      if (_index >= _doors.length) _index = _doors.length - 1;
+    });
   }
 
   void _addToCart() {
@@ -125,9 +225,17 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
               if (_paracord != null) 'paracord': _paracord!.name,
               if (_trinkets.isNotEmpty)
                 'trinkets': _trinkets.map((item) => item.name).join(', '),
+              if (_letterings.isNotEmpty)
+                'letterings': _letterings.map((item) => item.name).join(', '),
+              if (_rope != null) 'rope': _rope!.name,
+              if (_specialTrinkets.isNotEmpty)
+                'special_trinkets': _specialTrinkets.map((item) => item.name).join(', '),
             },
             paracord: _paracord,
             trinkets: _trinkets.toList(),
+            letterings: _letterings.toList(),
+            rope: _rope,
+            specialTrinkets: _specialTrinkets.toList(),
           ),
         );
     ScaffoldMessenger.of(context).showSnackBar(
@@ -149,6 +257,8 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
               _Door.meet => 'Meet the inhaler',
               _Door.paracord => 'Pick a paracord',
               _Door.trinkets => 'Add trinkets',
+              _Door.letterings => 'Add letterings',
+              _Door.specialTrinkets => 'Add special trinket',
               _Door.summary => 'Check the mix',
             },
           ),
@@ -156,6 +266,9 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
             inhalerUrl: mixInhalerUrl(product),
             paracord: _paracord,
             trinkets: _trinkets.toList(),
+            letterings: _letterings.toList(),
+            rope: _rope,
+            specialTrinkets: _specialTrinkets.toList(),
           ),
           Expanded(
             child: AnimatedSwitcher(
@@ -194,23 +307,32 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                         subtitle: 'Tap as many as you like. Tap again to take one off.',
                         options: product.trinkets,
                         selectedIds: _trinkets.map((item) => item.id).toSet(),
-                        onTap: (option) {
+                        onTap: (option) => _toggle(_trinkets, option),
+                      ),
+                    _Door.letterings => _LetteringDoor(
+                        letterings: product.letterings,
+                        ropes: product.ropes,
+                        selectedLetteringIds: _letterings.map((item) => item.id).toSet(),
+                        selectedRopeId: _rope?.id,
+                        onLettering: (option) => _toggle(_letterings, option),
+                        onRope: (option) {
                           if (option.stock <= 0) return;
-                          setState(() {
-                            final existing =
-                                _trinkets.where((item) => item.id == option.id).firstOrNull;
-                            if (existing != null) {
-                              _trinkets.remove(existing);
-                            } else {
-                              _trinkets.add(option);
-                            }
-                          });
+                          setState(() => _rope = option);
                         },
+                      ),
+                    _Door.specialTrinkets => _OptionGrid(
+                        subtitle: 'Tap a special trinket. Tap again to take it off.',
+                        options: product.specialTrinkets,
+                        selectedIds: _specialTrinkets.map((item) => item.id).toSet(),
+                        onTap: (option) => _toggle(_specialTrinkets, option),
                       ),
                     _Door.summary => _SummaryDoor(
                         product: product,
                         paracord: _paracord,
                         trinkets: _trinkets.toList(),
+                        letterings: _letterings.toList(),
+                        rope: _rope,
+                        specialTrinkets: _specialTrinkets.toList(),
                         qty: _qty,
                         maxQty: _maxQty,
                         onQty: (v) => setState(() => _qty = v),
@@ -247,7 +369,9 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                               onPressed: sold || !_stockOk ? null : _addToCart,
                             )
                           : WhimsicalButton(
-                              label: 'Next',
+                              label: _door == _Door.letterings && !_letteringReady
+                                  ? 'Pick a letter and a rope'
+                                  : 'Next',
                               expand: true,
                               onPressed: _canNext ? _next : null,
                             ),
@@ -351,6 +475,64 @@ class _MeetDoor extends StatelessWidget {
   }
 }
 
+class _LetteringDoor extends StatelessWidget {
+  const _LetteringDoor({
+    required this.letterings,
+    required this.ropes,
+    required this.selectedLetteringIds,
+    required this.selectedRopeId,
+    required this.onLettering,
+    required this.onRope,
+  });
+
+  final List<ProductOption> letterings;
+  final List<ProductOption> ropes;
+  final Set<String> selectedLetteringIds;
+  final String? selectedRopeId;
+  final ValueChanged<ProductOption> onLettering;
+  final ValueChanged<ProductOption> onRope;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+      children: [
+        Text('LETTERINGS', style: AppTypography.kicker),
+        const SizedBox(height: 8),
+        Text(
+          'Tap the letters of your initial. Tap again to take one off.',
+          style: AppTypography.body.copyWith(height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        for (final option in letterings) ...[
+          _OptionTile(
+            option: option,
+            selected: selectedLetteringIds.contains(option.id),
+            onTap: onLettering,
+          ),
+          const SizedBox(height: 18),
+        ],
+        const SizedBox(height: 8),
+        Text('ROPES', style: AppTypography.kicker),
+        const SizedBox(height: 8),
+        Text(
+          'Pick one rope. This is required with letterings.',
+          style: AppTypography.body.copyWith(height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        for (final option in ropes) ...[
+          _OptionTile(
+            option: option,
+            selected: selectedRopeId == option.id,
+            onTap: onRope,
+          ),
+          const SizedBox(height: 18),
+        ],
+      ],
+    );
+  }
+}
+
 class _OptionGrid extends StatelessWidget {
   const _OptionGrid({
     required this.subtitle,
@@ -375,57 +557,77 @@ class _OptionGrid extends StatelessWidget {
           return Text(subtitle, style: AppTypography.body.copyWith(height: 1.45));
         }
         final option = options[index - 1];
-        final selected = selectedIds.contains(option.id);
-        final gone = option.stock <= 0;
-        return AnimatedScale(
-          duration: AppMotion.squish,
-          scale: selected ? 1.01 : 1,
-          child: Opacity(
-            opacity: gone ? 0.5 : 1,
-            child: DecoratedBox(
-              decoration: stickerFill(
-                color: selected ? AppColors.petal : AppColors.cloud,
-                radius: 24,
-                pressed: selected,
-                stroke: AppStroke.inkThin,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
-                child: Row(
-                  children: [
-                    _OptionPhoto(option: option),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: gone ? null : () => onTap(option),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              option.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.title,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(Formatters.php(option.price), style: AppTypography.body),
-                            const SizedBox(height: 4),
-                            Text(
-                              gone ? 'sold out' : '${option.stock} left',
-                              style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        return _OptionTile(
+          option: option,
+          selected: selectedIds.contains(option.id),
+          onTap: onTap,
         );
       },
+    );
+  }
+}
+
+class _OptionTile extends StatelessWidget {
+  const _OptionTile({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ProductOption option;
+  final bool selected;
+  final ValueChanged<ProductOption> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final gone = option.stock <= 0;
+    return AnimatedScale(
+      duration: AppMotion.squish,
+      scale: selected ? 1.01 : 1,
+      child: Opacity(
+        opacity: gone ? 0.5 : 1,
+        child: DecoratedBox(
+          decoration: stickerFill(
+            color: selected ? AppColors.petal : AppColors.cloud,
+            radius: 24,
+            pressed: selected,
+            stroke: AppStroke.inkThin,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
+            child: Row(
+              children: [
+                _OptionPhoto(option: option),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: gone ? null : () => onTap(option),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          option.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.title,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(Formatters.php(option.price), style: AppTypography.body),
+                        const SizedBox(height: 4),
+                        Text(
+                          gone ? 'sold out' : '${option.stock} left',
+                          style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -495,6 +697,9 @@ class _SummaryDoor extends StatelessWidget {
     required this.product,
     required this.paracord,
     required this.trinkets,
+    required this.letterings,
+    required this.rope,
+    required this.specialTrinkets,
     required this.qty,
     required this.maxQty,
     required this.onQty,
@@ -503,6 +708,9 @@ class _SummaryDoor extends StatelessWidget {
   final Product product;
   final ProductOption? paracord;
   final List<ProductOption> trinkets;
+  final List<ProductOption> letterings;
+  final ProductOption? rope;
+  final List<ProductOption> specialTrinkets;
   final int qty;
   final int maxQty;
   final ValueChanged<int> onQty;
@@ -527,6 +735,9 @@ class _SummaryDoor extends StatelessWidget {
                     inhalerPrice: product.price,
                     paracord: paracord,
                     trinkets: trinkets,
+                    letterings: letterings,
+                    rope: rope,
+                    specialTrinkets: specialTrinkets,
                     quantity: qty,
                     includeEmpty: true,
                   ),
