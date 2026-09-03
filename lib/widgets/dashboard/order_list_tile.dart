@@ -6,10 +6,16 @@ import '../../theme/tokens.dart';
 import '../ui/whimsical_badge.dart';
 
 class OrderListTile extends StatelessWidget {
-  const OrderListTile({super.key, required this.order, required this.onTap});
+  const OrderListTile({
+    super.key,
+    required this.order,
+    required this.onTap,
+    this.onDelete,
+  });
 
   final OrderRequest order;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +65,12 @@ class OrderListTile extends StatelessWidget {
                   WhimsicalBadge(label: order.status.label, color: color),
                 ],
               ),
+              if (onDelete != null)
+                IconButton(
+                  tooltip: 'Delete request',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
             ],
           ),
         ),

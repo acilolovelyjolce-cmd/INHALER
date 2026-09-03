@@ -57,4 +57,12 @@ void main() {
     expect(parsePartKind('ropes'), 'rope');
     expect(parsePartKind(null), 'paracord');
   });
+
+  test('parseCatalogSort maps shop display names', () {
+    expect(parseCatalogSort(null), 'manual');
+    expect(parseCatalogSort('cheapest'), 'price_asc');
+    expect(parseCatalogSort('price_desc'), 'price_desc');
+    expect(parseCatalogSort('name_asc'), 'name_asc');
+    expect(parseCatalogSort('az'), 'name_asc');
+  });
 }

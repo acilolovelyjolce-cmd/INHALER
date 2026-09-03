@@ -17,6 +17,7 @@ abstract class OwnerProfile with _$OwnerProfile {
     @JsonKey(name: 'logo_url') String? logoUrl,
     @JsonKey(name: 'ewallet_qr_url') String? ewalletQrUrl,
     @StringMapConverter() @JsonKey(name: 'contact_info') required Map<String, String> contactInfo,
+    @JsonKey(name: 'catalog_sort', defaultValue: 'manual') @Default('manual') String catalogSort,
   }) = _OwnerProfile;
 
   factory OwnerProfile.fromJson(Map<String, dynamic> json) =>
@@ -26,5 +27,6 @@ abstract class OwnerProfile with _$OwnerProfile {
         'shop_name': json['shop_name']?.toString() ?? 'Whimsical',
         'shop_slug': json['shop_slug']?.toString() ?? 'whimsical',
         'contact_info': json['contact_info'] ?? const <String, String>{},
+        'catalog_sort': json['catalog_sort']?.toString() ?? 'manual',
       });
 }

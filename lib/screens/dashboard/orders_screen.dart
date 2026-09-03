@@ -6,6 +6,7 @@ import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/dashboard/order_detail_sheet.dart';
 import '../../widgets/dashboard/order_list_tile.dart';
+import '../../widgets/dashboard/delete_order.dart';
 import '../../widgets/ui/feedback.dart';
 import '../../widgets/ui/whimsical_badge.dart';
 import '../../widgets/ui/whimsical_sheet.dart';
@@ -89,6 +90,11 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           onTap: () => showWhimsicalSheet(
                             context: context,
                             builder: (_) => OrderDetailSheet(order: order),
+                          ),
+                          onDelete: () => confirmAndDeleteOrder(
+                            context: context,
+                            ref: ref,
+                            order: order,
                           ),
                         );
                       },

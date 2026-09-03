@@ -37,6 +37,7 @@ Router buildRouter() {
     ..post('/api/products/delete-category', _deleteCategory)
     ..get('/api/orders', _myOrders)
     ..put('/api/orders/<id>', _updateOrder)
+    ..delete('/api/orders/<id>', _deleteOrder)
     ..get('/api/parts', _myParts)
     ..put('/api/parts/<id>', _upsertPart)
     ..delete('/api/parts/<id>', _deletePart)
@@ -94,6 +95,7 @@ Map<String, dynamic> _shopPayload(Map<String, dynamic> owner, String slug) {
     'logo_url': doc['logo_url'],
     'ewallet_qr_url': doc['ewallet_qr_url'],
     'contact_info': doc['contact_info'] is Map ? doc['contact_info'] : <String, String>{},
+    'catalog_sort': parseCatalogSort(doc['catalog_sort']),
   };
 }
 
@@ -148,11 +150,11 @@ Future<Response> _publishedProducts(Request request) async {
     for (final row in rows)
       if (_publishedFlag(row['is_published'])) row,
   ];
-  published.sort((a, b) {
-    final aOrder = parseInt(a['sort_order'], fallback: 0, max: 99999);
-    final bOrder = parseInt(b['sort_order'], fallback: 0, max: 99999);
-    return aOrder.compareTo(bOrder);
-  });
+  published.sort((a, b) => compareCatalogRows(
+        Map<String, dynamic>.from(a),
+        Map<String, dynamic>.from(b),
+        parseCatalogSort(owner['catalog_sort']),
+      ));
   final encoded = <Map<String, dynamic>>[];
   for (final row in published) {
     try {
@@ -250,6 +252,9 @@ Future<Response> _updateMe(Request request) async {
     'contact_info': body.containsKey('contact_info')
         ? parseContact(body['contact_info'])
         : owner['contact_info'],
+    'catalog_sort': parseCatalogSort(
+      body.containsKey('catalog_sort') ? body['catalog_sort'] : owner['catalog_sort'],
+    ),
     'updated_at': now,
   };
   await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
@@ -483,6 +488,28 @@ Future<Response> _updateOrder(Request request) async {
 
   await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
   return jsonOk(apiDoc(next));
+}
+
+Future<Response> _deleteOrder(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final id = request.params['id']!;
+  final existing = await Mongo.instance.orders.findOne(where.eq('_id', id));
+  if (existing == null) return jsonError(404, 'Not found');
+  if (existing['shop_slug'] != owner['shop_slug']) {
+    return jsonError(403, 'Not your order');
+  }
+  if (existing['status']?.toString() != 'cancelled') {
+    final products = await _catalogForOwner(
+      owner['_id'] as Object,
+      slug: owner['shop_slug']?.toString(),
+    );
+    applyOrderStock(products, existing['items'], sign: 1);
+    await _persistProducts(products);
+    await _writePartStocks(owner['_id'], products);
+  }
+  await Mongo.instance.orders.deleteOne(where.eq('_id', id));
+  return jsonOk({'ok': true});
 }
 
 Future<Response> _myParts(Request request) async {

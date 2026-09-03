@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../config/env.dart';
+import '../models/catalog_sort.dart';
 import '../models/part_kind.dart';
 import '../models/parts_catalog.dart';
 import '../models/product.dart';
@@ -20,8 +21,9 @@ class ProductsRepository {
   Stream<List<Product>> watchPublished(String slug) async* {
     if (AppConfig.useDemo) {
       final store = DemoMemoryStore.instance;
-      List<Product> published() => store.products.where((p) => p.isPublished).toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      List<Product> published() => CatalogSort.parse(store.owner.catalogSort).apply(
+            store.products.where((p) => p.isPublished),
+          );
       yield published();
       yield* store.productsCtrl.stream.map((_) => published());
       return;
@@ -62,7 +64,7 @@ class ProductsRepository {
 
   Future<List<Product>> _fetchPublished(String slug) async {
     final rows = await _api.get('/api/shops/$slug/products', auth: false) as List<dynamic>;
-    return _mapRows(rows);
+    return _mapRows(rows, sortByOrder: false);
   }
 
   Future<List<Product>> _fetchMine() async {
@@ -287,7 +289,7 @@ class ProductsRepository {
     return _api.upload('/api/files', compressed);
   }
 
-  List<Product> _mapRows(List<dynamic> rows) {
+  List<Product> _mapRows(List<dynamic> rows, {bool sortByOrder = true}) {
     final products = <Product>[];
     for (final row in rows) {
       if (row is! Map) continue;
@@ -297,7 +299,9 @@ class ProductsRepository {
         products.add(product);
       } catch (_) {}
     }
-    products.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    if (sortByOrder) {
+      products.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    }
     return products;
   }
 }

@@ -7,6 +7,7 @@ import '../../models/order_request.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/dashboard/order_detail_sheet.dart';
+import '../../widgets/dashboard/delete_order.dart';
 import '../../widgets/storefront/mix_bill.dart';
 import '../../widgets/ui/feedback.dart';
 import '../../widgets/ui/whimsical_badge.dart';
@@ -30,17 +31,17 @@ class RevenueScreen extends ConsumerWidget {
   }
 }
 
-class RevenueTill extends StatefulWidget {
+class RevenueTill extends ConsumerStatefulWidget {
   const RevenueTill({super.key, required this.orders, this.now});
 
   final List<OrderRequest> orders;
   final DateTime? now;
 
   @override
-  State<RevenueTill> createState() => _RevenueTillState();
+  ConsumerState<RevenueTill> createState() => _RevenueTillState();
 }
 
-class _RevenueTillState extends State<RevenueTill> {
+class _RevenueTillState extends ConsumerState<RevenueTill> {
   var _period = RevenuePeriod.today;
   DateTime? _day;
 
@@ -154,6 +155,11 @@ class _RevenueTillState extends State<RevenueTill> {
                       context: context,
                       builder: (_) => OrderDetailSheet(order: order),
                     ),
+                    onDelete: () => confirmAndDeleteOrder(
+                      context: context,
+                      ref: ref,
+                      order: order,
+                    ),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -166,7 +172,14 @@ class _RevenueTillState extends State<RevenueTill> {
                 ),
                 const SizedBox(height: 10),
                 for (final order in report.cancelled) ...[
-                  _CancelledCard(order: order),
+                  _CancelledCard(
+                    order: order,
+                    onDelete: () => confirmAndDeleteOrder(
+                      context: context,
+                      ref: ref,
+                      order: order,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -221,7 +234,7 @@ class _TotalCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Paid guests are “in”. Unpaid and partial still sit in the take so you can see what was requested. Cancelled never counts.',
+            'Paid guests are “in”. Unpaid and partial still sit in the take so you can see what was requested. Cancelled never counts. Remove a test request and it leaves the till completely.',
             style: AppTypography.bodySmall.copyWith(height: 1.45),
           ),
         ],
@@ -231,10 +244,15 @@ class _TotalCard extends StatelessWidget {
 }
 
 class _GuestTakeCard extends StatelessWidget {
-  const _GuestTakeCard({required this.order, required this.onOpen});
+  const _GuestTakeCard({
+    required this.order,
+    required this.onOpen,
+    required this.onDelete,
+  });
 
   final OrderRequest order;
   final VoidCallback onOpen;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -257,6 +275,11 @@ class _GuestTakeCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(Formatters.php(order.totalAmount), style: AppTypography.displaySmall),
+              IconButton(
+                tooltip: 'Remove from till',
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -301,9 +324,10 @@ class _GuestTakeCard extends StatelessWidget {
 }
 
 class _CancelledCard extends StatelessWidget {
-  const _CancelledCard({required this.order});
+  const _CancelledCard({required this.order, required this.onDelete});
 
   final OrderRequest order;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -334,6 +358,11 @@ class _CancelledCard extends StatelessWidget {
             Text(
               Formatters.php(order.totalAmount),
               style: AppTypography.price.copyWith(decoration: TextDecoration.lineThrough),
+            ),
+            IconButton(
+              tooltip: 'Remove from till',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline_rounded),
             ),
           ],
         ),

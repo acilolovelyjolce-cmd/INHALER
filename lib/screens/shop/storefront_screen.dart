@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/catalog_sort.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/doodles/dino_mascot.dart';
@@ -52,7 +53,7 @@ class StorefrontScreen extends ConsumerWidget {
       );
     }
 
-    final catalog = items ?? const [];
+    final catalog = CatalogSort.parse(shop?.catalogSort).apply(items ?? const []);
     final bio = shop?.bio;
     final headline = shop?.headline?.trim() ?? '';
     return AtelierBackdrop(

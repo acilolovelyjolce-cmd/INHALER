@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:whimsical_hub/data/demo_catalog.dart';
 import 'package:whimsical_hub/main.dart';
+import 'package:whimsical_hub/providers/catalog_providers.dart';
 import 'package:whimsical_hub/providers/intro_provider.dart';
 import 'package:whimsical_hub/theme/app_theme.dart';
 import 'package:whimsical_hub/widgets/doodles/dino_mascot.dart';
+import 'package:whimsical_hub/widgets/storefront/cart_sheet.dart';
 import 'package:whimsical_hub/widgets/storefront/mix_stage.dart';
 import 'package:whimsical_hub/widgets/storefront/product_door_flow.dart';
 import 'package:whimsical_hub/widgets/ui/feedback.dart';
@@ -277,6 +279,44 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Pearl Rex'), findsOneWidget);
   });
+
+  testWidgets('customer cart can remove a line', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cartProvider.overrideWith(_SeedCart.new),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(
+            body: CartSheet(slug: 'whimsical', shopName: 'Whimsical'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Baby Rex'), findsOneWidget);
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    expect(find.text('Cart is empty'), findsOneWidget);
+  });
+}
+
+class _SeedCart extends Cart {
+  @override
+  List<CartLine> build() => const [
+        CartLine(
+          productId: 'p-baby-rex',
+          productName: 'Baby Rex',
+          price: 350,
+          quantity: 1,
+        ),
+      ];
 }
 
 class _PlayedIntro extends IntroFlag {

@@ -63,6 +63,14 @@ void main() {
     expect(report.pieces, 2);
   });
 
+  test('removing a guest from the list drops them from nest take', () {
+    final remaining = [for (final order in orders) if (order.id != 'today-unpaid') order];
+    final report = Revenue.of(remaining, Revenue.windowFor(RevenuePeriod.today, now: now));
+    expect(report.take, 450);
+    expect(report.orders.map((o) => o.customerName), ['Lia Park']);
+    expect(report.open, 0);
+  });
+
   test('yesterday is only that calendar day', () {
     final report = Revenue.of(orders, Revenue.windowFor(RevenuePeriod.yesterday, now: now));
     expect(report.orders.single.customerName, 'Aya Lim');

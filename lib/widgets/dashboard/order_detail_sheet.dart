@@ -11,6 +11,7 @@ import '../ui/whimsical_badge.dart';
 import '../ui/whimsical_button.dart';
 import '../ui/whimsical_sheet.dart';
 import '../ui/whimsical_text_field.dart';
+import 'delete_order.dart';
 import '../storefront/mix_bill.dart';
 
 class OrderDetailSheet extends ConsumerStatefulWidget {
@@ -97,6 +98,20 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
                 _order.copyWith(status: OrderStatus.cancelled, updatedAt: DateTime.now()),
               ),
               child: const Text('Cancel request'),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () async {
+                final gone = await confirmAndDeleteOrder(
+                  context: context,
+                  ref: ref,
+                  order: _order,
+                );
+                if (gone && context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Delete request'),
             ),
           ),
           const SizedBox(height: 8),

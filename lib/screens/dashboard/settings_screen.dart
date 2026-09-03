@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../config/validators.dart';
+import '../../models/catalog_sort.dart';
 import '../../models/owner_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_providers.dart';
@@ -11,6 +12,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/ui/feedback.dart';
 import '../../widgets/ui/whimsical_button.dart';
 import '../../widgets/ui/whimsical_text_field.dart';
+import '../../widgets/dashboard/catalog_sort_picker.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -31,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _qr;
   var _inited = false;
   var _saving = false;
+  var _catalogSort = CatalogSort.manual;
 
   @override
   void dispose() {
@@ -53,6 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _bio.text = profile.bio ?? '';
     _logo = profile.logoUrl;
     _qr = profile.ewalletQrUrl;
+    _catalogSort = CatalogSort.parse(profile.catalogSort);
     if (profile.contactInfo.isEmpty) {
       _addRow('gcash', '');
     } else {
@@ -86,11 +90,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               logoUrl: _logo,
               ewalletQrUrl: _qr,
               contactInfo: contact,
+              catalogSort: _catalogSort.apiValue,
             ),
           );
       if (!mounted) return;
       ref.invalidate(myProfileProvider);
       ref.invalidate(shopProfileProvider(_slug.text.trim()));
+      ref.invalidate(publishedProductsProvider(_slug.text.trim()));
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -269,6 +275,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Add row'),
                 ),
+              ),
+              const SizedBox(height: 18),
+              CatalogSortPicker(
+                value: _catalogSort,
+                onChanged: (sort) => setState(() => _catalogSort = sort),
               ),
               const SizedBox(height: 12),
               WhimsicalButton(

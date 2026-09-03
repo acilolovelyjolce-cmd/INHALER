@@ -187,3 +187,28 @@ String parsePartKind(Object? value) {
     _ => 'paracord',
   };
 }
+
+String parseCatalogSort(Object? value) {
+  final key = asString(value).trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+  return switch (key) {
+    'price_asc' || 'cheapest' || 'price' => 'price_asc',
+    'price_desc' || 'expensive' => 'price_desc',
+    'name_asc' || 'name' || 'az' => 'name_asc',
+    _ => 'manual',
+  };
+}
+
+int compareCatalogRows(Map<String, dynamic> a, Map<String, dynamic> b, String sort) {
+  final ranked = switch (sort) {
+    'price_asc' => (parseMoney(a['price']) ?? 0).compareTo(parseMoney(b['price']) ?? 0),
+    'price_desc' => (parseMoney(b['price']) ?? 0).compareTo(parseMoney(a['price']) ?? 0),
+    'name_asc' => asString(a['name']).toLowerCase().compareTo(asString(b['name']).toLowerCase()),
+    _ => parseInt(a['sort_order'], fallback: 0, max: 99999)
+        .compareTo(parseInt(b['sort_order'], fallback: 0, max: 99999)),
+  };
+  if (ranked != 0) return ranked;
+  final byOrder = parseInt(a['sort_order'], fallback: 0, max: 99999)
+      .compareTo(parseInt(b['sort_order'], fallback: 0, max: 99999));
+  if (byOrder != 0) return byOrder;
+  return asString(a['name']).toLowerCase().compareTo(asString(b['name']).toLowerCase());
+}

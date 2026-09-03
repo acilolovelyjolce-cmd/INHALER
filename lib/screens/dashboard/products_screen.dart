@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
 import '../../config/validators.dart';
+import '../../models/catalog_sort.dart';
 import '../../models/part_kind.dart';
 import '../../models/parts_catalog.dart';
 import '../../models/product.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/dashboard/catalog_sort_picker.dart';
 import '../../widgets/dashboard/part_form_sheet.dart';
 import '../../widgets/dashboard/product_form_sheet.dart';
 import '../../widgets/ui/feedback.dart';
@@ -123,6 +126,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       ),
                     ],
                   ),
+                  if (_section == _CatalogSection.inhalers) ...[
+                    const SizedBox(height: 14),
+                    CatalogSortPicker(
+                      value: CatalogSort.parse(
+                        ref.watch(myProfileProvider).valueOrNull?.catalogSort,
+                      ),
+                      onChanged: _setShopSort,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -131,6 +143,25 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _setShopSort(CatalogSort sort) async {
+    final profile = ref.read(myProfileProvider).valueOrNull;
+    if (profile == null || profile.catalogSort == sort.apiValue) return;
+    try {
+      await ref.read(ownerRepositoryProvider).upsert(
+            profile.copyWith(catalogSort: sort.apiValue),
+          );
+      ref.invalidate(myProfileProvider);
+      ref.invalidate(shopProfileProvider(profile.shopSlug));
+      ref.invalidate(publishedProductsProvider(profile.shopSlug));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
   }
 
   Widget _body(List<Product> products, PartsCatalog bag) {

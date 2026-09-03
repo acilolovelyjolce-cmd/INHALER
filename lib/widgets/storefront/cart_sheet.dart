@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../config/formatters.dart';
 import '../../config/validators.dart';
@@ -35,7 +36,7 @@ class _CartSheetState extends ConsumerState<CartSheet> {
     if (_step == _CartStep.done) {
       return SheetScaffold(
         title: 'Order in',
-        child: ConfirmationView(ownerName: widget.shopName, method: _method),
+        child: ConfirmationView(ownerName: widget.shopName, slug: widget.slug, method: _method),
       );
     }
 
@@ -79,11 +80,11 @@ class _CartSheetState extends ConsumerState<CartSheet> {
               setState(() => _step = _CartStep.done);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                _showHandmadeLeadTimeDialog(context);
+                _finishCheckout(context, slug: widget.slug);
               });
             },
           ),
-        _CartStep.done => ConfirmationView(ownerName: widget.shopName, method: _method),
+        _CartStep.done => ConfirmationView(ownerName: widget.shopName, slug: widget.slug, method: _method),
       },
     );
   }
@@ -143,13 +144,21 @@ class _BagStep extends ConsumerWidget {
                         showProductName: false,
                       ),
                       const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: QuantityStepper(
-                          value: line.quantity,
-                          onChanged: (v) =>
-                              ref.read(cartProvider.notifier).setQuantity(index, v),
-                        ),
+                      Row(
+                        children: [
+                          TextButton(
+                            key: ValueKey('cart-remove-$index'),
+                            onPressed: () =>
+                                ref.read(cartProvider.notifier).removeAt(index),
+                            child: const Text('Remove'),
+                          ),
+                          const Spacer(),
+                          QuantityStepper(
+                            value: line.quantity,
+                            onChanged: (v) =>
+                                ref.read(cartProvider.notifier).setQuantity(index, v),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -457,9 +466,15 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
 }
 
 class ConfirmationView extends StatelessWidget {
-  const ConfirmationView({super.key, required this.ownerName, this.method});
+  const ConfirmationView({
+    super.key,
+    required this.ownerName,
+    required this.slug,
+    this.method,
+  });
 
   final String ownerName;
+  final String slug;
   final PaymentMethod? method;
 
   @override
@@ -489,13 +504,50 @@ class ConfirmationView extends StatelessWidget {
             style: AppTypography.body.copyWith(height: 1.45),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 24),
+          WhimsicalButton(
+            label: 'Shop again',
+            expand: true,
+            onPressed: () => _returnToShop(context, slug: slug),
+          ),
         ],
       ),
     );
   }
 }
 
-Future<void> _showHandmadeLeadTimeDialog(BuildContext context) {
+Future<void> _finishCheckout(BuildContext context, {required String slug}) async {
+  await _showCheckoutDialog(
+    context,
+    title: 'Handmade with care',
+    body:
+        'Each piece is handmade, so please allow 5–7 business days for your order to be finished and packed.',
+    action: 'Got it',
+  );
+  if (!context.mounted) return;
+  await _showCheckoutDialog(
+    context,
+    title: 'Thank you',
+    body: 'Thank you for supporting my small business.',
+    action: 'Shop again',
+  );
+  if (!context.mounted) return;
+  _returnToShop(context, slug: slug);
+}
+
+void _returnToShop(BuildContext context, {required String slug}) {
+  final router = GoRouter.of(context);
+  final navigator = Navigator.of(context, rootNavigator: false);
+  if (navigator.canPop()) navigator.pop();
+  router.go('/shop/$slug');
+}
+
+Future<void> _showCheckoutDialog(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String action,
+}) {
   return showDialog<void>(
     context: context,
     useRootNavigator: true,
@@ -507,15 +559,12 @@ Future<void> _showHandmadeLeadTimeDialog(BuildContext context) {
           borderRadius: BorderRadius.circular(28),
           side: const BorderSide(color: AppColors.ink, width: AppStroke.ink),
         ),
-        title: Text('Handmade with care', style: AppTypography.title),
-        content: Text(
-          'Each piece is handmade, so please allow 5–7 business days for your order to be finished and packed.',
-          style: AppTypography.body.copyWith(height: 1.45),
-        ),
+        title: Text(title, style: AppTypography.title),
+        content: Text(body, style: AppTypography.body.copyWith(height: 1.45)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Got it', style: AppTypography.title),
+            child: Text(action, style: AppTypography.title),
           ),
         ],
       );

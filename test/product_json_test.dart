@@ -66,5 +66,6 @@ void main() {
     });
     expect(shop.shopName, 'BDC - PASTEL POCKET');
     expect(shop.contactInfo, isEmpty);
+    expect(shop.catalogSort, 'manual');
   });
 }

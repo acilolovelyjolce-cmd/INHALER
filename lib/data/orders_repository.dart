@@ -123,4 +123,20 @@ class OrdersRepository {
     }
     await _api.put('/api/orders/${order.id}', order.toJson());
   }
+
+  Future<void> delete(String id) async {
+    if (AppConfig.useDemo) {
+      final store = DemoMemoryStore.instance;
+      final idx = store.orders.indexWhere((order) => order.id == id);
+      if (idx < 0) return;
+      final previous = store.orders[idx];
+      if (previous.status != OrderStatus.cancelled) {
+        store.applyOrderStock(previous.items, restore: true);
+      }
+      store.orders.removeAt(idx);
+      store.emitOrders();
+      return;
+    }
+    await _api.delete('/api/orders/$id');
+  }
 }
