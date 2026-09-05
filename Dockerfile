@@ -26,5 +26,6 @@ COPY --from=flutter /app/build/web /app/web
 COPY --from=server /server/whimsical /app/server
 ENV WEB_ROOT=/app/web
 ENV PORT=8080
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 EXPOSE 8080
 CMD ["/app/server"]

@@ -15,6 +15,7 @@ import 'share_preview.dart';
 
 Future<void> serveWhimsical() async {
   await Mongo.instance.connect();
+  _closeMongoOnShutdown();
   await runMigrations();
 
   final api = const Pipeline()
@@ -106,6 +107,23 @@ Middleware _jsonErrors() {
       }
     };
   };
+}
+
+void _closeMongoOnShutdown() {
+  var stopping = false;
+  Future<void> stop(String signal) async {
+    if (stopping) return;
+    stopping = true;
+    stdoutLog('Shutting down ($signal), closing MongoDB');
+    await Mongo.instance.close();
+    exit(0);
+  }
+
+  for (final signal in [ProcessSignal.sigint, ProcessSignal.sigterm]) {
+    try {
+      signal.watch().listen((_) => stop(signal.toString()));
+    } catch (_) {}
+  }
 }
 
 void stdoutLog(String message) {
