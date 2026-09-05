@@ -91,14 +91,8 @@ Middleware _jsonErrors() {
         final write = request.method == 'POST' ||
             request.method == 'PUT' ||
             request.method == 'DELETE';
-        if (isMongoDisconnect(error) && request.method != 'POST') {
-          try {
-            await Mongo.instance.reconnect();
-            return await inner(request);
-          } catch (retryError, retryStack) {
-            stderr.writeln('[whimsical] retry ${request.method} /${request.url}: $retryError\n$retryStack');
-            return jsonError(503, 'The nest is waking up. Tap save once more.');
-          }
+        if (isMongoDisconnect(error)) {
+          return jsonError(503, 'The nest is waking up. Tap save once more.');
         }
         if (write) {
           return jsonError(400, 'Could not save that just now. Check the fields and try again.');

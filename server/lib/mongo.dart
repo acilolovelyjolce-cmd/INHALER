@@ -11,9 +11,11 @@ class Mongo {
   Mongo._();
   static final Mongo instance = Mongo._();
 
+  static const _replaceCooldown = Duration(seconds: 30);
+
   Db? _db;
   Future<void>? _inFlight;
-  var _needsReplace = false;
+  DateTime? _openedAt;
 
   Db get db {
     final database = _db;
@@ -34,31 +36,28 @@ class Mongo {
     return database != null && database.isConnected;
   }
 
-  /// Opens the shared client, or returns the one already open.
+  /// Opens the shared client once. Later calls reuse it.
   Future<void> connect({int attempts = 12}) {
-    return _locked(() => _open(attempts: attempts));
+    return _locked(() => _open(attempts: attempts, replace: false));
   }
 
-  /// Reuses the live client. Only opens again if the socket is gone.
-  Future<void> ensureOpen() => connect(attempts: 4);
+  /// Reuses the live client. Opens only when there is no socket.
+  Future<void> ensureOpen() {
+    if (isReady) return Future.value();
+    return connect(attempts: 1);
+  }
 
-  /// Closes a dead client and opens one replacement. Concurrent callers
-  /// wait on the same lock instead of stacking new Atlas pools.
+  /// Replaces the client at most once per [_replaceCooldown].
+  /// Request handlers must not call this — it is a last-resort recovery.
   Future<void> reconnect() {
-    _needsReplace = true;
-    return _locked(() async {
-      if (isReady && !_needsReplace) return;
-      _needsReplace = false;
-      await _dispose(_db);
-      _db = null;
-      await _open(attempts: 4);
-    });
+    return _locked(() => _open(attempts: 1, replace: true));
   }
 
   Future<void> close() {
     return _locked(() async {
       await _dispose(_db);
       _db = null;
+      _openedAt = null;
     });
   }
 
@@ -73,8 +72,13 @@ class Mongo {
     return started;
   }
 
-  Future<void> _open({required int attempts}) async {
-    if (isReady) return;
+  Future<void> _open({required int attempts, required bool replace}) async {
+    if (isReady && !replace) return;
+    if (replace &&
+        _openedAt != null &&
+        DateTime.now().difference(_openedAt!) < _replaceCooldown) {
+      if (_db != null) return;
+    }
 
     final uri = Env.mongoUri.trim();
     if (uri.isEmpty) {
@@ -90,6 +94,7 @@ class Mongo {
         candidate = await _openClient(uri);
         final previous = _db;
         _db = candidate;
+        _openedAt = DateTime.now();
         if (previous != null && !identical(previous, candidate)) {
           await _dispose(previous);
         }
@@ -111,31 +116,27 @@ class Mongo {
     );
   }
 
+  /// DNS-resolve the SRV URI, then open exactly one host.
+  /// [Db.create] + [Db.open] on Atlas would connect to every replica member
+  /// and is what stacked hundreds of sockets after each reconnect.
   Future<Db> _openClient(String uri) async {
     final normalized = normalizeMongoUri(uri);
-    final seed = await Db.create(normalized);
-    try {
-      await seed.open(secure: true);
-      return seed;
-    } catch (error) {
-      final hosts = seed.uriList;
-      await _dispose(seed);
-      if (hosts.length <= 1) rethrow;
-      Object? lastError = error;
-      for (final hostUri in hosts) {
-        Db? single;
-        try {
-          single = Db(hostUri);
-          await single.open(secure: true);
-          stdoutLog('Connected to one Atlas host instead of the full replica set');
-          return single;
-        } catch (hostError) {
-          lastError = hostError;
-          await _dispose(single);
-        }
+    final hosts = normalized.startsWith('mongodb+srv://')
+        ? (await Db.create(normalized)).uriList
+        : [normalized];
+    Object? lastError;
+    for (final hostUri in hosts) {
+      Db? single;
+      try {
+        single = Db(hostUri);
+        await single.open(secure: true);
+        return single;
+      } catch (error) {
+        lastError = error;
+        await _dispose(single);
       }
-      throw lastError ?? error;
     }
+    throw lastError ?? StateError('Could not open a MongoDB host');
   }
 
   Future<void> _dispose(Db? database) async {
@@ -221,7 +222,6 @@ Future<void> mongoUpsert(
     await write();
   } catch (error) {
     if (!isMongoDisconnect(error)) rethrow;
-    await Mongo.instance.reconnect();
     await write();
   }
 }
@@ -255,7 +255,6 @@ Future<void> mongoSet(
     await write();
   } catch (error) {
     if (!isMongoDisconnect(error)) rethrow;
-    await Mongo.instance.reconnect();
     await write();
   }
 }
