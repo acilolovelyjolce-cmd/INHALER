@@ -126,15 +126,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       ),
                     ],
                   ),
-                  if (_section == _CatalogSection.inhalers) ...[
-                    const SizedBox(height: 14),
-                    CatalogSortPicker(
-                      value: CatalogSort.parse(
-                        ref.watch(myProfileProvider).valueOrNull?.catalogSort,
-                      ),
-                      onChanged: _setShopSort,
+                  const SizedBox(height: 14),
+                  CatalogSortPicker(
+                    value: CatalogSort.parse(
+                      ref.watch(myProfileProvider).valueOrNull?.catalogSort,
                     ),
-                  ],
+                    onChanged: _setShopSort,
+                  ),
                 ],
               ),
             ),
@@ -222,21 +220,68 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         body: kind.emptyBody,
       );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-      itemCount: options.length,
-      itemBuilder: (context, index) {
-        final option = options[index];
-        return _PartRow(
-          option: option,
-          onEdit: () => showWhimsicalSheet(
-            context: context,
-            builder: (_) => PartFormSheet(kind: kind, existing: option),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: _PartArrangeBar(
+            kind: kind,
+            onArrange: (sort) => _arrangeParts(kind, options, sort),
           ),
-          onDelete: () => _deletePart(context, option),
-        );
-      },
+        ),
+        Expanded(
+          child: ReorderableListView.builder(
+            buildDefaultDragHandles: false,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+            itemCount: options.length,
+            onReorder: (oldIndex, newIndex) async {
+              var nextIndex = newIndex;
+              if (nextIndex > oldIndex) nextIndex--;
+              final next = [...options];
+              final item = next.removeAt(oldIndex);
+              next.insert(nextIndex, item);
+              await _savePartOrder(kind, next);
+            },
+            itemBuilder: (context, index) {
+              final option = options[index];
+              return _PartRow(
+                key: ValueKey(option.id),
+                index: index,
+                option: option,
+                onEdit: () => showWhimsicalSheet(
+                  context: context,
+                  builder: (_) => PartFormSheet(kind: kind, existing: option),
+                ),
+                onDelete: () => _deletePart(context, option),
+              );
+            },
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _arrangeParts(PartKind kind, List<ProductOption> options, CatalogSort sort) {
+    return _savePartOrder(kind, sort.applyOptions(options));
+  }
+
+  Future<void> _savePartOrder(PartKind kind, List<ProductOption> ordered) async {
+    try {
+      await ref.read(productsRepositoryProvider).reorderParts(kind, ordered);
+      ref.invalidate(ownerPartsProvider);
+      ref.invalidate(ownerProductsProvider);
+      final slug = ref.read(myProfileProvider).valueOrNull?.shopSlug;
+      if (slug != null && slug.isNotEmpty) {
+        ref.invalidate(publishedProductsProvider(slug));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+      ref.invalidate(ownerPartsProvider);
+    }
   }
 
   Future<void> _openAdd(BuildContext context) {
@@ -375,20 +420,59 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 }
 
+class _PartArrangeBar extends StatelessWidget {
+  const _PartArrangeBar({required this.kind, required this.onArrange});
+
+  final PartKind kind;
+  final ValueChanged<CatalogSort> onArrange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Arrange this list', style: AppTypography.title),
+        const SizedBox(height: 4),
+        Text(
+          'Saves the drag order for ${kind.plural} when the shop uses “Your order”.',
+          style: AppTypography.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final sort in const [CatalogSort.priceAsc, CatalogSort.priceDesc, CatalogSort.nameAsc])
+              ActionChip(
+                label: Text(sort.label),
+                onPressed: () => onArrange(sort),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _PartRow extends StatelessWidget {
   const _PartRow({
+    super.key,
+    required this.index,
     required this.option,
     required this.onEdit,
     required this.onDelete,
   });
 
+  final int index;
   final ProductOption option;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return ReorderableDelayedDragStartListener(
+      index: index,
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
         color: AppColors.cloud,
@@ -439,11 +523,19 @@ class _PartRow extends StatelessWidget {
                     PopupMenuItem(value: 'del', child: Text('Delete')),
                   ],
                 ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.drag_handle, color: AppColors.plumSoft),
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
+    ),
     );
   }
 }

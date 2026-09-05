@@ -115,6 +115,17 @@ class ProductsRepository {
     });
   }
 
+  Future<void> reorderParts(PartKind kind, List<ProductOption> ordered) async {
+    if (AppConfig.useDemo) {
+      DemoMemoryStore.instance.reorderParts(kind, [for (final option in ordered) option.id]);
+      return;
+    }
+    await _api.post('/api/parts/reorder', {
+      'kind': kind.apiValue,
+      'ids': [for (final option in ordered) option.id],
+    });
+  }
+
   Stream<PartsCatalog> watchParts() async* {
     if (AppConfig.useDemo) {
       final store = DemoMemoryStore.instance;

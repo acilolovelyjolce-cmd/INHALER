@@ -108,11 +108,24 @@ class OrdersRepository {
         final previous = store.orders[idx];
         final wasCancelled = previous.status == OrderStatus.cancelled;
         final nowCancelled = order.status == OrderStatus.cancelled;
+        final itemsChanged = previous.items.length != order.items.length ||
+            previous.items.asMap().entries.any((entry) {
+              final next = order.items[entry.key];
+              return entry.value.productId != next.productId ||
+                  entry.value.quantity != next.quantity;
+            });
         if (!wasCancelled && nowCancelled) {
           store.applyOrderStock(previous.items, restore: true);
         } else if (wasCancelled && !nowCancelled) {
           final shortage = store.applyOrderStock(order.items, restore: false);
           if (shortage != null) {
+            throw ApiException(shortage, status: 409);
+          }
+        } else if (!wasCancelled && !nowCancelled && itemsChanged) {
+          store.applyOrderStock(previous.items, restore: true);
+          final shortage = store.applyOrderStock(order.items, restore: false);
+          if (shortage != null) {
+            store.applyOrderStock(previous.items, restore: false);
             throw ApiException(shortage, status: 409);
           }
         }

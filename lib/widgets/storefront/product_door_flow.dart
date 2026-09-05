@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/formatters.dart';
 import '../../data/demo_catalog.dart';
+import '../../models/catalog_sort.dart';
 import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
@@ -19,9 +20,10 @@ import 'cutout_sprite.dart';
 enum _Door { meet, paracord, trinkets, letterings, specialTrinkets, summary }
 
 class ProductDoorFlow extends ConsumerStatefulWidget {
-  const ProductDoorFlow({super.key, required this.product});
+  const ProductDoorFlow({super.key, required this.product, this.slug});
 
   final Product product;
+  final String? slug;
 
   @override
   ConsumerState<ProductDoorFlow> createState() => _ProductDoorFlowState();
@@ -38,6 +40,18 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
   bool? _wantsLetterings;
 
   Product get product => widget.product;
+
+  CatalogSort get _shopSort {
+    final slug = widget.slug;
+    if (slug == null || slug.isEmpty) return CatalogSort.manual;
+    return CatalogSort.parse(ref.watch(shopProfileProvider(slug)).valueOrNull?.catalogSort);
+  }
+
+  List<ProductOption> get _paracords => _shopSort.applyOptions(product.paracords);
+  List<ProductOption> get _trinketOptions => _shopSort.applyOptions(product.trinkets);
+  List<ProductOption> get _letteringOptions => _shopSort.applyOptions(product.letterings);
+  List<ProductOption> get _ropeOptions => _shopSort.applyOptions(product.ropes);
+  List<ProductOption> get _specialOptions => _shopSort.applyOptions(product.specialTrinkets);
 
   bool get _offersLettering {
     return product.letterings.any((item) => item.stock > 0) &&
@@ -291,10 +305,10 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                   child: switch (_door) {
                     _Door.meet => _MeetDoor(product: product),
                     _Door.paracord => _OptionGrid(
-                        subtitle: product.paracords.every((item) => item.stock <= 0)
+                        subtitle: _paracords.every((item) => item.stock <= 0)
                             ? 'These cords are all gone for now.'
                             : 'One color for the cord.',
-                        options: product.paracords,
+                        options: _paracords,
                         selectedIds: {
                           if (_paracord != null) _paracord!.id,
                         },
@@ -305,13 +319,13 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                       ),
                     _Door.trinkets => _OptionGrid(
                         subtitle: 'Tap as many as you like. Tap again to take one off.',
-                        options: product.trinkets,
+                        options: _trinketOptions,
                         selectedIds: _trinkets.map((item) => item.id).toSet(),
                         onTap: (option) => _toggle(_trinkets, option),
                       ),
                     _Door.letterings => _LetteringDoor(
-                        letterings: product.letterings,
-                        ropes: product.ropes,
+                        letterings: _letteringOptions,
+                        ropes: _ropeOptions,
                         selectedLetteringIds: _letterings.map((item) => item.id).toSet(),
                         selectedRopeId: _rope?.id,
                         onLettering: (option) => _toggle(_letterings, option),
@@ -322,7 +336,7 @@ class _ProductDoorFlowState extends ConsumerState<ProductDoorFlow> {
                       ),
                     _Door.specialTrinkets => _OptionGrid(
                         subtitle: 'Tap a special trinket. Tap again to take it off.',
-                        options: product.specialTrinkets,
+                        options: _specialOptions,
                         selectedIds: _specialTrinkets.map((item) => item.id).toSet(),
                         onTap: (option) => _toggle(_specialTrinkets, option),
                       ),

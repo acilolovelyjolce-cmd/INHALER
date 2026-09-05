@@ -25,21 +25,40 @@ class OrderDetailSheet extends ConsumerStatefulWidget {
 
 class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
   late OrderRequest _order;
+  late final TextEditingController _name;
+  late final TextEditingController _contact;
+  late final TextEditingController _customerNote;
   late final TextEditingController _notes;
+  late List<_ItemDraft> _items;
   var _busy = false;
 
   @override
   void initState() {
     super.initState();
     _order = widget.order;
+    _name = TextEditingController(text: widget.order.customerName);
+    _contact = TextEditingController(text: widget.order.customerContact);
+    _customerNote = TextEditingController(text: widget.order.customerNote ?? '');
     _notes = TextEditingController(text: widget.order.internalNotes ?? '');
+    _items = [for (final item in widget.order.items) _ItemDraft(item)];
   }
 
   @override
   void dispose() {
+    _name.dispose();
+    _contact.dispose();
+    _customerNote.dispose();
     _notes.dispose();
+    for (final item in _items) {
+      item.dispose();
+    }
     super.dispose();
   }
+
+  List<OrderItem> get _draftItems => [for (final item in _items) item.toItem()];
+
+  double get _draftTotal =>
+      _draftItems.fold<double>(0, (sum, item) => sum + item.priceAtOrder * item.quantity);
 
   Future<void> _save(OrderRequest next) async {
     final previous = _order;
@@ -50,6 +69,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
     try {
       await ref.read(ordersRepositoryProvider).update(next);
       ref.invalidate(ownerProductsProvider);
+      ref.invalidate(ordersInboxProvider);
     } catch (e) {
       if (mounted) {
         setState(() => _order = previous);
@@ -61,27 +81,76 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
     if (mounted) setState(() => _busy = false);
   }
 
+  Future<void> _saveDetails() async {
+    final nameError = Validators.name(_name.text);
+    final contactError = Validators.contact(_contact.text);
+    if (nameError != null || contactError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(nameError ?? contactError!)),
+      );
+      return;
+    }
+    if (_items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An order needs at least one item.')),
+      );
+      return;
+    }
+    final note = Validators.cleanMultiline(_customerNote.text);
+    await _save(
+      _order.copyWith(
+        customerName: Validators.cleanLine(_name.text),
+        customerContact: Validators.cleanLine(_contact.text),
+        customerNote: note.isEmpty ? null : note,
+        internalNotes: Validators.cleanMultiline(_notes.text),
+        items: _draftItems,
+        totalAmount: _draftTotal,
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SheetScaffold(
-      title: _order.customerName,
+      title: Validators.cleanLine(_name.text).isEmpty ? _order.customerName : Validators.cleanLine(_name.text),
       actions: WhimsicalButton(
-        label: 'Save notes',
+        label: 'Save changes',
         expand: true,
         busy: _busy,
-        onPressed: () => _save(_order.copyWith(internalNotes: Validators.cleanMultiline(_notes.text))),
+        onPressed: _saveDetails,
       ),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         children: [
-          Text(_order.customerContact, style: AppTypography.bodySmall),
-          const SizedBox(height: 6),
           Text(
             [
               Formatters.dayTime.format(_order.createdAt.toLocal()),
               if (_order.paymentMethod != null) _order.paymentMethod!.label,
             ].join(' · '),
             style: AppTypography.bodySmall,
+          ),
+          const SizedBox(height: 18),
+          Text('Guest details', style: AppTypography.title),
+          const SizedBox(height: 10),
+          WhimsicalTextField(
+            controller: _name,
+            label: 'Name',
+            validator: Validators.name,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          WhimsicalTextField(
+            controller: _contact,
+            label: 'Contact',
+            validator: Validators.contact,
+          ),
+          const SizedBox(height: 12),
+          WhimsicalTextField(
+            controller: _customerNote,
+            label: 'Customer note',
+            hint: 'Pickup, gift wrap, shade of mint…',
+            maxLines: 3,
           ),
           const SizedBox(height: 20),
           Text('Status', style: AppTypography.title),
@@ -129,34 +198,47 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
                 ),
             ],
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final method in PaymentMethod.values)
+                ChoiceChip(
+                  label: Text(method.label),
+                  selected: _order.paymentMethod == method,
+                  onSelected: (_) => _save(
+                    _order.copyWith(paymentMethod: method, updatedAt: DateTime.now()),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 20),
           Text('Items', style: AppTypography.title),
+          const SizedBox(height: 6),
+          Text(
+            'Change the name, quantity, or peso amount. Save changes writes it to the request and the till.',
+            style: AppTypography.bodySmall,
+          ),
           const SizedBox(height: 10),
-          for (final item in _order.items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DecoratedBox(
-                decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: MixBill(data: MixBillData.fromOrderItem(item)),
-                ),
-              ),
+          for (var i = 0; i < _items.length; i++)
+            _ItemEditor(
+              draft: _items[i],
+              canRemove: _items.length > 1,
+              onChanged: () => setState(() {}),
+              onRemove: () {
+                setState(() {
+                  _items.removeAt(i).dispose();
+                });
+              },
             ),
           const Divider(height: 32),
           Row(
             children: [
               const Text('Total', style: AppTypography.title),
               const Spacer(),
-              Text(Formatters.php(_order.totalAmount), style: AppTypography.displaySmall),
+              Text(Formatters.php(_draftTotal), style: AppTypography.displaySmall),
             ],
           ),
-          if (_order.customerNote != null && _order.customerNote!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text('Customer note', style: AppTypography.title),
-            const SizedBox(height: 6),
-            Text(_order.customerNote!, style: AppTypography.body),
-          ],
           const SizedBox(height: 20),
           WhimsicalTextField(
             controller: _notes,
@@ -171,6 +253,98 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
               child: Align(alignment: Alignment.centerLeft, child: AnimatedCheck(size: 40)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ItemDraft {
+  _ItemDraft(this.source)
+      : productName = TextEditingController(text: source.productName),
+        price = TextEditingController(text: source.priceAtOrder.toStringAsFixed(0)),
+        quantity = source.quantity;
+
+  final OrderItem source;
+  final TextEditingController productName;
+  final TextEditingController price;
+  int quantity;
+
+  OrderItem toItem() {
+    return source.copyWith(
+      productName: Validators.cleanLine(productName.text).isEmpty
+          ? source.productName
+          : Validators.cleanLine(productName.text),
+      priceAtOrder: Validators.parseMoney(price.text) ?? source.priceAtOrder,
+      quantity: quantity < 1 ? 1 : quantity,
+    );
+  }
+
+  void dispose() {
+    productName.dispose();
+    price.dispose();
+  }
+}
+
+class _ItemEditor extends StatelessWidget {
+  const _ItemEditor({
+    required this.draft,
+    required this.canRemove,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final _ItemDraft draft;
+  final bool canRemove;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: stickerFill(radius: 22, stroke: AppStroke.inkThin),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MixBill(data: MixBillData.fromOrderItem(draft.toItem())),
+              const SizedBox(height: 12),
+              WhimsicalTextField(
+                controller: draft.productName,
+                label: 'Item name',
+                onChanged: (_) => onChanged(),
+              ),
+              const SizedBox(height: 12),
+              WhimsicalTextField(
+                controller: draft.price,
+                label: 'Price each',
+                keyboardType: TextInputType.number,
+                onChanged: (_) => onChanged(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  QuantityStepper(
+                    value: draft.quantity,
+                    max: 99,
+                    onChanged: (value) {
+                      draft.quantity = value;
+                      onChanged();
+                    },
+                  ),
+                  const Spacer(),
+                  if (canRemove)
+                    TextButton(
+                      onPressed: onRemove,
+                      child: const Text('Remove item'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

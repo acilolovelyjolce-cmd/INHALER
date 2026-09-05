@@ -20,6 +20,7 @@ Future<void> runMigrations() async {
     '005_product_stock': _productStock,
     '006_letterings_and_special_trinkets': _letteringsAndSpecial,
     '007_ropes': _ropes,
+    '008_part_sort_order': _partSortOrder,
   };
 
   for (final entry in steps.entries) {
@@ -422,6 +423,34 @@ Future<void> _ropes() async {
     final existing = await mongo.parts.findOne(where.eq('_id', doc['_id']));
     if (existing == null) {
       await mongo.parts.insertOne(doc);
+    }
+  }
+}
+
+Future<void> _partSortOrder() async {
+  final mongo = Mongo.instance;
+  final now = DateTime.now().toUtc();
+  final grouped = <String, List<Map<String, dynamic>>>{};
+  for (final part in await mongo.parts.find().toList()) {
+    final ownerId = part['owner_id']?.toString() ?? '';
+    final kind = part['kind']?.toString() ?? 'paracord';
+    grouped.putIfAbsent('$ownerId:$kind', () => []).add(part);
+  }
+  for (final rows in grouped.values) {
+    rows.sort((a, b) {
+      final aOrder = (a['sort_order'] as num?)?.toInt();
+      final bOrder = (b['sort_order'] as num?)?.toInt();
+      if (aOrder != null && bOrder != null && aOrder != bOrder) {
+        return aOrder.compareTo(bOrder);
+      }
+      return (a['name']?.toString() ?? '').toLowerCase().compareTo(
+            (b['name']?.toString() ?? '').toLowerCase(),
+          );
+    });
+    for (var i = 0; i < rows.length; i++) {
+      rows[i]['sort_order'] = i;
+      rows[i]['updated_at'] = now;
+      await mongo.parts.replaceOne(where.eq('_id', rows[i]['_id']), rows[i]);
     }
   }
 }

@@ -88,6 +88,18 @@ class DemoMemoryStore {
     emitParts();
   }
 
+  void reorderParts(PartKind kind, List<String> ids) {
+    final list = _listFor(kind);
+    final byId = {for (final option in list) option.id: option};
+    list
+      ..clear()
+      ..addAll([
+        for (final id in ids) ?byId[id],
+      ]);
+    attachParts();
+    emitParts();
+  }
+
   void deletePart(String id) {
     paracords.removeWhere((item) => item.id == id);
     trinkets.removeWhere((item) => item.id == id);

@@ -52,7 +52,7 @@ class ProductDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            Expanded(child: ProductDoorFlow(product: product)),
+            Expanded(child: ProductDoorFlow(product: product, slug: slug)),
           ],
         );
       },

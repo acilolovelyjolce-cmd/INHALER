@@ -22,6 +22,16 @@ void main() {
     expect(ranked.map((item) => item.sortOrder).toList(), [0, 1, 2, 3]);
   });
 
+  test('option lists follow cheapest and name order', () {
+    final cheapest = CatalogSort.priceAsc.applyOptions(demoCords);
+    for (var i = 1; i < cheapest.length; i++) {
+      expect(cheapest[i - 1].price, lessThanOrEqualTo(cheapest[i].price));
+    }
+    final named = CatalogSort.nameAsc.applyOptions(demoCords);
+    final names = [for (final item in named) item.name.toLowerCase()];
+    expect(names, List<String>.from(names)..sort());
+  });
+
   test('OwnerProfile defaults catalog sort to manual', () {
     final shop = OwnerProfile.fromJson({
       'id': 'abc',

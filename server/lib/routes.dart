@@ -41,6 +41,7 @@ Router buildRouter() {
     ..get('/api/parts', _myParts)
     ..put('/api/parts/<id>', _upsertPart)
     ..delete('/api/parts/<id>', _deletePart)
+    ..post('/api/parts/reorder', _reorderParts)
     ..post('/api/files', _uploadFile)
     ..get('/api/files/<id>', _getFile);
   return router;
@@ -456,34 +457,69 @@ Future<Response> _updateOrder(Request request) async {
   final nextStatus = body.containsKey('status')
       ? cleanLine(body['status'], max: 40)
       : previousStatus;
+  final nextItems = body.containsKey('items') && body['items'] is List
+      ? body['items']
+      : existing['items'];
+  final customerName = body.containsKey('customer_name')
+      ? cleanLine(body['customer_name'], max: 80)
+      : asString(existing['customer_name']);
+  final customerContact = body.containsKey('customer_contact')
+      ? cleanLine(body['customer_contact'], max: 80)
+      : asString(existing['customer_contact']);
+  if (customerName.isEmpty || customerContact.isEmpty) {
+    return jsonError(400, 'Name and contact are required');
+  }
   final next = {
     ...existing,
+    'customer_name': customerName,
+    'customer_contact': customerContact,
+    'customer_note': body.containsKey('customer_note')
+        ? cleanOptional(body['customer_note'], max: 600, multiline: true)
+        : existing['customer_note'],
+    'items': nextItems,
+    'total_amount': body.containsKey('total_amount')
+        ? parseMoney(body['total_amount']) ?? existing['total_amount']
+        : existing['total_amount'],
     'status': body.containsKey('status') ? cleanLine(body['status'], max: 40) : existing['status'],
     'payment_status': body.containsKey('payment_status')
         ? cleanLine(body['payment_status'], max: 40)
         : existing['payment_status'],
+    'payment_method': body.containsKey('payment_method')
+        ? cleanOptional(body['payment_method'], max: 40)
+        : existing['payment_method'],
     'internal_notes': body.containsKey('internal_notes')
         ? cleanOptional(body['internal_notes'], max: 2000, multiline: true)
         : existing['internal_notes'],
     'updated_at': DateTime.now().toUtc(),
   };
 
-  if (previousStatus != nextStatus) {
+  final itemsChanged = body.containsKey('items');
+  final wasCancelled = previousStatus == 'cancelled';
+  final nowCancelled = nextStatus == 'cancelled';
+  if ((!wasCancelled && nowCancelled) ||
+      (wasCancelled && !nowCancelled) ||
+      (!wasCancelled && !nowCancelled && itemsChanged)) {
     final products = await _catalogForOwner(
       owner['_id'] as Object,
       slug: owner['shop_slug']?.toString(),
     );
-    if (previousStatus != 'cancelled' && nextStatus == 'cancelled') {
+    if (!wasCancelled && nowCancelled) {
       applyOrderStock(products, existing['items'], sign: 1);
-      await _persistProducts(products);
-      await _writePartStocks(owner['_id'], products);
-    } else if (previousStatus == 'cancelled' && nextStatus != 'cancelled') {
-      final shortage = shortageMessage(products, existing['items']);
+    } else if (wasCancelled && !nowCancelled) {
+      final shortage = shortageMessage(products, nextItems);
       if (shortage != null) return jsonError(409, shortage);
-      applyOrderStock(products, existing['items'], sign: -1);
-      await _persistProducts(products);
-      await _writePartStocks(owner['_id'], products);
+      applyOrderStock(products, nextItems, sign: -1);
+    } else {
+      applyOrderStock(products, existing['items'], sign: 1);
+      final shortage = shortageMessage(products, nextItems);
+      if (shortage != null) {
+        applyOrderStock(products, existing['items'], sign: -1);
+        return jsonError(409, shortage);
+      }
+      applyOrderStock(products, nextItems, sign: -1);
     }
+    await _persistProducts(products);
+    await _writePartStocks(owner['_id'], products);
   }
 
   await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
@@ -540,6 +576,11 @@ Future<Response> _upsertPart(Request request) async {
     'price': parseMoney(body['price'] ?? existing?['price']) ?? 0,
     'image_url': cleanOptional(body['image_url'] ?? existing?['image_url'], max: 500),
     'stock': parseInt(body['stock'] ?? existing?['stock']),
+    'sort_order': parseInt(
+      body['sort_order'] ?? existing?['sort_order'],
+      fallback: existing == null ? 999 : parseInt(existing['sort_order'], fallback: 999),
+      max: 99999,
+    ),
     'created_at': parseDate(existing?['created_at'], fallback: now),
     'updated_at': now,
   };
@@ -618,6 +659,7 @@ Future<_ShopParts> _partOptions(Object ownerId) async {
       'price': parseMoney(row['price']) ?? 0,
       'image_url': cleanOptional(row['image_url'], max: 500),
       'stock': parseInt(row['stock']),
+      'sort_order': parseInt(row['sort_order'], fallback: 999, max: 99999),
     };
     if (asString(option['id']).isEmpty || asString(option['name']).isEmpty) continue;
     switch (asString(row['kind'])) {
@@ -633,6 +675,18 @@ Future<_ShopParts> _partOptions(Object ownerId) async {
         cords.add(option);
     }
   }
+  int byOrder(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final ranked = parseInt(a['sort_order'], fallback: 999, max: 99999)
+        .compareTo(parseInt(b['sort_order'], fallback: 999, max: 99999));
+    if (ranked != 0) return ranked;
+    return asString(a['name']).toLowerCase().compareTo(asString(b['name']).toLowerCase());
+  }
+
+  cords.sort(byOrder);
+  charms.sort(byOrder);
+  letters.sort(byOrder);
+  ropeBag.sort(byOrder);
+  specials.sort(byOrder);
   return _ShopParts(
     paracords: cords,
     trinkets: charms,
@@ -640,6 +694,29 @@ Future<_ShopParts> _partOptions(Object ownerId) async {
     ropes: ropeBag,
     specialTrinkets: specials,
   );
+}
+
+Future<Response> _reorderParts(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final kind = parsePartKind(body['kind']);
+  final ids = [
+    for (final raw in body['ids'] is List ? body['ids'] as List : const [])
+      asString(raw),
+  ].where((id) => id.isNotEmpty).toList();
+  final now = DateTime.now().toUtc();
+  for (var i = 0; i < ids.length; i++) {
+    final existing = await Mongo.instance.parts.findOne(where.eq('_id', ids[i]));
+    if (existing == null || !sameId(existing['owner_id'], owner['_id'])) continue;
+    if (parsePartKind(existing['kind']) != kind) continue;
+    await mongoSet(Mongo.instance.parts, existing['_id'], {
+      'sort_order': i,
+      'updated_at': now,
+    });
+  }
+  await _attachParts(owner['_id'] as Object);
+  return jsonOk({'ok': true});
 }
 
 Future<void> _attachParts(Object ownerId) async {

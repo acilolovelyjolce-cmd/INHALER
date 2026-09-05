@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:whimsical_hub/data/demo_catalog.dart';
 import 'package:whimsical_hub/main.dart';
+import 'package:whimsical_hub/models/owner_profile.dart';
 import 'package:whimsical_hub/providers/catalog_providers.dart';
 import 'package:whimsical_hub/providers/intro_provider.dart';
 import 'package:whimsical_hub/theme/app_theme.dart';
@@ -305,6 +306,50 @@ void main() {
     await tester.pump();
     expect(find.text('Cart is empty'), findsOneWidget);
   });
+
+  testWidgets('cheapest first also sorts customer trinkets', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shopProfileProvider('whimsical').overrideWith(_CheapShop.new),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: ProductDoorFlow(product: demoProducts().first, slug: 'whimsical'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Mint paracord'));
+    await tester.pump();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Tiny Star'), findsOneWidget);
+    expect(find.text('Baby Rex'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Tiny Star')).dy,
+      lessThan(tester.getTopLeft(find.text('Baby Rex')).dy),
+    );
+  });
+}
+
+class _CheapShop extends ShopProfile {
+  @override
+  Stream<OwnerProfile?> build(String arg) async* {
+    yield demoOwner.copyWith(catalogSort: 'price_asc');
+  }
 }
 
 class _SeedCart extends Cart {
