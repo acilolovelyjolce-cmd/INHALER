@@ -21,6 +21,8 @@ class DashboardOverviewScreen extends ConsumerWidget {
     final profile = ref.watch(myProfileProvider);
 
     return orders.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(message: 'counting today’s hugs…'),
       error: (e, _) => WhimsicalError(
         message: e.toString(),

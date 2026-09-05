@@ -112,6 +112,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final profile = ref.watch(myProfileProvider);
     return profile.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(),
       error: (e, _) => WhimsicalError(
         message: e.toString(),

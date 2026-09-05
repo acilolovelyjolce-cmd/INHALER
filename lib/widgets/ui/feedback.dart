@@ -264,6 +264,9 @@ class ProductImageView extends StatelessWidget {
     return Image.network(
       url,
       fit: fit,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      cacheWidth: 480,
       errorBuilder: (context, error, stack) => const ColoredBox(color: AppColors.blush),
     );
   }

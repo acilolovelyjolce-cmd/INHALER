@@ -17,6 +17,8 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(publishedProductsProvider(slug));
     return products.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(),
       error: (e, _) => WhimsicalError(
         message: e.toString(),

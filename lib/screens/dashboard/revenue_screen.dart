@@ -21,6 +21,8 @@ class RevenueScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final inbox = ref.watch(ordersInboxProvider);
     return inbox.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(message: 'counting the pesos…'),
       error: (error, _) => WhimsicalError(
         message: error.toString(),

@@ -22,6 +22,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient();
 
   final http.Client _http;
+  final _inflightGets = <String, Future<dynamic>>{};
 
   static String get origin {
     if (AppConfig.apiUrl.isNotEmpty && AppConfig.apiUrl != 'demo') {
@@ -61,12 +62,19 @@ class ApiClient {
   }
 
   Future<dynamic> get(String path, {bool auth = true}) async {
-    return _withRetry(() async {
-      final response = await _http.get(
-        _uri(path),
-        headers: _headers(json: false, auth: auth),
-      );
-      return _decode(response);
+    final key = '${auth ? '1' : '0'}:$path';
+    return _inflightGets.putIfAbsent(key, () async {
+      try {
+        return await _withRetry(() async {
+          final response = await _http.get(
+            _uri(path),
+            headers: _headers(json: false, auth: auth),
+          );
+          return _decode(response);
+        });
+      } finally {
+        _inflightGets.remove(key);
+      }
     });
   }
 
@@ -131,7 +139,7 @@ class ApiClient {
         last = error;
         if (attempt == 2) rethrow;
       }
-      await Future<void>.delayed(Duration(milliseconds: 350 * (attempt + 1)));
+      await Future<void>.delayed(Duration(milliseconds: 200 * (attempt + 1)));
     }
     throw last!;
   }

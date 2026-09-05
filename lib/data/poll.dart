@@ -1,6 +1,6 @@
 Stream<T> pollKeepingLast<T>(
   Future<T> Function() fetch, {
-  Duration period = const Duration(seconds: 12),
+  Duration period = const Duration(seconds: 20),
 }) async* {
   T? last;
   var hasLast = false;

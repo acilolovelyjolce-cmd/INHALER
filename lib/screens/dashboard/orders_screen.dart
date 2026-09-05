@@ -34,6 +34,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final inbox = ref.watch(ordersInboxProvider);
 
     return inbox.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(message: 'listening for requests…'),
       error: (e, _) => WhimsicalError(
         message: e.toString(),

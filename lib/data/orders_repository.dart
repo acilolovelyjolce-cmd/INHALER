@@ -21,7 +21,7 @@ class OrdersRepository {
       yield* store.ordersCtrl.stream.map((_) => sorted());
       return;
     }
-    yield* pollKeepingLast(_fetch, period: const Duration(seconds: 8));
+    yield* pollKeepingLast(_fetch, period: const Duration(seconds: 12));
   }
 
   Future<List<OrderRequest>> _fetch() async {

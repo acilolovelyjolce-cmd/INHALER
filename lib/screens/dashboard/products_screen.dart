@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,6 +41,10 @@ class ProductsScreen extends ConsumerStatefulWidget {
 
 class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   var _section = _CatalogSection.inhalers;
+  CatalogSort? _sortOverride;
+  PartsCatalog? _partsOverride;
+  List<Product>? _productsOverride;
+  var _saveGen = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +52,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final parts = ref.watch(ownerPartsProvider);
 
     return catalog.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const DinoLoading(),
       error: (e, _) => WhimsicalError(
         message: e.toString(),
@@ -55,10 +63,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         },
       ),
       data: (products) {
-        final shopSort = CatalogSort.parse(
-          ref.watch(myProfileProvider).valueOrNull?.catalogSort,
-        );
-        final bag = parts.valueOrNull ??
+        final shopSort = _sortOverride ??
+            CatalogSort.parse(
+              ref.watch(myProfileProvider).valueOrNull?.catalogSort,
+            );
+        final bag = _partsOverride ??
+            parts.valueOrNull ??
             PartsCatalog(
               paracords: _unique(products, (p) => p.paracords),
               trinkets: _unique(products, (p) => p.trinkets),
@@ -66,7 +76,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               ropes: _unique(products, (p) => p.ropes),
               specialTrinkets: _unique(products, (p) => p.specialTrinkets),
             );
-        final shown = shopSort.apply(products);
+        final shown = shopSort.apply(_productsOverride ?? products);
         return Column(
           children: [
             Padding(
@@ -133,7 +143,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                   const SizedBox(height: 14),
                   CatalogSortPicker(
                     value: shopSort,
-                    onChanged: (sort) => _setShopSort(sort),
+                    onChanged: _onShopSort,
                   ),
                 ],
               ),
@@ -145,7 +155,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  Future<bool> _setShopSort(CatalogSort sort, {bool notify = true}) async {
+  void _onShopSort(CatalogSort sort) {
+    setState(() => _sortOverride = sort);
+    unawaited(_persistShopSort(sort));
+  }
+
+  Future<bool> _persistShopSort(CatalogSort sort, {bool notify = false}) async {
     final profile = ref.read(myProfileProvider).valueOrNull;
     if (profile == null) return false;
     if (profile.catalogSort == sort.apiValue) return true;
@@ -153,7 +168,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       await ref.read(ownerRepositoryProvider).upsert(
             profile.copyWith(catalogSort: sort.apiValue),
           );
-      _invalidateCatalog(profile.shopSlug);
+      _refreshShop(profile.shopSlug);
       return true;
     } catch (_) {
       if (notify && mounted) {
@@ -165,14 +180,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     }
   }
 
-  void _invalidateCatalog(String? slug) {
-    ref.invalidate(myProfileProvider);
-    ref.invalidate(ownerPartsProvider);
-    ref.invalidate(ownerProductsProvider);
-    if (slug != null && slug.isNotEmpty) {
-      ref.invalidate(shopProfileProvider(slug));
-      ref.invalidate(publishedProductsProvider(slug));
-    }
+  void _refreshShop(String? slug) {
+    if (slug == null || slug.isEmpty) return;
+    ref.invalidate(shopProfileProvider(slug));
+    ref.invalidate(publishedProductsProvider(slug));
   }
 
   Widget _body(List<Product> products, PartsCatalog bag, CatalogSort shopSort) {
@@ -193,12 +204,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           final next = [...products];
           final item = next.removeAt(oldIndex);
           next.insert(nextIndex, item);
-          try {
-            await ref.read(productsRepositoryProvider).reorder(next);
-            await _setShopSort(CatalogSort.manual, notify: false);
-          } catch (_) {
-            ref.invalidate(ownerProductsProvider);
-          }
+          setState(() {
+            _productsOverride = next;
+            _sortOverride = CatalogSort.manual;
+          });
+          unawaited(_persistProductOrder(next));
         },
         itemBuilder: (context, index) {
           final product = products[index];
@@ -235,7 +245,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: _PartArrangeBar(
             kind: kind,
-            onArrange: (sort) => _arrangeParts(kind, options, sort),
+            onArrange: (sort) => _arrangeParts(kind, bag, options, sort),
           ),
         ),
         Expanded(
@@ -249,8 +259,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               final next = [...options];
               final item = next.removeAt(oldIndex);
               next.insert(nextIndex, item);
-              await _savePartOrder(kind, next, notify: false);
-              await _setShopSort(CatalogSort.manual, notify: false);
+              setState(() {
+                _partsOverride = bag.withKind(kind, next);
+                _sortOverride = CatalogSort.manual;
+              });
+              unawaited(_persistPartOrder(kind, next, CatalogSort.manual));
             },
             itemBuilder: (context, index) {
               final option = options[index];
@@ -271,34 +284,60 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  Future<void> _arrangeParts(PartKind kind, List<ProductOption> options, CatalogSort sort) async {
+  Future<void> _arrangeParts(
+    PartKind kind,
+    PartsCatalog bag,
+    List<ProductOption> options,
+    CatalogSort sort,
+  ) async {
     final ordered = sort.applyOptions(options);
-    final ranked = await _setShopSort(sort, notify: false);
-    final saved = await _savePartOrder(kind, ordered, notify: false);
-    if (!ranked && !saved && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update the shop order. Try once more.')),
-      );
+    setState(() {
+      _sortOverride = sort;
+      _partsOverride = bag.withKind(kind, ordered);
+    });
+    unawaited(_persistPartOrder(kind, ordered, sort));
+  }
+
+  Future<void> _persistProductOrder(List<Product> ordered) async {
+    final gen = ++_saveGen;
+    try {
+      await ref.read(productsRepositoryProvider).reorder(
+            ordered,
+            catalogSort: CatalogSort.manual.apiValue,
+          );
+      if (gen != _saveGen || !mounted) return;
+      _refreshShop(ref.read(myProfileProvider).valueOrNull?.shopSlug);
+    } catch (_) {
+      if (gen != _saveGen || !mounted) return;
+      setState(() => _productsOverride = null);
     }
   }
 
-  Future<bool> _savePartOrder(
+  Future<void> _persistPartOrder(
     PartKind kind,
-    List<ProductOption> ordered, {
-    bool notify = true,
-  }) async {
+    List<ProductOption> ordered,
+    CatalogSort sort,
+  ) async {
+    final gen = ++_saveGen;
     try {
-      await ref.read(productsRepositoryProvider).reorderParts(kind, ordered);
-      _invalidateCatalog(ref.read(myProfileProvider).valueOrNull?.shopSlug);
-      return true;
+      await ref.read(productsRepositoryProvider).reorderParts(
+            kind,
+            ordered,
+            catalogSort: sort.apiValue,
+          );
+      if (gen != _saveGen || !mounted) return;
+      _refreshShop(ref.read(myProfileProvider).valueOrNull?.shopSlug);
     } catch (_) {
-      ref.invalidate(ownerPartsProvider);
-      if (notify && mounted) {
+      if (gen != _saveGen || !mounted) return;
+      setState(() {
+        _partsOverride = null;
+        _sortOverride = null;
+      });
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not update the shop order. Try once more.')),
         );
       }
-      return false;
     }
   }
 

@@ -32,7 +32,7 @@ class OwnerRepository {
       }
     }
     yield await once();
-    yield* Stream.periodic(const Duration(seconds: 8)).asyncMap((_) => once());
+    yield* Stream.periodic(const Duration(seconds: 15)).asyncMap((_) => once());
   }
 
   Stream<OwnerProfile?> watchMine() async* {
@@ -42,7 +42,7 @@ class OwnerRepository {
       yield* store.ownerCtrl.stream;
       return;
     }
-    yield* pollKeepingLast(_fetchMe, period: const Duration(seconds: 8));
+    yield* pollKeepingLast(_fetchMe, period: const Duration(seconds: 20));
   }
 
   Future<OwnerProfile?> fetchBySlug(String slug) async {

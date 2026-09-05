@@ -48,7 +48,7 @@ class ProductsRepository {
       }
     }
     yield await once(staleOk: false);
-    yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => once(staleOk: true));
+    yield* Stream.periodic(const Duration(seconds: 15)).asyncMap((_) => once(staleOk: true));
   }
 
   Stream<List<Product>> watchAll() async* {
@@ -103,21 +103,41 @@ class ProductsRepository {
     await _api.delete('/api/products/$id');
   }
 
-  Future<void> reorder(List<Product> ordered) async {
+  Future<void> reorder(List<Product> ordered, {String? catalogSort}) async {
     if (AppConfig.useDemo) {
+      final store = DemoMemoryStore.instance;
+      final now = DateTime.now();
       for (var i = 0; i < ordered.length; i++) {
-        await upsert(ordered[i].copyWith(sortOrder: i, updatedAt: DateTime.now()));
+        final idx = store.products.indexWhere((item) => item.id == ordered[i].id);
+        if (idx >= 0) {
+          store.products[idx] = store.products[idx].copyWith(sortOrder: i, updatedAt: now);
+        }
       }
+      if (catalogSort != null) {
+        store.owner = store.owner.copyWith(catalogSort: catalogSort);
+        store.emitOwner();
+      }
+      store.emitProducts();
       return;
     }
     await _api.post('/api/products/reorder', {
       'ids': ordered.map((p) => p.id).toList(),
+      if (catalogSort != null) 'catalog_sort': catalogSort,
     });
   }
 
-  Future<void> reorderParts(PartKind kind, List<ProductOption> ordered) async {
+  Future<void> reorderParts(
+    PartKind kind,
+    List<ProductOption> ordered, {
+    String? catalogSort,
+  }) async {
     if (AppConfig.useDemo) {
-      DemoMemoryStore.instance.reorderParts(kind, [for (final option in ordered) option.id]);
+      final store = DemoMemoryStore.instance;
+      store.reorderParts(kind, [for (final option in ordered) option.id]);
+      if (catalogSort != null) {
+        store.owner = store.owner.copyWith(catalogSort: catalogSort);
+        store.emitOwner();
+      }
       return;
     }
     final ids = [for (final option in ordered) option.id];
@@ -125,6 +145,7 @@ class ProductsRepository {
       await _api.post('/api/parts/reorder', {
         'kind': kind.apiValue,
         'ids': ids,
+        if (catalogSort != null) 'catalog_sort': catalogSort,
       });
     } catch (_) {
       final wrote = await _fanOutPartOrder(kind, ordered);
@@ -135,23 +156,26 @@ class ProductsRepository {
   Future<bool> _fanOutPartOrder(PartKind kind, List<ProductOption> ordered) async {
     final products = await _fetchMine();
     var wrote = false;
-    for (final product in products) {
-      List<ProductOption> next(List<ProductOption> current) =>
-          CatalogSort.orderedByIds(current, [for (final option in ordered) option.id]);
-      final updated = product.copyWith(
-        paracords: kind == PartKind.paracord ? next(product.paracords) : product.paracords,
-        trinkets: kind == PartKind.trinket ? next(product.trinkets) : product.trinkets,
-        letterings: kind == PartKind.lettering ? next(product.letterings) : product.letterings,
-        ropes: kind == PartKind.rope ? next(product.ropes) : product.ropes,
-        specialTrinkets:
-            kind == PartKind.specialTrinket ? next(product.specialTrinkets) : product.specialTrinkets,
-        updatedAt: DateTime.now(),
-      );
-      try {
-        await upsert(updated);
-        wrote = true;
-      } catch (_) {}
-    }
+    await Future.wait([
+      for (final product in products)
+        () async {
+          List<ProductOption> next(List<ProductOption> current) =>
+              CatalogSort.orderedByIds(current, [for (final option in ordered) option.id]);
+          final updated = product.copyWith(
+            paracords: kind == PartKind.paracord ? next(product.paracords) : product.paracords,
+            trinkets: kind == PartKind.trinket ? next(product.trinkets) : product.trinkets,
+            letterings: kind == PartKind.lettering ? next(product.letterings) : product.letterings,
+            ropes: kind == PartKind.rope ? next(product.ropes) : product.ropes,
+            specialTrinkets:
+                kind == PartKind.specialTrinket ? next(product.specialTrinkets) : product.specialTrinkets,
+            updatedAt: DateTime.now(),
+          );
+          try {
+            await upsert(updated);
+            wrote = true;
+          } catch (_) {}
+        }(),
+    ]);
     return wrote;
   }
 

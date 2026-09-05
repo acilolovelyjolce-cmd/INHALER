@@ -69,6 +69,20 @@ class Mongo {
   }
 }
 
+Future<void> mapInBatches<T>(
+  Iterable<T> items,
+  Future<void> Function(T item) work, {
+  int size = 8,
+}) async {
+  final list = items.toList();
+  for (var i = 0; i < list.length; i += size) {
+    final end = i + size > list.length ? list.length : i + size;
+    await Future.wait([
+      for (final item in list.sublist(i, end)) work(item),
+    ]);
+  }
+}
+
 void stdoutLog(String message) {
   // ignore: avoid_print
   print('[whimsical] $message');

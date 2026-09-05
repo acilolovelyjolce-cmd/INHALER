@@ -35,6 +35,44 @@ class PartsCatalog {
         PartKind.specialTrinket => specialTrinkets,
       };
 
+  PartsCatalog withKind(PartKind kind, List<ProductOption> options) => switch (kind) {
+        PartKind.paracord => PartsCatalog(
+            paracords: options,
+            trinkets: trinkets,
+            letterings: letterings,
+            ropes: ropes,
+            specialTrinkets: specialTrinkets,
+          ),
+        PartKind.trinket => PartsCatalog(
+            paracords: paracords,
+            trinkets: options,
+            letterings: letterings,
+            ropes: ropes,
+            specialTrinkets: specialTrinkets,
+          ),
+        PartKind.lettering => PartsCatalog(
+            paracords: paracords,
+            trinkets: trinkets,
+            letterings: options,
+            ropes: ropes,
+            specialTrinkets: specialTrinkets,
+          ),
+        PartKind.rope => PartsCatalog(
+            paracords: paracords,
+            trinkets: trinkets,
+            letterings: letterings,
+            ropes: options,
+            specialTrinkets: specialTrinkets,
+          ),
+        PartKind.specialTrinket => PartsCatalog(
+            paracords: paracords,
+            trinkets: trinkets,
+            letterings: letterings,
+            ropes: ropes,
+            specialTrinkets: options,
+          ),
+      };
+
   int get totalCount =>
       paracords.length +
       trinkets.length +

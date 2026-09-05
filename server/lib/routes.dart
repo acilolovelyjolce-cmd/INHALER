@@ -408,12 +408,22 @@ Future<Response> _reorder(Request request) async {
   final body = await readJson(request);
   final ids = (body['ids'] as List? ?? []).map((e) => e.toString()).toList();
   final now = DateTime.now().toUtc();
-  for (var i = 0; i < ids.length; i++) {
+  if (body.containsKey('catalog_sort')) {
+    try {
+      await mongoSet(Mongo.instance.owners, owner['_id'], {
+        'catalog_sort': parseCatalogSort(body['catalog_sort']),
+        'updated_at': now,
+      });
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] reorder catalog sort: $error\n$stack');
+    }
+  }
+  await mapInBatches(List<int>.generate(ids.length, (i) => i), (i) async {
     await Mongo.instance.products.update(
       where.eq('_id', ids[i]).eq('owner_id', owner['_id']),
       modify.set('sort_order', i).set('updated_at', now),
     );
-  }
+  });
   return jsonOk({'ok': true});
 }
 
@@ -734,17 +744,27 @@ Future<Response> _reorderParts(Request request) async {
   if (ids.isEmpty) return jsonOk({'ok': true});
   final now = DateTime.now().toUtc();
   final ownerId = owner['_id'] as Object;
+  if (body.containsKey('catalog_sort')) {
+    try {
+      await mongoSet(Mongo.instance.owners, ownerId, {
+        'catalog_sort': parseCatalogSort(body['catalog_sort']),
+        'updated_at': now,
+      });
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] reorder parts catalog sort: $error\n$stack');
+    }
+  }
   try {
     final owned = await _partsForOwner(ownerId);
     final byId = <String, Map<String, dynamic>>{
       for (final row in owned)
         if (parsePartKind(row['kind']) == kind) asString(row['_id']): Map<String, dynamic>.from(row),
     };
-    for (var i = 0; i < ids.length; i++) {
+    await mapInBatches(List<int>.generate(ids.length, (i) => i), (i) async {
       final existing = byId[ids[i]];
-      if (existing == null) continue;
+      if (existing == null) return;
       final id = existing['_id'];
-      if (id == null) continue;
+      if (id == null) return;
       try {
         await Mongo.instance.parts.update(
           where.eq('_id', id),
@@ -753,7 +773,7 @@ Future<Response> _reorderParts(Request request) async {
       } catch (error, stack) {
         stderr.writeln('[whimsical] reorder part $id: $error\n$stack');
       }
-    }
+    });
     await _applyPartOrderToProducts(ownerId, kind, ids);
   } catch (error, stack) {
     stderr.writeln('[whimsical] reorder parts: $error\n$stack');
@@ -781,11 +801,11 @@ Future<void> _applyPartOrderToProducts(Object ownerId, String kind, List<String>
   final key = optionListKeyForKind(kind);
   final products = await _productsForOwner(ownerId);
   final now = DateTime.now().toUtc();
-  for (final product in products) {
+  await mapInBatches(products, (product) async {
     final id = product['_id'];
-    if (id == null) continue;
+    if (id == null) return;
     final next = reorderMapsByIds(product[key], ids);
-    if (next.isEmpty) continue;
+    if (next.isEmpty) return;
     try {
       await Mongo.instance.products.update(
         where.eq('_id', id),
@@ -799,7 +819,7 @@ Future<void> _applyPartOrderToProducts(Object ownerId, String kind, List<String>
         stderr.writeln('[whimsical] reorder $key fallback $id: $retryError\n$retryStack');
       }
     }
-  }
+  });
 }
 
 Future<void> _attachParts(Object ownerId) async {
@@ -812,15 +832,15 @@ Future<void> _attachParts(Object ownerId) async {
       ...options.productFields,
       'updated_at': DateTime.now().toUtc(),
     };
-    for (final product in products) {
+    await mapInBatches(products, (product) async {
       final id = product['_id'];
-      if (id == null) continue;
+      if (id == null) return;
       try {
         await mongoSet(Mongo.instance.products, id, fields);
       } catch (error, stack) {
         stderr.writeln('[whimsical] attach parts to $id: $error\n$stack');
       }
-    }
+    });
   } catch (error, stack) {
     stderr.writeln('[whimsical] attach parts: $error\n$stack');
   }
@@ -848,11 +868,11 @@ Future<void> _writePartStocks(Object ownerId, List<Map<String, dynamic>> product
       parts = await Mongo.instance.parts.find(where.eq('owner_id', asText)).toList();
     }
   }
-  for (final part in parts) {
+  await mapInBatches(parts, (part) async {
     final id = part['_id'];
-    if (id == null) continue;
+    if (id == null) return;
     final key = asString(id);
-    if (!stocks.containsKey(key)) continue;
+    if (!stocks.containsKey(key)) return;
     try {
       await mongoSet(Mongo.instance.parts, id, {
         'stock': stocks[key],
@@ -861,14 +881,14 @@ Future<void> _writePartStocks(Object ownerId, List<Map<String, dynamic>> product
     } catch (error, stack) {
       stderr.writeln('[whimsical] write part stock $key: $error\n$stack');
     }
-  }
+  });
 }
 
 Future<void> _persistProducts(List<Map<String, dynamic>> products) async {
   final now = DateTime.now().toUtc();
-  for (final product in products) {
+  await mapInBatches(products, (product) async {
     final id = product['_id'];
-    if (id == null) continue;
+    if (id == null) return;
     try {
       await mongoSet(Mongo.instance.products, id, {
         'paracords': product['paracords'],
@@ -883,7 +903,7 @@ Future<void> _persistProducts(List<Map<String, dynamic>> products) async {
     } catch (error, stack) {
       stderr.writeln('[whimsical] persist product $id: $error\n$stack');
     }
-  }
+  });
 }
 
 Future<Response> _uploadFile(Request request) async {

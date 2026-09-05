@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whimsical_hub/data/demo_catalog.dart';
 import 'package:whimsical_hub/models/catalog_sort.dart';
 import 'package:whimsical_hub/models/owner_profile.dart';
+import 'package:whimsical_hub/models/part_kind.dart';
+import 'package:whimsical_hub/models/parts_catalog.dart';
+import 'package:whimsical_hub/models/product.dart';
 
 void main() {
   test('cheapest first lists the lowest inhaler price at the top', () {
@@ -54,6 +57,24 @@ void main() {
           .map((item) => item.id),
       arranged.map((item) => item.id),
     );
+  });
+
+  test('PartsCatalog.withKind only replaces that list', () {
+    const bag = PartsCatalog(
+      paracords: [
+        ProductOption(id: 'c1', name: 'Mint', price: 40),
+      ],
+      trinkets: [
+        ProductOption(id: 't1', name: 'Rex', price: 80),
+        ProductOption(id: 't2', name: 'Star', price: 20),
+      ],
+    );
+    final next = bag.withKind(
+      PartKind.trinket,
+      CatalogSort.priceAsc.applyOptions(bag.trinkets),
+    );
+    expect(next.paracords, bag.paracords);
+    expect(next.trinkets.first.id, 't2');
   });
 
   test('orderedByIds keeps leftover options after the arranged ones', () {
