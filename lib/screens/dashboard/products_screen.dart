@@ -55,6 +55,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         },
       ),
       data: (products) {
+        final shopSort = CatalogSort.parse(
+          ref.watch(myProfileProvider).valueOrNull?.catalogSort,
+        );
         final bag = parts.valueOrNull ??
             PartsCatalog(
               paracords: _unique(products, (p) => p.paracords),
@@ -63,6 +66,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               ropes: _unique(products, (p) => p.ropes),
               specialTrinkets: _unique(products, (p) => p.specialTrinkets),
             );
+        final shown = shopSort.apply(products);
         return Column(
           children: [
             Padding(
@@ -82,7 +86,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
-                          if (value == 'bulk') _bulk(context, ref, products);
+                          if (value == 'bulk') _bulk(context, ref, shown);
                         },
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'bulk', child: Text('Bulk price adjust')),
@@ -128,41 +132,50 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                   ),
                   const SizedBox(height: 14),
                   CatalogSortPicker(
-                    value: CatalogSort.parse(
-                      ref.watch(myProfileProvider).valueOrNull?.catalogSort,
-                    ),
-                    onChanged: _setShopSort,
+                    value: shopSort,
+                    onChanged: (sort) => _setShopSort(sort),
                   ),
                 ],
               ),
             ),
-            Expanded(child: _body(products, bag)),
+            Expanded(child: _body(shown, bag, shopSort)),
           ],
         );
       },
     );
   }
 
-  Future<void> _setShopSort(CatalogSort sort) async {
+  Future<bool> _setShopSort(CatalogSort sort, {bool notify = true}) async {
     final profile = ref.read(myProfileProvider).valueOrNull;
-    if (profile == null || profile.catalogSort == sort.apiValue) return;
+    if (profile == null) return false;
+    if (profile.catalogSort == sort.apiValue) return true;
     try {
       await ref.read(ownerRepositoryProvider).upsert(
             profile.copyWith(catalogSort: sort.apiValue),
           );
-      ref.invalidate(myProfileProvider);
-      ref.invalidate(shopProfileProvider(profile.shopSlug));
-      ref.invalidate(publishedProductsProvider(profile.shopSlug));
-    } catch (error) {
-      if (mounted) {
+      _invalidateCatalog(profile.shopSlug);
+      return true;
+    } catch (_) {
+      if (notify && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          const SnackBar(content: Text('Could not update the shop order. Try once more.')),
         );
       }
+      return false;
     }
   }
 
-  Widget _body(List<Product> products, PartsCatalog bag) {
+  void _invalidateCatalog(String? slug) {
+    ref.invalidate(myProfileProvider);
+    ref.invalidate(ownerPartsProvider);
+    ref.invalidate(ownerProductsProvider);
+    if (slug != null && slug.isNotEmpty) {
+      ref.invalidate(shopProfileProvider(slug));
+      ref.invalidate(publishedProductsProvider(slug));
+    }
+  }
+
+  Widget _body(List<Product> products, PartsCatalog bag, CatalogSort shopSort) {
     if (_section == _CatalogSection.inhalers) {
       if (products.isEmpty) {
         return const WhimsicalEmpty(
@@ -182,12 +195,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           next.insert(nextIndex, item);
           try {
             await ref.read(productsRepositoryProvider).reorder(next);
-          } catch (error) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(error.toString())),
-              );
-            }
+            await _setShopSort(CatalogSort.manual, notify: false);
+          } catch (_) {
             ref.invalidate(ownerProductsProvider);
           }
         },
@@ -213,7 +222,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
     final kind = _partKindFor(_section);
     if (kind == null) return const SizedBox.shrink();
-    final options = bag.of(kind);
+    final options = shopSort.applyOptions(bag.of(kind));
     if (options.isEmpty) {
       return WhimsicalEmpty(
         title: kind.emptyTitle,
@@ -240,7 +249,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               final next = [...options];
               final item = next.removeAt(oldIndex);
               next.insert(nextIndex, item);
-              await _savePartOrder(kind, next);
+              await _savePartOrder(kind, next, notify: false);
+              await _setShopSort(CatalogSort.manual, notify: false);
             },
             itemBuilder: (context, index) {
               final option = options[index];
@@ -261,26 +271,34 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  Future<void> _arrangeParts(PartKind kind, List<ProductOption> options, CatalogSort sort) {
-    return _savePartOrder(kind, sort.applyOptions(options));
+  Future<void> _arrangeParts(PartKind kind, List<ProductOption> options, CatalogSort sort) async {
+    final ordered = sort.applyOptions(options);
+    final ranked = await _setShopSort(sort, notify: false);
+    final saved = await _savePartOrder(kind, ordered, notify: false);
+    if (!ranked && !saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update the shop order. Try once more.')),
+      );
+    }
   }
 
-  Future<void> _savePartOrder(PartKind kind, List<ProductOption> ordered) async {
+  Future<bool> _savePartOrder(
+    PartKind kind,
+    List<ProductOption> ordered, {
+    bool notify = true,
+  }) async {
     try {
       await ref.read(productsRepositoryProvider).reorderParts(kind, ordered);
+      _invalidateCatalog(ref.read(myProfileProvider).valueOrNull?.shopSlug);
+      return true;
+    } catch (_) {
       ref.invalidate(ownerPartsProvider);
-      ref.invalidate(ownerProductsProvider);
-      final slug = ref.read(myProfileProvider).valueOrNull?.shopSlug;
-      if (slug != null && slug.isNotEmpty) {
-        ref.invalidate(publishedProductsProvider(slug));
-      }
-    } catch (error) {
-      if (mounted) {
+      if (notify && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          const SnackBar(content: Text('Could not update the shop order. Try once more.')),
         );
       }
-      ref.invalidate(ownerPartsProvider);
+      return false;
     }
   }
 
@@ -434,7 +452,7 @@ class _PartArrangeBar extends StatelessWidget {
         Text('Arrange this list', style: AppTypography.title),
         const SizedBox(height: 4),
         Text(
-          'Saves the drag order for ${kind.plural} when the shop uses “Your order”.',
+          'Sets the same order for ${kind.plural} in your catalog and the customer shop.',
           style: AppTypography.bodySmall,
         ),
         const SizedBox(height: 8),

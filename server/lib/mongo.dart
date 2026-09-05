@@ -113,9 +113,19 @@ Future<void> mongoSet(
   Map<String, dynamic> fields,
 ) async {
   final safe = bsonMap(fields);
+  if (safe.isEmpty) return;
+
+  ModifierBuilder modifierFor() {
+    var modifier = modify;
+    for (final entry in safe.entries) {
+      modifier = modifier.set(entry.key, entry.value);
+    }
+    return modifier;
+  }
+
   Future<void> write() async {
     await Mongo.instance.ensureOpen();
-    await collection.updateOne(where.eq('_id', id), {r'$set': safe});
+    await collection.update(where.eq('_id', id), modifierFor());
   }
 
   try {

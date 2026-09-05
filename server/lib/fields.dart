@@ -154,6 +154,7 @@ List<Map<String, dynamic>> parseOptions(Object? value) {
       'price': parseMoney(raw['price']) ?? 0,
       'image_url': image.isEmpty ? null : image,
       'stock': parseInt(raw['stock']),
+      'sort_order': parseInt(raw['sort_order'], fallback: out.length, max: 99999),
     });
   }
   return out;
@@ -196,6 +197,64 @@ String parseCatalogSort(Object? value) {
     'name_asc' || 'name' || 'az' => 'name_asc',
     _ => 'manual',
   };
+}
+
+String optionListKeyForKind(String kind) {
+  return switch (parsePartKind(kind)) {
+    'trinket' => 'trinkets',
+    'lettering' => 'letterings',
+    'rope' => 'ropes',
+    'special_trinket' => 'special_trinkets',
+    _ => 'paracords',
+  };
+}
+
+List<Map<String, dynamic>> reorderMapsByIds(Object? current, List<String> ids) {
+  if (current is! List) return const [];
+  final byId = <String, Map<String, dynamic>>{};
+  for (final raw in current) {
+    if (raw is! Map) continue;
+    final map = Map<String, dynamic>.from(raw);
+    final id = asString(map['id']);
+    if (id.isEmpty) continue;
+    byId.putIfAbsent(id, () => map);
+  }
+  if (byId.isEmpty) return const [];
+  final next = <Map<String, dynamic>>[];
+  void add(Map<String, dynamic> item) {
+    item['sort_order'] = next.length;
+    next.add(item);
+  }
+
+  for (final id in ids) {
+    final item = byId.remove(id);
+    if (item != null) add(item);
+  }
+  for (final item in byId.values) {
+    add(item);
+  }
+  return next;
+}
+
+Map<String, dynamic> applyCatalogSortToProductRow(Map<String, dynamic> row, String sort) {
+  final copy = Map<String, dynamic>.from(row);
+  for (final key in const [
+    'paracords',
+    'trinkets',
+    'letterings',
+    'ropes',
+    'special_trinkets',
+  ]) {
+    final list = copy[key];
+    if (list is! List) continue;
+    final options = [
+      for (final raw in list)
+        if (raw is Map) Map<String, dynamic>.from(raw),
+    ];
+    options.sort((a, b) => compareCatalogRows(a, b, sort));
+    copy[key] = options;
+  }
+  return copy;
 }
 
 int compareCatalogRows(Map<String, dynamic> a, Map<String, dynamic> b, String sort) {

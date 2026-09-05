@@ -120,10 +120,39 @@ class ProductsRepository {
       DemoMemoryStore.instance.reorderParts(kind, [for (final option in ordered) option.id]);
       return;
     }
-    await _api.post('/api/parts/reorder', {
-      'kind': kind.apiValue,
-      'ids': [for (final option in ordered) option.id],
-    });
+    final ids = [for (final option in ordered) option.id];
+    try {
+      await _api.post('/api/parts/reorder', {
+        'kind': kind.apiValue,
+        'ids': ids,
+      });
+    } catch (_) {
+      final wrote = await _fanOutPartOrder(kind, ordered);
+      if (!wrote) rethrow;
+    }
+  }
+
+  Future<bool> _fanOutPartOrder(PartKind kind, List<ProductOption> ordered) async {
+    final products = await _fetchMine();
+    var wrote = false;
+    for (final product in products) {
+      List<ProductOption> next(List<ProductOption> current) =>
+          CatalogSort.orderedByIds(current, [for (final option in ordered) option.id]);
+      final updated = product.copyWith(
+        paracords: kind == PartKind.paracord ? next(product.paracords) : product.paracords,
+        trinkets: kind == PartKind.trinket ? next(product.trinkets) : product.trinkets,
+        letterings: kind == PartKind.lettering ? next(product.letterings) : product.letterings,
+        ropes: kind == PartKind.rope ? next(product.ropes) : product.ropes,
+        specialTrinkets:
+            kind == PartKind.specialTrinket ? next(product.specialTrinkets) : product.specialTrinkets,
+        updatedAt: DateTime.now(),
+      );
+      try {
+        await upsert(updated);
+        wrote = true;
+      } catch (_) {}
+    }
+    return wrote;
   }
 
   Stream<PartsCatalog> watchParts() async* {

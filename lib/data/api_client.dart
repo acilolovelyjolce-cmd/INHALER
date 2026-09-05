@@ -71,12 +71,14 @@ class ApiClient {
   }
 
   Future<dynamic> post(String path, [Object? body]) async {
-    final response = await _http.post(
-      _uri(path),
-      headers: _headers(),
-      body: body == null ? null : _encode(body),
-    );
-    return _decode(response);
+    return _withRetry(() async {
+      final response = await _http.post(
+        _uri(path),
+        headers: _headers(),
+        body: body == null ? null : _encode(body),
+      );
+      return _decode(response);
+    });
   }
 
   Future<dynamic> put(String path, [Object? body]) async {

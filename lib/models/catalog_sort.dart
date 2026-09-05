@@ -69,4 +69,18 @@ enum CatalogSort {
     });
     return next;
   }
+
+  static List<ProductOption> orderedByIds(
+    Iterable<ProductOption> current,
+    Iterable<String> ids,
+  ) {
+    final byId = {for (final option in current) option.id: option};
+    final seen = <String>{};
+    return [
+      for (final id in ids)
+        if (byId[id] != null && seen.add(id)) byId[id]!,
+      for (final option in current)
+        if (seen.add(option.id)) option,
+    ];
+  }
 }

@@ -65,4 +65,46 @@ void main() {
     expect(parseCatalogSort('name_asc'), 'name_asc');
     expect(parseCatalogSort('az'), 'name_asc');
   });
+
+  test('reorderMapsByIds writes the owner arrange order onto product options', () {
+    final next = reorderMapsByIds(
+      [
+        {'id': 'c', 'name': 'Coral', 'price': 80, 'sort_order': 0},
+        {'id': 'a', 'name': 'Aqua', 'price': 20, 'sort_order': 1},
+        {'id': 'b', 'name': 'Berry', 'price': 40, 'sort_order': 2},
+      ],
+      ['a', 'b', 'c'],
+    );
+    expect([for (final row in next) row['id']], ['a', 'b', 'c']);
+    expect([for (final row in next) row['sort_order']], [0, 1, 2]);
+  });
+
+  test('reorderMapsByIds keeps options that were not in the arrange list', () {
+    final next = reorderMapsByIds(
+      [
+        {'id': 'keep', 'name': 'Keep'},
+        {'id': 'move', 'name': 'Move'},
+      ],
+      ['move'],
+    );
+    expect([for (final row in next) row['id']], ['move', 'keep']);
+  });
+
+  test('applyCatalogSortToProductRow sorts customer add-ons the same way', () {
+    final row = applyCatalogSortToProductRow(
+      {
+        'name': 'Baby Rex',
+        'price': 350,
+        'sort_order': 0,
+        'trinkets': [
+          {'id': 'rex', 'name': 'Baby Rex', 'price': 80, 'sort_order': 0},
+          {'id': 'star', 'name': 'Tiny Star', 'price': 20, 'sort_order': 1},
+        ],
+      },
+      'price_asc',
+    );
+    final trinkets = row['trinkets'] as List;
+    expect(trinkets.first['id'], 'star');
+    expect(trinkets.last['id'], 'rex');
+  });
 }

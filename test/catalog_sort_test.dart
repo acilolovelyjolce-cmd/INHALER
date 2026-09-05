@@ -41,4 +41,26 @@ void main() {
     expect(shop.catalogSort, 'manual');
     expect(CatalogSort.parse(shop.catalogSort), CatalogSort.manual);
   });
+
+  test('arrange cheapest is the same list in the owner catalog and customer shop', () {
+    final arranged = CatalogSort.priceAsc.applyOptions(demoTrinkets);
+    expect(arranged.first.price, lessThanOrEqualTo(arranged.last.price));
+    expect(
+      CatalogSort.priceAsc.applyOptions(arranged).map((item) => item.id),
+      arranged.map((item) => item.id),
+    );
+    expect(
+      CatalogSort.orderedByIds(demoTrinkets, [for (final item in arranged) item.id])
+          .map((item) => item.id),
+      arranged.map((item) => item.id),
+    );
+  });
+
+  test('orderedByIds keeps leftover options after the arranged ones', () {
+    final first = demoCords.first;
+    final ranked = CatalogSort.orderedByIds(demoCords, [first.id]);
+    expect(ranked.first.id, first.id);
+    expect(ranked.length, demoCords.length);
+    expect({for (final item in ranked) item.id}, {for (final item in demoCords) item.id});
+  });
 }

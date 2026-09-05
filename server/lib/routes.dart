@@ -151,15 +151,16 @@ Future<Response> _publishedProducts(Request request) async {
     for (final row in rows)
       if (_publishedFlag(row['is_published'])) row,
   ];
+  final sort = parseCatalogSort(owner['catalog_sort']);
   published.sort((a, b) => compareCatalogRows(
         Map<String, dynamic>.from(a),
         Map<String, dynamic>.from(b),
-        parseCatalogSort(owner['catalog_sort']),
+        sort,
       ));
   final encoded = <Map<String, dynamic>>[];
   for (final row in published) {
     try {
-      encoded.add(apiDoc(Map<String, dynamic>.from(row)));
+      encoded.add(apiDoc(applyCatalogSortToProductRow(Map<String, dynamic>.from(row), sort)));
     } catch (error, stack) {
       stderr.writeln('[whimsical] skip product ${row['_id']}: $error\n$stack');
     }
@@ -239,8 +240,7 @@ Future<Response> _updateMe(Request request) async {
   }
   final shopName = cleanLine(body['shop_name'] ?? owner['shop_name'], max: 80);
   if (shopName.isEmpty) return jsonError(400, 'Name is required');
-  final next = {
-    ...owner,
+  final fields = {
     'shop_name': shopName,
     'shop_slug': slug,
     'bio': cleanOptional(body.containsKey('bio') ? body['bio'] : owner['bio'], max: 600, multiline: true),
@@ -252,22 +252,39 @@ Future<Response> _updateMe(Request request) async {
     'ewallet_qr_url': body.containsKey('ewallet_qr_url') ? body['ewallet_qr_url'] : owner['ewallet_qr_url'],
     'contact_info': body.containsKey('contact_info')
         ? parseContact(body['contact_info'])
-        : owner['contact_info'],
+        : parseContact(owner['contact_info']),
     'catalog_sort': parseCatalogSort(
       body.containsKey('catalog_sort') ? body['catalog_sort'] : owner['catalog_sort'],
     ),
     'updated_at': now,
   };
-  await Mongo.instance.owners.replaceOne(where.eq('_id', owner['_id']), next);
+  try {
+    await mongoSet(Mongo.instance.owners, owner['_id'], fields);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] update me: $error\n$stack');
+    await mongoUpsert(Mongo.instance.owners, owner['_id'], {
+      ...bsonMap(Map<String, dynamic>.from(owner)),
+      ...fields,
+      '_id': owner['_id'],
+    });
+  }
   if (slug != owner['shop_slug']) {
     final products = await _productsForOwner(owner['_id'] as Object);
     for (final product in products) {
-      product['shop_slug'] = slug;
-      product['updated_at'] = now;
-      await Mongo.instance.products.replaceOne(where.eq('_id', product['_id']), product);
+      final id = product['_id'];
+      if (id == null) continue;
+      try {
+        await mongoSet(Mongo.instance.products, id, {
+          'shop_slug': slug,
+          'updated_at': now,
+        });
+      } catch (error, stack) {
+        stderr.writeln('[whimsical] update shop slug on $id: $error\n$stack');
+      }
     }
   }
-  return jsonOk(apiDoc(next));
+  final saved = await Mongo.instance.owners.findOne(where.eq('_id', owner['_id']));
+  return jsonOk(apiDoc(Map<String, dynamic>.from(saved ?? {...owner, ...fields})));
 }
 
 Future<Response> _uploadLogo(Request request) async {
@@ -295,14 +312,15 @@ Future<Response> _uploadWalletQr(Request request) async {
 Future<Response> _myProducts(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
-  final rows = await Mongo.instance.products.find(where.eq('owner_id', owner['_id'])).toList();
-  rows.sort((a, b) {
-    final aOrder = parseInt(a['sort_order'], fallback: 0, max: 99999);
-    final bOrder = parseInt(b['sort_order'], fallback: 0, max: 99999);
-    return aOrder.compareTo(bOrder);
-  });
+  final rows = await _productsForOwner(owner['_id'] as Object);
+  final sort = parseCatalogSort(owner['catalog_sort']);
+  rows.sort((a, b) => compareCatalogRows(
+        Map<String, dynamic>.from(a),
+        Map<String, dynamic>.from(b),
+        sort,
+      ));
   return jsonOk([
-    for (final row in rows) apiDoc(Map<String, dynamic>.from(row)),
+    for (final row in rows) apiDoc(applyCatalogSortToProductRow(Map<String, dynamic>.from(row), sort)),
   ]);
 }
 
@@ -552,6 +570,14 @@ Future<Response> _myParts(Request request) async {
   final owner = await ownerFromRequest(request);
   if (owner == null) return jsonError(401, 'Sign in required');
   final options = await _partOptions(owner['_id']);
+  final sort = parseCatalogSort(owner['catalog_sort']);
+  if (sort != 'manual') {
+    options.paracords.sort((a, b) => compareCatalogRows(a, b, sort));
+    options.trinkets.sort((a, b) => compareCatalogRows(a, b, sort));
+    options.letterings.sort((a, b) => compareCatalogRows(a, b, sort));
+    options.ropes.sort((a, b) => compareCatalogRows(a, b, sort));
+    options.specialTrinkets.sort((a, b) => compareCatalogRows(a, b, sort));
+  }
   return jsonOk(options.json);
 }
 
@@ -705,23 +731,81 @@ Future<Response> _reorderParts(Request request) async {
     for (final raw in body['ids'] is List ? body['ids'] as List : const [])
       asString(raw),
   ].where((id) => id.isNotEmpty).toList();
+  if (ids.isEmpty) return jsonOk({'ok': true});
   final now = DateTime.now().toUtc();
-  for (var i = 0; i < ids.length; i++) {
-    final existing = await Mongo.instance.parts.findOne(where.eq('_id', ids[i]));
-    if (existing == null || !sameId(existing['owner_id'], owner['_id'])) continue;
-    if (parsePartKind(existing['kind']) != kind) continue;
-    await mongoSet(Mongo.instance.parts, existing['_id'], {
-      'sort_order': i,
-      'updated_at': now,
-    });
+  final ownerId = owner['_id'] as Object;
+  try {
+    final owned = await _partsForOwner(ownerId);
+    final byId = <String, Map<String, dynamic>>{
+      for (final row in owned)
+        if (parsePartKind(row['kind']) == kind) asString(row['_id']): Map<String, dynamic>.from(row),
+    };
+    for (var i = 0; i < ids.length; i++) {
+      final existing = byId[ids[i]];
+      if (existing == null) continue;
+      final id = existing['_id'];
+      if (id == null) continue;
+      try {
+        await Mongo.instance.parts.update(
+          where.eq('_id', id),
+          modify.set('sort_order', i).set('updated_at', now),
+        );
+      } catch (error, stack) {
+        stderr.writeln('[whimsical] reorder part $id: $error\n$stack');
+      }
+    }
+    await _applyPartOrderToProducts(ownerId, kind, ids);
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] reorder parts: $error\n$stack');
+    try {
+      await _applyPartOrderToProducts(ownerId, kind, ids);
+    } catch (retryError, retryStack) {
+      stderr.writeln('[whimsical] reorder parts on products: $retryError\n$retryStack');
+    }
   }
-  await _attachParts(owner['_id'] as Object);
-  return jsonOk({'ok': true});
+  return jsonOk({'ok': true, 'kind': kind, 'ids': ids});
+}
+
+Future<List<Map<String, dynamic>>> _partsForOwner(Object ownerId) async {
+  var rows = await Mongo.instance.parts.find(where.eq('owner_id', ownerId)).toList();
+  if (rows.isEmpty) {
+    final asText = asString(ownerId);
+    if (asText.isNotEmpty && asText != ownerId) {
+      rows = await Mongo.instance.parts.find(where.eq('owner_id', asText)).toList();
+    }
+  }
+  return rows;
+}
+
+Future<void> _applyPartOrderToProducts(Object ownerId, String kind, List<String> ids) async {
+  final key = optionListKeyForKind(kind);
+  final products = await _productsForOwner(ownerId);
+  final now = DateTime.now().toUtc();
+  for (final product in products) {
+    final id = product['_id'];
+    if (id == null) continue;
+    final next = reorderMapsByIds(product[key], ids);
+    if (next.isEmpty) continue;
+    try {
+      await Mongo.instance.products.update(
+        where.eq('_id', id),
+        modify.set(key, next).set('updated_at', now),
+      );
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] reorder $key on $id: $error\n$stack');
+      try {
+        await mongoSet(Mongo.instance.products, id, {key: next, 'updated_at': now});
+      } catch (retryError, retryStack) {
+        stderr.writeln('[whimsical] reorder $key fallback $id: $retryError\n$retryStack');
+      }
+    }
+  }
 }
 
 Future<void> _attachParts(Object ownerId) async {
   try {
     final options = await _partOptions(ownerId);
+    if (!options.hasAny) return;
     var products = await _productsForOwner(ownerId);
     if (products.isEmpty) return;
     final fields = {
