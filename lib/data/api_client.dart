@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -61,15 +62,19 @@ class ApiClient {
     };
   }
 
+  static const _timeout = Duration(seconds: 12);
+
   Future<dynamic> get(String path, {bool auth = true}) async {
     final key = '${auth ? '1' : '0'}:$path';
     return _inflightGets.putIfAbsent(key, () async {
       try {
         return await _withRetry(() async {
-          final response = await _http.get(
-            _uri(path),
-            headers: _headers(json: false, auth: auth),
-          );
+          final response = await _http
+              .get(
+                _uri(path),
+                headers: _headers(json: false, auth: auth),
+              )
+              .timeout(_timeout);
           return _decode(response);
         });
       } finally {
@@ -80,66 +85,74 @@ class ApiClient {
 
   Future<dynamic> post(String path, [Object? body]) async {
     return _withRetry(() async {
-      final response = await _http.post(
-        _uri(path),
-        headers: _headers(),
-        body: body == null ? null : _encode(body),
-      );
+      final response = await _http
+          .post(
+            _uri(path),
+            headers: _headers(),
+            body: body == null ? null : _encode(body),
+          )
+          .timeout(_timeout);
       return _decode(response);
-    });
+    }, attempts: 2);
   }
 
   Future<dynamic> put(String path, [Object? body]) async {
     return _withRetry(() async {
-      final response = await _http.put(
-        _uri(path),
-        headers: _headers(),
-        body: body == null ? null : _encode(body),
-      );
+      final response = await _http
+          .put(
+            _uri(path),
+            headers: _headers(),
+            body: body == null ? null : _encode(body),
+          )
+          .timeout(_timeout);
       return _decode(response);
-    });
+    }, attempts: 2);
   }
 
   Future<dynamic> delete(String path) async {
     return _withRetry(() async {
-      final response = await _http.delete(_uri(path), headers: _headers(json: false));
+      final response = await _http
+          .delete(_uri(path), headers: _headers(json: false))
+          .timeout(_timeout);
       return _decode(response);
-    });
+    }, attempts: 2);
   }
 
   Future<String> upload(String path, Uint8List bytes, {String contentType = 'image/jpeg'}) async {
     return _withRetry(() async {
-      final response = await _http.post(
-        _uri(path),
-        headers: {
-          'Content-Type': contentType,
-          if (SessionStore.instance.token != null)
-            'Authorization': 'Bearer ${SessionStore.instance.token}',
-        },
-        body: bytes,
-      );
+      final response = await _http
+          .post(
+            _uri(path),
+            headers: {
+              'Content-Type': contentType,
+              if (SessionStore.instance.token != null)
+                'Authorization': 'Bearer ${SessionStore.instance.token}',
+            },
+            body: bytes,
+          )
+          .timeout(_timeout);
       final decoded = _decode(response);
       if (decoded is Map && decoded['url'] is String) {
         return decoded['url'] as String;
       }
       throw ApiException('Upload did not return a url');
-    });
+    }, attempts: 2);
   }
 
-  Future<T> _withRetry<T>(Future<T> Function() run) async {
+  Future<T> _withRetry<T>(Future<T> Function() run, {int attempts = 3}) async {
     Object? last;
-    for (var attempt = 0; attempt < 3; attempt++) {
+    for (var attempt = 0; attempt < attempts; attempt++) {
       try {
         return await run();
       } on ApiException catch (error) {
         last = error;
         final status = error.status ?? 0;
-        if (status < 500 || attempt == 2) rethrow;
+        if (status < 500 || attempt == attempts - 1) rethrow;
       } catch (error) {
         last = error;
-        if (attempt == 2) rethrow;
+        if (attempt == attempts - 1) rethrow;
       }
-      await Future<void>.delayed(Duration(milliseconds: 200 * (attempt + 1)));
+      await Future<void>.delayed(Duration(milliseconds: 160 * (attempt + 1)));
     }
     throw last!;
   }

@@ -137,6 +137,19 @@ class OrdersRepository {
     await _api.put('/api/orders/${order.id}', order.toJson());
   }
 
+  Future<void> updateStatus(OrderRequest order) async {
+    if (AppConfig.useDemo) {
+      await update(order);
+      return;
+    }
+    final json = order.toJson();
+    await _api.put('/api/orders/${order.id}', {
+      'status': json['status'],
+      'payment_status': json['payment_status'],
+      'payment_method': json['payment_method'],
+    });
+  }
+
   Future<void> delete(String id) async {
     if (AppConfig.useDemo) {
       final store = DemoMemoryStore.instance;

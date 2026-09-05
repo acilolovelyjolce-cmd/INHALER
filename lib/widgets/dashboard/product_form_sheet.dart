@@ -130,9 +130,8 @@ class _ProductFormSheetState extends ConsumerState<ProductFormSheet> {
         updatedAt: now,
       );
       await ref.read(productsRepositoryProvider).upsert(product);
-      ref.invalidate(ownerProductsProvider);
-      ref.invalidate(ownerPartsProvider);
       if (mounted) Navigator.of(context).pop(true);
+      ref.invalidate(ownerProductsProvider);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

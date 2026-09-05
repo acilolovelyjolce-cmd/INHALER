@@ -31,6 +31,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
   late final TextEditingController _notes;
   late List<_ItemDraft> _items;
   var _busy = false;
+  Future<void> _pending = Future<void>.value();
 
   @override
   void initState() {
@@ -60,25 +61,57 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
   double get _draftTotal =>
       _draftItems.fold<double>(0, (sum, item) => sum + item.priceAtOrder * item.quantity);
 
-  Future<void> _save(OrderRequest next) async {
+  Future<void> _save(OrderRequest next, {bool quiet = false}) async {
     final previous = _order;
     setState(() {
-      _busy = true;
+      if (!quiet) _busy = true;
       _order = next;
     });
+    ref.read(orderOverlaysProvider.notifier).put(next);
+    if (quiet) {
+      _pending = _pending.then((_) => _persist(next, previous, quiet: true));
+      return;
+    }
+    await _persist(next, previous, quiet: false);
+  }
+
+  Future<void> _persist(
+    OrderRequest next,
+    OrderRequest previous, {
+    required bool quiet,
+  }) async {
     try {
-      await ref.read(ordersRepositoryProvider).update(next);
-      ref.invalidate(ownerProductsProvider);
-      ref.invalidate(ordersInboxProvider);
+      final repo = ref.read(ordersRepositoryProvider);
+      if (quiet) {
+        await repo.updateStatus(next);
+      } else {
+        await repo.update(next);
+      }
+      final stockMoved = previous.status != next.status &&
+          (previous.status == OrderStatus.cancelled || next.status == OrderStatus.cancelled);
+      final itemsMoved = previous.items.length != next.items.length ||
+          previous.items.asMap().entries.any((entry) {
+            if (entry.key >= next.items.length) return true;
+            final item = next.items[entry.key];
+            return entry.value.productId != item.productId ||
+                entry.value.quantity != item.quantity;
+          });
+      if (stockMoved || itemsMoved) {
+        ref.invalidate(ownerProductsProvider);
+      }
     } catch (e) {
-      if (mounted) {
+      final overlay = ref.read(orderOverlaysProvider).updates[next.id];
+      if (overlay == null || overlay.updatedAt == next.updatedAt) {
+        ref.read(orderOverlaysProvider.notifier).put(previous);
+      }
+      if (mounted && _order.updatedAt == next.updatedAt) {
         setState(() => _order = previous);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString())),
         );
       }
     }
-    if (mounted) setState(() => _busy = false);
+    if (mounted && !quiet) setState(() => _busy = false);
   }
 
   Future<void> _saveDetails() async {
@@ -157,7 +190,10 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
           const SizedBox(height: 12),
           _Stepper(
             current: _order.status,
-            onSelect: (status) => _save(_order.copyWith(status: status, updatedAt: DateTime.now())),
+            onSelect: (status) => _save(
+              _order.copyWith(status: status, updatedAt: DateTime.now()),
+              quiet: true,
+            ),
           ),
           const SizedBox(height: 12),
           Align(
@@ -165,6 +201,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
             child: TextButton(
               onPressed: () => _save(
                 _order.copyWith(status: OrderStatus.cancelled, updatedAt: DateTime.now()),
+                quiet: true,
               ),
               child: const Text('Cancel request'),
             ),
@@ -193,8 +230,10 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
                 ChoiceChip(
                   label: Text(pay.label),
                   selected: _order.paymentStatus == pay,
-                  onSelected: (_) =>
-                      _save(_order.copyWith(paymentStatus: pay, updatedAt: DateTime.now())),
+                  onSelected: (_) => _save(
+                    _order.copyWith(paymentStatus: pay, updatedAt: DateTime.now()),
+                    quiet: true,
+                  ),
                 ),
             ],
           ),
@@ -208,6 +247,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
                   selected: _order.paymentMethod == method,
                   onSelected: (_) => _save(
                     _order.copyWith(paymentMethod: method, updatedAt: DateTime.now()),
+                    quiet: true,
                   ),
                 ),
             ],
@@ -216,7 +256,7 @@ class _OrderDetailSheetState extends ConsumerState<OrderDetailSheet> {
           Text('Items', style: AppTypography.title),
           const SizedBox(height: 6),
           Text(
-            'Change the name, quantity, or peso amount. Save changes writes it to the request and the till.',
+            'Change the name, quantity, or peso amount. Paid orders appear in the till.',
             style: AppTypography.bodySmall,
           ),
           const SizedBox(height: 10),

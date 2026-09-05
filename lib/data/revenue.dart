@@ -117,7 +117,9 @@ abstract final class Revenue {
       window: window,
       orders: [
         for (final order in inside)
-          if (order.status != OrderStatus.cancelled) order,
+          if (order.status != OrderStatus.cancelled &&
+              order.paymentStatus == PaymentStatus.paid)
+            order,
       ],
       cancelled: [
         for (final order in inside)

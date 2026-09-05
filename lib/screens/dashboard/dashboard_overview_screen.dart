@@ -17,7 +17,7 @@ class DashboardOverviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(ordersInboxProvider);
+    final orders = ref.watch(liveOrdersProvider);
     final profile = ref.watch(myProfileProvider);
 
     return orders.when(
@@ -112,6 +112,7 @@ class DashboardOverviewScreen extends ConsumerWidget {
                                 .where((order) {
                                   final day = order.createdAt.toLocal();
                                   return order.status != OrderStatus.cancelled &&
+                                      order.paymentStatus == PaymentStatus.paid &&
                                       day.year == now.year &&
                                       day.month == now.month &&
                                       day.day == now.day;

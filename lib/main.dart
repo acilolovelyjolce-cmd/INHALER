@@ -9,6 +9,8 @@ import 'widgets/deep_link_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache.maximumSize = 220;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20;
   await SessionStore.instance.load();
   runApp(const ProviderScope(child: WhimsicalApp()));
 }

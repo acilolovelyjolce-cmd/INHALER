@@ -19,7 +19,7 @@ class RevenueScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final inbox = ref.watch(ordersInboxProvider);
+    final inbox = ref.watch(liveOrdersProvider);
     return inbox.when(
       skipLoadingOnReload: true,
       skipLoadingOnRefresh: true,
@@ -142,7 +142,7 @@ class _RevenueTillState extends ConsumerState<RevenueTill> {
                 const WhimsicalEmpty(
                   title: 'Quiet stretch',
                   body:
-                      'No guest takes landed in this window. Cancelled requests, if any, sit at the bottom and never enter the total.',
+                      'No paid orders in this window yet. Accepted unpaid requests stay in Requests until you mark them paid.',
                 )
               else ...[
                 Text(
@@ -228,15 +228,11 @@ class _TotalCard extends StatelessWidget {
                 label: '${Formatters.php(report.collected)} in',
                 color: AppColors.meadow,
               ),
-              WhimsicalBadge(
-                label: '${Formatters.php(report.open)} waiting',
-                color: AppColors.petal,
-              ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Paid guests are “in”. Unpaid and partial still sit in the take so you can see what was requested. Cancelled never counts. Remove a test request and it leaves the till completely.',
+            'Only paid orders sit in the till. Accepted but unpaid requests stay in Requests until you mark them paid. Cancelled never counts.',
             style: AppTypography.bodySmall.copyWith(height: 1.45),
           ),
         ],

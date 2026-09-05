@@ -80,7 +80,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+              padding: const EdgeInsets.fromLTRB(16, 0, 12, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -94,6 +94,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                           style: AppTypography.displayMedium,
                         ),
                       ),
+                      WhimsicalButton(
+                        label: _partKindFor(_section)?.addLabel ?? 'Add inhaler',
+                        icon: Icons.add,
+                        compact: true,
+                        onPressed: () => _openAdd(context),
+                      ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == 'bulk') _bulk(context, ref, shown);
@@ -104,46 +110,36 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              for (final section in _CatalogSection.values) ...[
-                                ChoiceChip(
-                                  label: Text(switch (section) {
-                                    _CatalogSection.inhalers => 'Inhalers',
-                                    _CatalogSection.paracords => 'Paracords',
-                                    _CatalogSection.trinkets => 'Trinkets',
-                                    _CatalogSection.letterings => 'Letterings',
-                                    _CatalogSection.ropes => 'Ropes',
-                                    _CatalogSection.specialTrinkets => 'Special trinkets',
-                                  }),
-                                  selected: _section == section,
-                                  onSelected: (_) => setState(() => _section = section),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                            ],
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final section in _CatalogSection.values) ...[
+                          ChoiceChip(
+                            label: Text(switch (section) {
+                              _CatalogSection.inhalers => 'Inhalers',
+                              _CatalogSection.paracords => 'Paracords',
+                              _CatalogSection.trinkets => 'Trinkets',
+                              _CatalogSection.letterings => 'Letterings',
+                              _CatalogSection.ropes => 'Ropes',
+                              _CatalogSection.specialTrinkets => 'Special trinkets',
+                            }),
+                            selected: _section == section,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            onSelected: (_) => setState(() => _section = section),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      WhimsicalButton(
-                        label: _partKindFor(_section)?.addLabel ?? 'Add inhaler',
-                        icon: Icons.add,
-                        compact: true,
-                        onPressed: () => _openAdd(context),
-                      ),
-                    ],
+                          const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   CatalogSortPicker(
                     value: shopSort,
-                    onChanged: _onShopSort,
+                    compact: true,
+                    onChanged: (sort) => _onShopSort(sort, shown, bag),
                   ),
                 ],
               ),
@@ -155,28 +151,42 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  void _onShopSort(CatalogSort sort) {
-    setState(() => _sortOverride = sort);
+  void _onShopSort(CatalogSort sort, List<Product> products, PartsCatalog bag) {
+    setState(() {
+      _sortOverride = sort;
+      _productsOverride = sort.apply(products);
+      _partsOverride = PartsCatalog(
+        paracords: sort.applyOptions(bag.paracords),
+        trinkets: sort.applyOptions(bag.trinkets),
+        letterings: sort.applyOptions(bag.letterings),
+        ropes: sort.applyOptions(bag.ropes),
+        specialTrinkets: sort.applyOptions(bag.specialTrinkets),
+      );
+    });
     unawaited(_persistShopSort(sort));
   }
 
-  Future<bool> _persistShopSort(CatalogSort sort, {bool notify = false}) async {
-    final profile = ref.read(myProfileProvider).valueOrNull;
-    if (profile == null) return false;
-    if (profile.catalogSort == sort.apiValue) return true;
+  Future<void> _persistShopSort(CatalogSort sort) async {
+    final gen = ++_saveGen;
     try {
-      await ref.read(ownerRepositoryProvider).upsert(
-            profile.copyWith(catalogSort: sort.apiValue),
-          );
-      _refreshShop(profile.shopSlug);
-      return true;
-    } catch (_) {
-      if (notify && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update the shop order. Try once more.')),
-        );
+      final arranged = await ref.read(productsRepositoryProvider).arrangeCatalog(sort);
+      if (!arranged) {
+        final profile = ref.read(myProfileProvider).valueOrNull;
+        if (profile != null) {
+          await ref.read(ownerRepositoryProvider).upsert(
+                profile.copyWith(catalogSort: sort.apiValue),
+              );
+        }
       }
-      return false;
+      if (gen != _saveGen || !mounted) return;
+      _refreshShop(ref.read(myProfileProvider).valueOrNull?.shopSlug);
+    } catch (_) {
+      if (gen != _saveGen || !mounted) return;
+      setState(() {
+        _sortOverride = null;
+        _productsOverride = null;
+        _partsOverride = null;
+      });
     }
   }
 
@@ -196,7 +206,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       }
       return ReorderableListView.builder(
         buildDefaultDragHandles: false,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
         itemCount: products.length,
         onReorder: (oldIndex, newIndex) async {
           var nextIndex = newIndex;
@@ -239,63 +249,36 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         body: kind.emptyBody,
       );
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          child: _PartArrangeBar(
-            kind: kind,
-            onArrange: (sort) => _arrangeParts(kind, bag, options, sort),
+    return ReorderableListView.builder(
+      buildDefaultDragHandles: false,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+      itemCount: options.length,
+      onReorder: (oldIndex, newIndex) async {
+        var nextIndex = newIndex;
+        if (nextIndex > oldIndex) nextIndex--;
+        final next = [...options];
+        final item = next.removeAt(oldIndex);
+        next.insert(nextIndex, item);
+        setState(() {
+          _partsOverride = bag.withKind(kind, next);
+          _sortOverride = CatalogSort.manual;
+        });
+        unawaited(_persistPartOrder(kind, next, CatalogSort.manual));
+      },
+      itemBuilder: (context, index) {
+        final option = options[index];
+        return _PartRow(
+          key: ValueKey(option.id),
+          index: index,
+          option: option,
+          onEdit: () => showWhimsicalSheet(
+            context: context,
+            builder: (_) => PartFormSheet(kind: kind, existing: option),
           ),
-        ),
-        Expanded(
-          child: ReorderableListView.builder(
-            buildDefaultDragHandles: false,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-            itemCount: options.length,
-            onReorder: (oldIndex, newIndex) async {
-              var nextIndex = newIndex;
-              if (nextIndex > oldIndex) nextIndex--;
-              final next = [...options];
-              final item = next.removeAt(oldIndex);
-              next.insert(nextIndex, item);
-              setState(() {
-                _partsOverride = bag.withKind(kind, next);
-                _sortOverride = CatalogSort.manual;
-              });
-              unawaited(_persistPartOrder(kind, next, CatalogSort.manual));
-            },
-            itemBuilder: (context, index) {
-              final option = options[index];
-              return _PartRow(
-                key: ValueKey(option.id),
-                index: index,
-                option: option,
-                onEdit: () => showWhimsicalSheet(
-                  context: context,
-                  builder: (_) => PartFormSheet(kind: kind, existing: option),
-                ),
-                onDelete: () => _deletePart(context, option),
-              );
-            },
-          ),
-        ),
-      ],
+          onDelete: () => _deletePart(context, option),
+        );
+      },
     );
-  }
-
-  Future<void> _arrangeParts(
-    PartKind kind,
-    PartsCatalog bag,
-    List<ProductOption> options,
-    CatalogSort sort,
-  ) async {
-    final ordered = sort.applyOptions(options);
-    setState(() {
-      _sortOverride = sort;
-      _partsOverride = bag.withKind(kind, ordered);
-    });
-    unawaited(_persistPartOrder(kind, ordered, sort));
   }
 
   Future<void> _persistProductOrder(List<Product> ordered) async {
@@ -477,40 +460,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 }
 
-class _PartArrangeBar extends StatelessWidget {
-  const _PartArrangeBar({required this.kind, required this.onArrange});
-
-  final PartKind kind;
-  final ValueChanged<CatalogSort> onArrange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Arrange this list', style: AppTypography.title),
-        const SizedBox(height: 4),
-        Text(
-          'Sets the same order for ${kind.plural} in your catalog and the customer shop.',
-          style: AppTypography.bodySmall,
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final sort in const [CatalogSort.priceAsc, CatalogSort.priceDesc, CatalogSort.nameAsc])
-              ActionChip(
-                label: Text(sort.label),
-                onPressed: () => onArrange(sort),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 class _PartRow extends StatelessWidget {
   const _PartRow({
     super.key,
@@ -548,7 +497,7 @@ class _PartRow extends StatelessWidget {
                     height: 64,
                     child: option.imageUrl == null
                         ? const ColoredBox(color: AppColors.blush)
-                        : SmartProductImage(url: option.imageUrl!),
+                        : SmartProductImage(url: option.imageUrl!, cacheWidth: 160),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -643,7 +592,7 @@ class _ProductRow extends StatelessWidget {
                     height: 72,
                     child: product.imageUrls.isEmpty
                         ? const ColoredBox(color: AppColors.blush)
-                        : SmartProductImage(url: product.imageUrls.first),
+                        : SmartProductImage(url: product.imageUrls.first, cacheWidth: 160),
                   ),
                 ),
                 const SizedBox(width: 12),

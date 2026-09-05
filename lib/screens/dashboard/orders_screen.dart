@@ -31,7 +31,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final inbox = ref.watch(ordersInboxProvider);
+    final inbox = ref.watch(liveOrdersProvider);
 
     return inbox.when(
       skipLoadingOnReload: true,

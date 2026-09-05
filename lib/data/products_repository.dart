@@ -153,6 +153,20 @@ class ProductsRepository {
     }
   }
 
+  Future<bool> arrangeCatalog(CatalogSort sort) async {
+    if (AppConfig.useDemo) {
+      DemoMemoryStore.instance.applyShopSort(sort);
+      return true;
+    }
+    try {
+      await _api.post('/api/catalog/sort', {'catalog_sort': sort.apiValue});
+      return true;
+    } on ApiException catch (error) {
+      if (error.status == 404) return false;
+      rethrow;
+    }
+  }
+
   Future<bool> _fanOutPartOrder(PartKind kind, List<ProductOption> ordered) async {
     final products = await _fetchMine();
     var wrote = false;

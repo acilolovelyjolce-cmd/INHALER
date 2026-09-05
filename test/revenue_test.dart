@@ -53,14 +53,31 @@ void main() {
     _order(id: 'august', name: 'Heart Dizon', at: DateTime(2026, 8, 12, 10, 0), total: 490),
   ];
 
-  test('today excludes yesterday, cancelled, and counts unpaid in the take', () {
+  test('today excludes yesterday, cancelled, and unpaid accepted requests', () {
     final report = Revenue.of(orders, Revenue.windowFor(RevenuePeriod.today, now: now));
-    expect(report.orders.map((o) => o.customerName), ['Mika Santos', 'Lia Park']);
-    expect(report.take, 1020);
+    expect(report.orders.map((o) => o.customerName), ['Lia Park']);
+    expect(report.take, 450);
     expect(report.collected, 450);
-    expect(report.open, 570);
+    expect(report.open, 0);
     expect(report.cancelled.single.customerName, 'Gio Reyes');
-    expect(report.pieces, 2);
+    expect(report.pieces, 1);
+  });
+
+  test('accepted but unpaid never enters the till', () {
+    final accepted = _order(
+      id: 'accepted-unpaid',
+      name: 'Jun Cruz',
+      at: DateTime(2026, 9, 2, 15, 0),
+      total: 380,
+      status: OrderStatus.confirmed,
+      pay: PaymentStatus.unpaid,
+    );
+    final report = Revenue.of(
+      [...orders, accepted],
+      Revenue.windowFor(RevenuePeriod.today, now: now),
+    );
+    expect(report.orders.any((order) => order.customerName == 'Jun Cruz'), isFalse);
+    expect(report.take, 450);
   });
 
   test('removing a guest from the list drops them from nest take', () {
@@ -83,9 +100,9 @@ void main() {
     final report = Revenue.of(orders, Revenue.windowFor(RevenuePeriod.week, now: now));
     expect(
       report.orders.map((o) => o.customerName).toSet(),
-      {'Mika Santos', 'Lia Park', 'Aya Lim'},
+      {'Lia Park', 'Aya Lim'},
     );
-    expect(report.take, 1620);
+    expect(report.take, 1050);
     expect(report.window.start, DateTime(2026, 8, 31));
     expect(report.window.end, DateTime(2026, 9, 7));
   });
@@ -127,9 +144,9 @@ void main() {
 
     expect(find.text('Till'), findsOneWidget);
     expect(find.text('NEST TAKE'), findsOneWidget);
-    expect(find.textContaining('₱1,020'), findsOneWidget);
-    expect(find.text('Mika Santos'), findsOneWidget);
-    expect(find.text('gift wrap'), findsOneWidget);
+    expect(find.textContaining('₱450'), findsWidgets);
+    expect(find.text('Mika Santos'), findsNothing);
+    expect(find.text('gift wrap'), findsNothing);
     expect(find.text('Lia Park'), findsOneWidget);
     expect(find.text('Gio Reyes'), findsOneWidget);
     expect(find.text('Cancelled · not in the total'), findsOneWidget);

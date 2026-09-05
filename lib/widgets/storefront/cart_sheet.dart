@@ -346,10 +346,10 @@ class _CheckoutFormState extends ConsumerState<CheckoutForm> {
             honeypot: _honeypot.text,
             paymentMethod: widget.method,
           );
-      ref.invalidate(publishedProductsProvider(widget.slug));
       ref.read(cartProvider.notifier).clear();
       ref.read(submitLockProvider.notifier).lock();
       if (mounted) widget.onDone();
+      ref.invalidate(publishedProductsProvider(widget.slug));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

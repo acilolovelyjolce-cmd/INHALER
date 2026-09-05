@@ -94,9 +94,8 @@ class _PartFormSheetState extends ConsumerState<PartFormSheet> {
         stock: Validators.parseStock(_stock.text) ?? 0,
       );
       await ref.read(productsRepositoryProvider).upsertPart(option, kind: widget.kind);
-      ref.invalidate(ownerPartsProvider);
-      ref.invalidate(ownerProductsProvider);
       if (mounted) Navigator.of(context).pop(true);
+      ref.invalidate(ownerPartsProvider);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

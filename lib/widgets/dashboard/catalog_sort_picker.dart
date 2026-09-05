@@ -8,13 +8,37 @@ class CatalogSortPicker extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.compact = false,
   });
 
   final CatalogSort value;
   final ValueChanged<CatalogSort> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final chips = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final sort in CatalogSort.values) ...[
+            ChoiceChip(
+              label: Text(sort.label),
+              selected: value == sort,
+              onSelected: (_) => onChanged(sort),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+
+    if (compact) {
+      return chips;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -22,18 +46,7 @@ class CatalogSortPicker extends StatelessWidget {
         const SizedBox(height: 6),
         Text(value.help, style: AppTypography.bodySmall),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final sort in CatalogSort.values)
-              ChoiceChip(
-                label: Text(sort.label),
-                selected: value == sort,
-                onSelected: (_) => onChanged(sort),
-              ),
-          ],
-        ),
+        chips,
       ],
     );
   }

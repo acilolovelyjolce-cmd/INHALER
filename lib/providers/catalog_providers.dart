@@ -81,6 +81,63 @@ class OrdersInbox extends _$OrdersInbox {
   }
 }
 
+class OrderOverlayState {
+  const OrderOverlayState({
+    this.updates = const {},
+    this.hidden = const {},
+  });
+
+  final Map<String, OrderRequest> updates;
+  final Set<String> hidden;
+}
+
+class OrderOverlays extends Notifier<OrderOverlayState> {
+  @override
+  OrderOverlayState build() => const OrderOverlayState();
+
+  void put(OrderRequest order) {
+    state = OrderOverlayState(
+      updates: {...state.updates, order.id: order},
+      hidden: {...state.hidden}..remove(order.id),
+    );
+  }
+
+  void hide(String id) {
+    final updates = Map<String, OrderRequest>.from(state.updates)..remove(id);
+    state = OrderOverlayState(
+      updates: updates,
+      hidden: {...state.hidden, id},
+    );
+  }
+}
+
+final orderOverlaysProvider =
+    NotifierProvider<OrderOverlays, OrderOverlayState>(OrderOverlays.new);
+
+List<OrderRequest> applyOrderOverlays(
+  List<OrderRequest> orders,
+  OrderOverlayState overlays,
+) {
+  return [
+    for (final order in orders)
+      if (!overlays.hidden.contains(order.id))
+        overlays.updates[order.id] ?? order,
+  ];
+}
+
+final liveOrdersProvider = Provider<AsyncValue<List<OrderRequest>>>((ref) {
+  final overlays = ref.watch(orderOverlaysProvider);
+  final inbox = ref.watch(ordersInboxProvider);
+  final remote = inbox.valueOrNull;
+  if (remote != null) {
+    return AsyncData(applyOrderOverlays(remote, overlays));
+  }
+  if (inbox.hasError) {
+    return AsyncError(inbox.error!, inbox.stackTrace ?? StackTrace.empty);
+  }
+  return const AsyncLoading();
+});
+
 @Riverpod(keepAlive: true)
 class OrderCelebration extends _$OrderCelebration {
   @override

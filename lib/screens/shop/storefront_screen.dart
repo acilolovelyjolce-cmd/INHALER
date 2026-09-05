@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/api_client.dart';
 import '../../models/catalog_sort.dart';
+import '../../models/product.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/doodles/dino_mascot.dart';
@@ -57,7 +59,9 @@ class StorefrontScreen extends ConsumerWidget {
     final bio = shop?.bio;
     final headline = shop?.headline?.trim() ?? '';
     return AtelierBackdrop(
-      child: CustomScrollView(
+      child: _WarmShopImages(
+        products: catalog,
+        child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
             child: PageCanvas(
@@ -116,8 +120,40 @@ class StorefrontScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
   }
+}
+
+class _WarmShopImages extends StatefulWidget {
+  const _WarmShopImages({required this.products, required this.child});
+
+  final List<Product> products;
+  final Widget child;
+
+  @override
+  State<_WarmShopImages> createState() => _WarmShopImagesState();
+}
+
+class _WarmShopImagesState extends State<_WarmShopImages> {
+  var _warmed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_warmed) return;
+    _warmed = true;
+    for (final product in widget.products.take(8)) {
+      if (product.imageUrls.isEmpty) continue;
+      final url = ApiClient.resolveMedia(product.imageUrls.first);
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        precacheImage(NetworkImage(url), context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class StorefrontCartButton extends ConsumerWidget {

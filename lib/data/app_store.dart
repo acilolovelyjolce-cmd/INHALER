@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../models/catalog_sort.dart';
 import '../models/order_request.dart';
 import '../models/owner_profile.dart';
 import '../models/part_kind.dart';
@@ -86,6 +87,23 @@ class DemoMemoryStore {
     }
     attachParts();
     emitParts();
+  }
+
+  void applyShopSort(CatalogSort sort) {
+    owner = owner.copyWith(catalogSort: sort.apiValue);
+    emitOwner();
+    if (sort == CatalogSort.manual) return;
+    final ranked = sort.apply(products);
+    for (var i = 0; i < ranked.length; i++) {
+      final idx = products.indexWhere((item) => item.id == ranked[i].id);
+      if (idx >= 0) {
+        products[idx] = products[idx].copyWith(sortOrder: i, updatedAt: DateTime.now());
+      }
+    }
+    for (final kind in PartKind.values) {
+      reorderParts(kind, [for (final option in sort.applyOptions(_listFor(kind))) option.id]);
+    }
+    emitProducts();
   }
 
   void reorderParts(PartKind kind, List<String> ids) {

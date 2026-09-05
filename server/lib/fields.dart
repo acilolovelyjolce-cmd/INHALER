@@ -199,6 +199,18 @@ String parseCatalogSort(Object? value) {
   };
 }
 
+bool sameOrderItems(Object? left, Object? right) {
+  if (left is! List || right is! List || left.length != right.length) return false;
+  for (var i = 0; i < left.length; i++) {
+    final a = left[i];
+    final b = right[i];
+    if (a is! Map || b is! Map) return false;
+    if (asString(a['product_id']) != asString(b['product_id'])) return false;
+    if (parseInt(a['quantity']) != parseInt(b['quantity'])) return false;
+  }
+  return true;
+}
+
 String optionListKeyForKind(String kind) {
   return switch (parsePartKind(kind)) {
     'trinket' => 'trinkets',

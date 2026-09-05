@@ -42,6 +42,7 @@ Router buildRouter() {
     ..put('/api/parts/<id>', _upsertPart)
     ..delete('/api/parts/<id>', _deletePart)
     ..post('/api/parts/reorder', _reorderParts)
+    ..post('/api/catalog/sort', _sortCatalog)
     ..post('/api/files', _uploadFile)
     ..get('/api/files/<id>', _getFile);
   return router;
@@ -204,10 +205,17 @@ Future<Response> _submitOrder(Request request) async {
   final shortage = shortageMessage(products, doc['items']);
   if (shortage != null) return jsonError(409, shortage);
   applyOrderStock(products, doc['items'], sign: -1);
-  await _persistProducts(products);
-  await _writePartStocks(shop['_id'], products);
-
   await Mongo.instance.orders.insertOne(doc);
+  Future(() async {
+    try {
+      await Future.wait([
+        _persistProducts(products),
+        _writePartStocks(shop['_id'], products),
+      ]);
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] order stock after submit: $error\n$stack');
+    }
+  });
   return jsonOk(apiDoc(doc), status: 201);
 }
 
@@ -521,7 +529,7 @@ Future<Response> _updateOrder(Request request) async {
     'updated_at': DateTime.now().toUtc(),
   };
 
-  final itemsChanged = body.containsKey('items');
+  final itemsChanged = body.containsKey('items') && !sameOrderItems(existing['items'], nextItems);
   final wasCancelled = previousStatus == 'cancelled';
   final nowCancelled = nextStatus == 'cancelled';
   if ((!wasCancelled && nowCancelled) ||
@@ -546,11 +554,29 @@ Future<Response> _updateOrder(Request request) async {
       }
       applyOrderStock(products, nextItems, sign: -1);
     }
-    await _persistProducts(products);
-    await _writePartStocks(owner['_id'], products);
+    await Future.wait([
+      _persistProducts(products),
+      _writePartStocks(owner['_id'], products),
+    ]);
   }
 
-  await Mongo.instance.orders.replaceOne(where.eq('_id', id), next);
+  try {
+    await mongoSet(Mongo.instance.orders, existing['_id'] ?? id, {
+      'customer_name': next['customer_name'],
+      'customer_contact': next['customer_contact'],
+      'customer_note': next['customer_note'],
+      'items': next['items'],
+      'total_amount': next['total_amount'],
+      'status': next['status'],
+      'payment_status': next['payment_status'],
+      'payment_method': next['payment_method'],
+      'internal_notes': next['internal_notes'],
+      'updated_at': next['updated_at'],
+    });
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] update order $id: $error\n$stack');
+    await Mongo.instance.orders.replaceOne(where.eq('_id', existing['_id'] ?? id), next);
+  }
   return jsonOk(apiDoc(next));
 }
 
@@ -730,6 +756,79 @@ Future<_ShopParts> _partOptions(Object ownerId) async {
     ropes: ropeBag,
     specialTrinkets: specials,
   );
+}
+
+Future<Response> _sortCatalog(Request request) async {
+  final owner = await ownerFromRequest(request);
+  if (owner == null) return jsonError(401, 'Sign in required');
+  final body = await readJson(request);
+  final sort = parseCatalogSort(body['catalog_sort']);
+  final now = DateTime.now().toUtc();
+  final ownerId = owner['_id'] as Object;
+  try {
+    await mongoSet(Mongo.instance.owners, ownerId, {
+      'catalog_sort': sort,
+      'updated_at': now,
+    });
+  } catch (error, stack) {
+    stderr.writeln('[whimsical] catalog sort profile: $error\n$stack');
+  }
+  if (sort == 'manual') return jsonOk({'ok': true, 'catalog_sort': sort});
+
+  final products = await _productsForOwner(ownerId);
+  products.sort((a, b) => compareCatalogRows(
+        Map<String, dynamic>.from(a),
+        Map<String, dynamic>.from(b),
+        sort,
+      ));
+  await mapInBatches(List<int>.generate(products.length, (i) => i), (i) async {
+    final id = products[i]['_id'];
+    if (id == null) return;
+    try {
+      await Mongo.instance.products.update(
+        where.eq('_id', id),
+        modify.set('sort_order', i).set('updated_at', now),
+      );
+    } catch (error, stack) {
+      stderr.writeln('[whimsical] catalog sort product $id: $error\n$stack');
+    }
+  });
+
+  final options = await _partOptions(ownerId);
+  Future<void> rankKind(String kind, List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    rows.sort((a, b) => compareCatalogRows(a, b, sort));
+    final ids = [for (final row in rows) asString(row['id'])].where((id) => id.isNotEmpty).toList();
+    final owned = await _partsForOwner(ownerId);
+    final byId = {
+      for (final row in owned)
+        if (parsePartKind(row['kind']) == kind) asString(row['_id']): row,
+    };
+    await mapInBatches(List<int>.generate(ids.length, (i) => i), (i) async {
+      final existing = byId[ids[i]];
+      if (existing == null) return;
+      final id = existing['_id'];
+      if (id == null) return;
+      try {
+        await Mongo.instance.parts.update(
+          where.eq('_id', id),
+          modify.set('sort_order', i).set('updated_at', now),
+        );
+      } catch (error, stack) {
+        stderr.writeln('[whimsical] catalog sort part $id: $error\n$stack');
+      }
+    });
+    await _applyPartOrderToProducts(ownerId, kind, ids);
+  }
+
+  await Future.wait([
+    rankKind('paracord', options.paracords),
+    rankKind('trinket', options.trinkets),
+    rankKind('lettering', options.letterings),
+    rankKind('rope', options.ropes),
+    rankKind('special_trinket', options.specialTrinkets),
+  ]);
+  return jsonOk({'ok': true, 'catalog_sort': sort});
 }
 
 Future<Response> _reorderParts(Request request) async {
@@ -932,23 +1031,17 @@ Future<Response> _fileById(String id) async {
   final grid = GridFS(Mongo.instance.db);
   final file = await grid.findOne(where.id(objectId));
   if (file == null) return jsonError(404, 'File not found');
-  final builder = BytesBuilder(copy: false);
-  final chunks = await grid.chunks
-      .find(where.eq('files_id', file.id).sortBy('n'))
-      .toList();
-  for (final chunk in chunks) {
-    final data = chunk['data'];
-    if (data is BsonBinary) {
-      builder.add(data.byteList);
-    } else if (data is List<int>) {
-      builder.add(data);
-    }
-  }
+  final chunks = grid.chunks.find(where.eq('files_id', file.id).sortBy('n'));
   return Response.ok(
-    builder.takeBytes(),
+    chunks.map((chunk) {
+      final data = chunk['data'];
+      if (data is BsonBinary) return data.byteList;
+      if (data is List<int>) return data;
+      return const <int>[];
+    }),
     headers: {
       HttpHeaders.contentTypeHeader: file.contentType ?? 'image/jpeg',
-      HttpHeaders.cacheControlHeader: 'public, max-age=86400',
+      HttpHeaders.cacheControlHeader: 'public, max-age=604800, immutable',
     },
   );
 }

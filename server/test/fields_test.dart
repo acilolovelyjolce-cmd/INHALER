@@ -58,6 +58,18 @@ void main() {
     expect(parsePartKind(null), 'paracord');
   });
 
+  test('sameOrderItems ignores a status-only rewrite of the same cart', () {
+    final items = [
+      {'product_id': 'p1', 'quantity': 2, 'price_at_order': 40},
+    ];
+    expect(sameOrderItems(items, [
+      {'product_id': 'p1', 'quantity': 2, 'price_at_order': 80},
+    ]), isTrue);
+    expect(sameOrderItems(items, [
+      {'product_id': 'p1', 'quantity': 3},
+    ]), isFalse);
+  });
+
   test('parseCatalogSort maps shop display names', () {
     expect(parseCatalogSort(null), 'manual');
     expect(parseCatalogSort('cheapest'), 'price_asc');

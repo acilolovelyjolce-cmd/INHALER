@@ -81,7 +81,7 @@ class _ProductTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadii.image - 4),
                         child: product.imageUrls.isEmpty
                             ? const ColoredBox(color: AppColors.sky)
-                            : ContainedMedia(url: product.imageUrls.first, padding: 10),
+                            : ContainedMedia(url: product.imageUrls.first, padding: 10, cacheWidth: 360),
                       ),
                     ),
                   ),

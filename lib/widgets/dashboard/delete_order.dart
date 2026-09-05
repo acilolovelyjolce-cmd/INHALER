@@ -16,7 +16,7 @@ Future<bool> confirmAndDeleteOrder({
       return AlertDialog(
         title: const Text('Remove this request?'),
         content: Text(
-          '${order.customerName}’s order will leave Requests and the till. It will no longer count in nest take. This cannot be undone.',
+          '${order.customerName}’s order will leave Requests. If it was paid, it also leaves the till. This cannot be undone.',
           style: AppTypography.body,
         ),
         actions: [
@@ -35,9 +35,10 @@ Future<bool> confirmAndDeleteOrder({
   if (ok != true) return false;
   try {
     await ref.read(ordersRepositoryProvider).delete(order.id);
-    ref.invalidate(ordersInboxProvider);
-    ref.invalidate(ownerProductsProvider);
-    ref.invalidate(publishedProductsProvider(order.shopSlug));
+    ref.read(orderOverlaysProvider.notifier).hide(order.id);
+    if (order.status != OrderStatus.cancelled) {
+      ref.invalidate(ownerProductsProvider);
+    }
     return true;
   } catch (error) {
     if (context.mounted) {

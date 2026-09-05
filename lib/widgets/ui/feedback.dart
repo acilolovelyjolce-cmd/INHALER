@@ -243,10 +243,12 @@ class ProductImageView extends StatelessWidget {
     super.key,
     required this.url,
     this.fit = BoxFit.cover,
+    this.cacheWidth = 480,
   });
 
   final String url;
   final BoxFit fit;
+  final int cacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -265,8 +267,12 @@ class ProductImageView extends StatelessWidget {
       url,
       fit: fit,
       gaplessPlayback: true,
-      filterQuality: FilterQuality.medium,
-      cacheWidth: 480,
+      filterQuality: FilterQuality.low,
+      cacheWidth: cacheWidth,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return const ColoredBox(color: AppColors.blush);
+      },
       errorBuilder: (context, error, stack) => const ColoredBox(color: AppColors.blush),
     );
   }
@@ -278,10 +284,12 @@ class SmartProductImage extends StatelessWidget {
     super.key,
     required this.url,
     this.fit = BoxFit.contain,
+    this.cacheWidth = 480,
   });
 
   final String url;
   final BoxFit fit;
+  final int cacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +299,11 @@ class SmartProductImage extends StatelessWidget {
         fit: fit,
       );
     }
-    return ProductImageView(url: ApiClient.resolveMedia(url), fit: fit);
+    return ProductImageView(
+      url: ApiClient.resolveMedia(url),
+      fit: fit,
+      cacheWidth: cacheWidth,
+    );
   }
 }
 
@@ -302,11 +314,13 @@ class ContainedMedia extends StatelessWidget {
     required this.url,
     this.padding = 12,
     this.background = AppColors.cloud,
+    this.cacheWidth = 480,
   });
 
   final String url;
   final double padding;
   final Color background;
+  final int cacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +328,7 @@ class ContainedMedia extends StatelessWidget {
       color: background,
       child: Padding(
         padding: EdgeInsets.all(padding),
-        child: SmartProductImage(url: url, fit: BoxFit.contain),
+        child: SmartProductImage(url: url, fit: BoxFit.contain, cacheWidth: cacheWidth),
       ),
     );
   }

@@ -95,8 +95,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
       if (!mounted) return;
       ref.invalidate(myProfileProvider);
-      ref.invalidate(shopProfileProvider(_slug.text.trim()));
-      ref.invalidate(publishedProductsProvider(_slug.text.trim()));
+      if (_slug.text.trim() != current.shopSlug) {
+        ref.invalidate(shopProfileProvider(_slug.text.trim()));
+        ref.invalidate(publishedProductsProvider(_slug.text.trim()));
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
